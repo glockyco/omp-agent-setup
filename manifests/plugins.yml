@@ -11,5 +11,5 @@ plugins:
     upstream: https://github.com/backnotprop/plannotator.git
     fork: https://github.com/glockyco/plannotator.git
     branch: omp-local
-    currentCommit: 531625cc48c439c02e37e52cd18d8755089efe1e
-    purpose: Plannotator pi-extension with OMP loader and browser-asset fixes
+    currentCommit: dc27bb74633dff72b376601560f5224acf0770a6
+    purpose: Plannotator pi-extension with OMP loader, browser-asset fixes, and OMP internal URI resolution
