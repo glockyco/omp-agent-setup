@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runBootstrap, summarizeReport } from "./bootstrap.ts";
-import { loadManifest, type PluginSpec } from "./plugins.ts";
+import { loadManifest } from "./plugins.ts";
 import {
 	checkSkillLoader,
 	findExtensionError,
@@ -175,15 +175,37 @@ async function cmdUpdatePlugin(name: "superpowers" | "plannotator"): Promise<num
 		console.error(`Plugin ${name} not in manifest`);
 		return 1;
 	}
-	console.log(`Updating ${plugin.name} at ${plugin.pathExpanded} (branch ${plugin.branch})`);
-	const steps: PluginSpec = plugin;
-	await runGit(["-C", steps.pathExpanded, "status", "--short", "--branch"]);
-	await runGit(["-C", steps.pathExpanded, "fetch", "upstream"]);
-	await runGit(["-C", steps.pathExpanded, "fetch", "origin"]);
-	await runGit(["-C", steps.pathExpanded, "checkout", plugin.branch]);
+	const path = plugin.pathExpanded;
+	console.log(`Updating ${plugin.name} at ${path} (branch ${plugin.branch})`);
+
+	if (!(await runGitOk(["-C", path, "diff", "--quiet"]))) {
+		console.error(`Working tree at ${path} has uncommitted changes; commit or stash first.`);
+		return 1;
+	}
+	if (!(await runGitOk(["-C", path, "diff", "--cached", "--quiet"]))) {
+		console.error(`Index at ${path} has staged changes; commit or stash first.`);
+		return 1;
+	}
+
+	await runGit(["-C", path, "fetch", "upstream"]);
+	await runGit(["-C", path, "fetch", "origin"]);
+	await runGit(["-C", path, "checkout", plugin.branch]);
+
+	const rebaseOk = await runGitOk(["-C", path, "rebase", "upstream/main"]);
+	if (!rebaseOk) {
+		console.error(
+			`Rebase onto upstream/main produced conflicts. Resolve them in ${path}, run 'git rebase --continue', then push --force-with-lease origin ${plugin.branch}.`,
+		);
+		return 1;
+	}
+
+	const head = (await captureGit(["-C", path, "rev-parse", "HEAD"])).trim();
+	const upstreamHead = (await captureGit(["-C", path, "rev-parse", "upstream/main"])).trim();
+	console.log(`\n${plugin.name} ${plugin.branch} now at ${head} (upstream/main: ${upstreamHead}).`);
 	console.log(
-		`\nReview upstream changes, merge or rebase upstream/main into ${plugin.branch}, run plugin-local checks, then 'bun run verify'.`,
+		`Run 'bun run verify' and, if green, 'git -C ${path} push --force-with-lease origin ${plugin.branch}'.`,
 	);
+	console.log(`Update manifests/plugins.yml currentCommit to ${head} once pushed.`);
 	return 0;
 }
 
@@ -192,6 +214,29 @@ async function runGit(args: string[]): Promise<void> {
 		const child = spawn("git", args, { stdio: "inherit" });
 		child.on("close", code => {
 			if (code === 0) resolveDone();
+			else reject(new Error(`git ${args.join(" ")} exited ${code}`));
+		});
+		child.on("error", reject);
+	});
+}
+
+async function runGitOk(args: string[]): Promise<boolean> {
+	return await new Promise<boolean>(resolveDone => {
+		const child = spawn("git", args, { stdio: "inherit" });
+		child.on("close", code => resolveDone(code === 0));
+		child.on("error", () => resolveDone(false));
+	});
+}
+
+async function captureGit(args: string[]): Promise<string> {
+	return await new Promise<string>((resolveDone, reject) => {
+		const child = spawn("git", args, { stdio: ["ignore", "pipe", "inherit"] });
+		let stdout = "";
+		child.stdout?.on("data", chunk => {
+			stdout += chunk.toString();
+		});
+		child.on("close", code => {
+			if (code === 0) resolveDone(stdout);
 			else reject(new Error(`git ${args.join(" ")} exited ${code}`));
 		});
 		child.on("error", reject);
