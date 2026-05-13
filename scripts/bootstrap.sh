@@ -85,6 +85,29 @@ managed = {
         "    - ~/Projects/superpowers/skills",
         "    - ~/Projects/plannotator/apps/pi-extension/skills",
     ],
+    "ask": [
+        "ask:",
+        "  timeout: 0",
+    ],
+    "compaction": [
+        "compaction:",
+        "  strategy: handoff",
+        "  thresholdPercent: 80",
+        "  thresholdTokens: -1",
+        "  handoffSaveToDisk: true",
+        "  idleEnabled: false",
+        "  idleThresholdTokens: 100000",
+        "  idleTimeoutSeconds: 1800",
+        "  enabled: true",
+    ],
+    "contextPromotion": [
+        "contextPromotion:",
+        "  enabled: false",
+    ],
+    "memory": [
+        "memory:",
+        "  backend: \"off\"",
+    ],
 }
 
 def section_name(line: str):

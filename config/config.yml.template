@@ -30,7 +30,7 @@ defaultThinkingLevel: high
 compaction:
   strategy: handoff
   thresholdPercent: 80
-  thresholdTokens: 300000
+  thresholdTokens: -1
   handoffSaveToDisk: true
   idleEnabled: false
   idleThresholdTokens: 100000

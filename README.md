@@ -29,7 +29,7 @@ The bootstrap script is intentionally conservative: it snapshots existing OMP co
 
 ## Managed OMP config
 
-The setup uses OMP-native paths and direct local extension paths while Superpowers and Plannotator are being adapted locally:
+The setup uses OMP-native paths and direct local extension paths while Superpowers and Plannotator are being adapted locally. It also keeps the existing high-control interaction defaults and switches compaction to an 80% threshold instead of a fixed token threshold so the same config is safe across models with different context windows:
 
 ```yaml
 extensions:
@@ -39,6 +39,18 @@ skills:
   customDirectories:
     - ~/Projects/superpowers/skills
     - ~/Projects/plannotator/apps/pi-extension/skills
+ask:
+  timeout: 0
+compaction:
+  strategy: handoff
+  thresholdPercent: 80
+  thresholdTokens: -1
+  handoffSaveToDisk: true
+  enabled: true
+contextPromotion:
+  enabled: false
+memory:
+  backend: "off"
 ```
 
 `scripts/bootstrap.sh` preserves unrelated OMP settings instead of replacing the whole config file.

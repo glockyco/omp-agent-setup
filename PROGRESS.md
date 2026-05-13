@@ -10,9 +10,10 @@
 - Backed up current OMP state to `backups/20260513T133313Z-pre-cleanup/` before cleanup.
 - Removed broken Superpowers skill symlinks under `~/.omp/agent/skills`.
 - Removed stale plugin-manager leftovers: `superpowers` lock entry, `node_modules/superpowers` symlink, and empty `node_modules/@plannotator`.
+- Reviewed current OMP settings against the OMP v15 settings schema. Kept the high-control interaction defaults, disabled memory backend, visible thinking/token usage, and handoff compaction; changed planned compaction from fixed `thresholdTokens: 300000` to `thresholdTokens: -1` plus `thresholdPercent: 80` so smaller-context models do not overrun before compaction.
 
 ## Current status
 
 - Source repository scaffold is committed and pushed.
 - Global `~/.omp` cleanup is complete; runtime configuration has not been rewired yet.
-- Next step: review desired `~/.omp/agent/config.yml` settings before applying the managed OMP config.
+- Next step: apply the managed OMP config and deploy the managed symlinks.
