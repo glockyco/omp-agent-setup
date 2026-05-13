@@ -1,13 +1,17 @@
-# Global OMP agent setup
+# Global OMP agent guidance
 
-- Primary harness: Oh My Pi / OMP (`omp`), specifically https://github.com/can1357/oh-my-pi. Do not assume regular Pi behavior unless verified against OMP.
-- Primary models are routed through OMP; common models are Claude Opus 4.7 and OpenAI GPT-5.5.
-- Global methodology is Superpowers, adapted locally at `~/Projects/superpowers`.
-- Global plan/review UI is Plannotator, adapted locally at `~/Projects/plannotator`.
-- OMP global config lives at `~/.omp/agent/config.yml`.
-- OMP global agent instructions live here: `~/.omp/agent/AGENTS.md`.
-- Prefer OMP-native `.omp` paths over `.pi` and prefer `AGENTS.md` over `CLAUDE.md`.
-- For tiny tasks, the user may explicitly opt out of Superpowers process. User instructions override Superpowers skills.
-- If Superpowers seems inactive, verify `skill://using-superpowers`, `skill://brainstorming`, and the Superpowers bootstrap extension before proceeding.
-- If Plannotator seems inactive, verify the local extension path `~/Projects/plannotator/apps/pi-extension` and check OMP logs for extension load errors.
-- Do not add repo-local plugin copies unless a repo needs a genuine override.
+Loaded by every OMP session. Source-of-truth: `glockyco/omp-agent-setup/agent/AGENTS.md`. Edit there, not the deployed symlink.
+
+## Harness
+
+Primary harness is Oh My Pi / OMP (`omp`), <https://github.com/can1357/oh-my-pi>. Don't assume regular Pi behavior unless verified against OMP. Prefer `.omp` paths over `.pi`, and `AGENTS.md` over `CLAUDE.md`.
+
+## Methodology
+
+Methodology is [Superpowers](https://github.com/glockyco/superpowers/tree/omp-local) at `~/Projects/superpowers`; plan/review UI is [Plannotator](https://github.com/glockyco/plannotator/tree/omp-local) at `~/Projects/plannotator`. Skills load via OMP's `skills.customDirectories`; `using-superpowers` is injected at session start by the `superpowers-bootstrap` extension. User instructions always override Superpowers skills, and the user may opt out of Superpowers for tiny tasks.
+
+## Conventions and recovery
+
+Files under `~/.omp/agent/` (`AGENTS.md`, `extensions/superpowers-bootstrap.ts`, managed keys in `config.yml`) are owned by `glockyco/omp-agent-setup`. Don't edit the deployed copies directly — change the source in `~/Projects/omp-agent-setup/` and run `bun run bootstrap` (`bun run doctor` for a health check, `bun run verify` for the full gate). Don't add repo-local plugin copies unless a repo needs a genuine override.
+
+If Superpowers seems inactive, verify `skill://using-superpowers` resolves and the bootstrap extension is loaded (check OMP logs). If Plannotator seems inactive, verify `~/Projects/plannotator/apps/pi-extension/` is built.
