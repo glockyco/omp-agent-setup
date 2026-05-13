@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["extensions/superpowers-bootstrap.ts"],
+  "project": ["src/**/*.ts", "extensions/**/*.ts"],
+  "ignoreDependencies": ["@oh-my-pi/pi-coding-agent", "@commitlint/cli"]
+}

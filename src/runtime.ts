@@ -6,7 +6,7 @@ import { dirname, isAbsolute, join } from "node:path";
  * older Superpowers extension loading under OMP v15. Anything pointing inside
  * `/private/var/.../T/omp-legacy-pi-file/` is stale and must be removed.
  */
-export const LEGACY_PI_TEMP_PATTERN = /\/omp-legacy-pi-file\//;
+const LEGACY_PI_TEMP_PATTERN = /\/omp-legacy-pi-file\//;
 
 export interface ManagedLink {
 	/** Absolute source path inside this repository. */
@@ -15,7 +15,7 @@ export interface ManagedLink {
 	destination: string;
 }
 
-export type LinkPlanEntry =
+type LinkPlanEntry =
 	| { kind: "create"; source: string; destination: string }
 	| { kind: "update"; source: string; destination: string; previousTarget: string }
 	| { kind: "skip"; reason: "up-to-date"; source: string; destination: string }

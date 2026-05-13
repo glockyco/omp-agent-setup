@@ -7,7 +7,7 @@ import { backupSafeName, isPathInside } from "./paths.ts";
  * every requested path, so callers and tests can inspect intent without
  * mutating the filesystem.
  */
-export type SnapshotEntryPlan =
+type SnapshotEntryPlan =
 	| { kind: "skip"; reason: "missing"; source: string }
 	| { kind: "copy"; source: string; destination: string; type: "file" | "directory" | "symlink" };
 

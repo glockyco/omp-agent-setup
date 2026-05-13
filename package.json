@@ -10,9 +10,10 @@
     "doctor": "bun run src/cli.ts doctor",
     "update-superpowers": "bun run src/cli.ts update-superpowers",
     "update-plannotator": "bun run src/cli.ts update-plannotator",
-    "ci": "bun run check:lint && bun run check:types && bun run check:test",
+    "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:test",
     "check:lint": "biome ci .",
     "check:types": "tsc --noEmit",
+    "check:dead": "knip",
     "check:test": "bun test",
     "fix": "biome check --write ."
   },
@@ -24,6 +25,7 @@
     "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^21.0.1",
     "@types/bun": "^1.3.14",
+    "knip": "^6.13.1",
     "typescript": "^6.0.3"
   }
 }
