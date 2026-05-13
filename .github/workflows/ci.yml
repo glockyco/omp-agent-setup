@@ -17,9 +17,4 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - name: Biome lint and format check
-        run: bunx biome ci .
-      - name: TypeScript check
-        run: bunx tsc --noEmit
-      - name: Unit tests
-        run: bun test
+      - run: bun run ci

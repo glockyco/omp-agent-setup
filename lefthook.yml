@@ -10,12 +10,11 @@ pre-commit:
       run: bunx tsc --noEmit
 
 pre-push:
-  parallel: true
   commands:
-    test:
-      run: bun test
-    lint:
-      run: bunx biome check .
+    lockfile:
+      run: bun install --frozen-lockfile
+    ci:
+      run: bun run ci
 
 commit-msg:
   commands:
