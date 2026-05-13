@@ -8,6 +8,41 @@ export const END_MARKER = "</SUPERPOWERS_BOOTSTRAP>";
 const DEFAULT_SUPERPOWERS_ROOT = "~/Projects/superpowers";
 
 /**
+ * Wrapper text injected around the `using-superpowers` skill content. Mirrors
+ * the upstream `hooks/session-start` framing — `<EXTREMELY_IMPORTANT>` for
+ * attention weight, "You have superpowers" preamble, and an explicit guard
+ * against re-invoking the bootstrap skill — adapted to OMP-native language
+ * (`read skill://…` instead of "the Skill tool") and OMP's flat namespace
+ * (no `superpowers:` prefix). Outer `<SUPERPOWERS_BOOTSTRAP>` marker stays
+ * for the {@link alreadyInjected} idempotency check.
+ */
+const PREAMBLE = `<EXTREMELY_IMPORTANT>
+You have superpowers.
+
+**IMPORTANT: The \`using-superpowers\` skill content is included below. It is ALREADY LOADED — you are currently following it. Do NOT invoke \`read skill://using-superpowers\` again, that would be redundant. For all other skills, use \`read skill://<name>\` (e.g. \`read skill://brainstorming\`).**
+`;
+const POSTAMBLE = "</EXTREMELY_IMPORTANT>";
+
+/**
+ * Strip a YAML frontmatter block (`---\\n…\\n---\\n`) from the start of skill
+ * content. The frontmatter is metadata (`name`, `description`) consumed by the
+ * skill loader, not prompt material; injecting it as-is wastes tokens and
+ * looks like noise to the model.
+ */
+function stripFrontmatter(content: string): string {
+	if (!content.startsWith("---\n")) return content;
+	const end = content.indexOf("\n---\n", 4);
+	if (end === -1) return content;
+	return content.slice(end + "\n---\n".length).replace(/^\s*\n/, "");
+}
+
+/** Build the full injected block. Pure for testability. */
+export function assembleBootstrap(skillContent: string): string {
+	const body = stripFrontmatter(skillContent).trimEnd();
+	return `${MARKER}\n${PREAMBLE}\n${body}\n${POSTAMBLE}\n${END_MARKER}`;
+}
+
+/**
  * Inline tilde expansion. The bootstrap extension ships as a self-contained
  * file deployed via symlink to `~/.omp/agent/extensions/`; OMP resolves its
  * relative imports against the symlink path rather than the source path, so
@@ -73,7 +108,7 @@ export function createBootstrapHandler(
 		try {
 			if (cachedPrompt === undefined || cachedRoot !== root) {
 				const content = await readFile(skillPath, "utf8");
-				cachedPrompt = `${MARKER}\n${content}\n${END_MARKER}`;
+				cachedPrompt = assembleBootstrap(content);
 				cachedRoot = root;
 			}
 			return { systemPrompt: [...event.systemPrompt, cachedPrompt] };

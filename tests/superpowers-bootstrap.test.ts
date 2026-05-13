@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	assembleBootstrap,
 	createBootstrapHandler,
 	END_MARKER,
 	installSessionEnvVars,
@@ -89,6 +90,46 @@ describe("createBootstrapHandler", () => {
 		expect(result?.message?.customType).toBe("superpowers-bootstrap-error");
 		expect(result?.message?.content).toContain("Superpowers bootstrap unavailable");
 		expect(messages[0]).toContain("Superpowers bootstrap unavailable");
+	});
+});
+
+describe("assembleBootstrap", () => {
+	test("wraps content with both SUPERPOWERS_BOOTSTRAP and EXTREMELY_IMPORTANT", () => {
+		const out = assembleBootstrap("body text\n");
+		expect(out).toStartWith(MARKER);
+		expect(out).toEndWith(END_MARKER);
+		expect(out).toContain("<EXTREMELY_IMPORTANT>");
+		expect(out).toContain("</EXTREMELY_IMPORTANT>");
+	});
+
+	test("includes the load-bearing preamble lines verbatim", () => {
+		const out = assembleBootstrap("body\n");
+		expect(out).toContain("You have superpowers.");
+		expect(out).toContain("ALREADY LOADED");
+		expect(out).toContain("Do NOT invoke `read skill://using-superpowers` again");
+		expect(out).toContain("read skill://<name>");
+	});
+
+	test("strips YAML frontmatter from the start of skill content", () => {
+		const skill = "---\nname: using-superpowers\ndescription: x\n---\n\nreal body\n";
+		const out = assembleBootstrap(skill);
+		expect(out).toContain("real body");
+		expect(out).not.toContain("---");
+		expect(out).not.toContain("name: using-superpowers");
+	});
+
+	test("leaves content with no frontmatter untouched apart from the wrapper", () => {
+		const out = assembleBootstrap("no fm here\nstill content\n");
+		expect(out).toContain("no fm here");
+		expect(out).toContain("still content");
+	});
+
+	test("handles malformed frontmatter (no closing fence) by skipping the strip", () => {
+		const skill = "---\nname: oops\n\nbody without fence close\n";
+		const out = assembleBootstrap(skill);
+		expect(out).toContain("body without fence close");
+		// First fence stays in because the second one was missing.
+		expect(out).toContain("---");
 	});
 });
 
