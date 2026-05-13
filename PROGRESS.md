@@ -15,6 +15,7 @@ Working log for agents and future-me. Captures decisions and milestones that are
 - 2026-05-13 — Backed up pre-existing `~/.omp` state to `backups/20260513T133313Z-pre-cleanup/`, removed broken Superpowers legacy-Pi temp-mirror symlinks under `~/.omp/agent/skills/`, removed stale plugin-manager entries from `~/.omp/plugins/`.
 - 2026-05-13 — Replaced the shell-based scaffold with a Bun CLI plus unit and integration tests covering path expansion, managed YAML merge, snapshot planner, symlink planner with stale-link cleanup, plugin manifest parser, verification primitives, the Superpowers bootstrap extension, and an end-to-end bootstrap run against a sandboxed `HOME`.
 - 2026-05-13 — Wired Biome, lefthook (pre-commit, pre-push, commit-msg), commitlint, GitHub Actions, Dependabot, and added an MIT license.
+- 2026-05-13 — Cleaned up both plugin forks. `main` on each fork now tracks upstream exactly. `omp-local` was rebuilt on top of `upstream/main`: Superpowers reduces to a single commit applying OMP tool-name adaptations to skill bodies (no extension, no `pi.extensions`, no `superpowers:` namespace prefix); Plannotator carries the five real adapter and build commits (OMP extension loading, browser asset embedding, browser-close beacon, root TypeScript dep, shell-script LF normalization) reauthored under the new identity. All other fork branches were deleted on GitHub.
 
 ## Pending
 
