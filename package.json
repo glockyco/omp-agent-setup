@@ -10,13 +10,11 @@
     "doctor": "bun run src/cli.ts doctor",
     "update-superpowers": "bun run src/cli.ts update-superpowers",
     "update-plannotator": "bun run src/cli.ts update-plannotator",
-    "test": "bun test",
-    "test:coverage": "bun test --coverage",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "format": "biome format --write .",
-    "ci": "bun run lint && bun run typecheck && bun run test"
+    "ci": "bun run check:lint && bun run check:types && bun run check:test",
+    "check:lint": "biome ci .",
+    "check:types": "tsc --noEmit",
+    "check:test": "bun test",
+    "fix": "biome check --write ."
   },
   "dependencies": {
     "yaml": "^2.6.1"
