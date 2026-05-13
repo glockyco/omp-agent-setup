@@ -36,8 +36,34 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		systemPrompt?: string[];
 	}
 
-	// biome-ignore lint/suspicious/noConfusingVoidType: mirrors the upstream OMP API shape, which uses `void` in this union intentionally
-	export type ExtensionHandler<E, R = void> = (event: E) => Promise<R | void> | R | void;
+	export interface SessionStartEvent {
+		type: "session_start";
+	}
+
+	/**
+	 * Read-only slice of OMP's session manager surfaced to extensions via
+	 * {@link ExtensionContext}. Only the methods our extensions actually use
+	 * are declared; expand when new fields are needed.
+	 *
+	 * `getArtifactsDir` is OMP-specific (not in upstream Pi's
+	 * ReadonlySessionManager) and returns `null` for non-persistent sessions.
+	 */
+	export interface ReadonlySessionManager {
+		getCwd(): string;
+		getSessionDir(): string;
+		getSessionId(): string;
+		getArtifactsDir(): string | null;
+	}
+
+	export interface ExtensionContext {
+		cwd: string;
+		sessionManager: ReadonlySessionManager;
+	}
+
+	export type ExtensionHandler<E, R = void> = (
+		event: E,
+		ctx: ExtensionContext,
+	) => Promise<R | void> | R | void;
 
 	export interface ExtensionAPI {
 		logger: Logger;
@@ -45,5 +71,6 @@ declare module "@oh-my-pi/pi-coding-agent" {
 			event: "before_agent_start",
 			handler: ExtensionHandler<BeforeAgentStartEvent, BeforeAgentStartEventResult>,
 		): void;
+		on(event: "session_start", handler: ExtensionHandler<SessionStartEvent>): void;
 	}
 }

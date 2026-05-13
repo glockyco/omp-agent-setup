@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
 	createBootstrapHandler,
 	END_MARKER,
+	installSessionEnvVars,
 	type Logger,
 	MARKER,
 } from "../extensions/superpowers-bootstrap.ts";
@@ -138,6 +139,93 @@ describe("superpowersBootstrap default export", () => {
 		} finally {
 			if (previousEnv === undefined) delete process.env.SUPERPOWERS_ROOT;
 			else process.env.SUPERPOWERS_ROOT = previousEnv;
+		}
+	});
+});
+
+describe("installSessionEnvVars", () => {
+	test("sets OMP_LOCAL_DIR/OMP_SESSION_DIR/OMP_SESSION_ID from sessionManager", () => {
+		const env: NodeJS.ProcessEnv = {};
+		installSessionEnvVars(
+			{
+				sessionManager: {
+					getCwd: () => "/cwd",
+					getSessionDir: () => "/parent",
+					getSessionId: () => "ses-123",
+					getArtifactsDir: () => "/parent/2026-01-01_xyz",
+				},
+			},
+			env,
+		);
+		expect(env.OMP_LOCAL_DIR).toBe("/parent/2026-01-01_xyz/local");
+		expect(env.OMP_SESSION_DIR).toBe("/parent/2026-01-01_xyz");
+		expect(env.OMP_SESSION_ID).toBe("ses-123");
+	});
+
+	test("omits OMP_LOCAL_DIR and OMP_SESSION_DIR when getArtifactsDir returns null", () => {
+		const env: NodeJS.ProcessEnv = {};
+		installSessionEnvVars(
+			{
+				sessionManager: {
+					getCwd: () => "/cwd",
+					getSessionDir: () => "/parent",
+					getSessionId: () => "ses-456",
+					getArtifactsDir: () => null,
+				},
+			},
+			env,
+		);
+		expect(env.OMP_LOCAL_DIR).toBeUndefined();
+		expect(env.OMP_SESSION_DIR).toBeUndefined();
+		expect(env.OMP_SESSION_ID).toBe("ses-456");
+	});
+});
+
+describe("superpowersBootstrap default export — session_start wiring", () => {
+	test("session_start handler injects env vars", () => {
+		const handlers: Record<string, ((event: unknown, ctx: unknown) => unknown)[]> = {};
+		const stubApi = {
+			logger,
+			on(event: string, handler: (event: unknown, ctx: unknown) => unknown) {
+				let list = handlers[event];
+				if (!list) {
+					list = [];
+					handlers[event] = list;
+				}
+				list.push(handler);
+			},
+		} as unknown as ExtensionAPI;
+
+		// Stash & restore the env vars we touch.
+		const keys = ["OMP_LOCAL_DIR", "OMP_SESSION_DIR", "OMP_SESSION_ID", "OMP_AGENT_DIR"] as const;
+		const previous: Record<string, string | undefined> = {};
+		for (const k of keys) previous[k] = process.env[k];
+		for (const k of keys) delete process.env[k];
+		try {
+			superpowersBootstrap(stubApi);
+			expect(process.env.OMP_AGENT_DIR).toBeDefined();
+			expect(handlers.session_start ?? []).toHaveLength(1);
+
+			handlers.session_start![0]!(
+				{ type: "session_start" },
+				{
+					cwd: "/cwd",
+					sessionManager: {
+						getCwd: () => "/cwd",
+						getSessionDir: () => "/parent",
+						getSessionId: () => "ses-xyz",
+						getArtifactsDir: () => "/parent/2026-05-13_abc",
+					},
+				},
+			);
+			expect(process.env.OMP_LOCAL_DIR).toBe("/parent/2026-05-13_abc/local");
+			expect(process.env.OMP_SESSION_DIR).toBe("/parent/2026-05-13_abc");
+			expect(process.env.OMP_SESSION_ID).toBe("ses-xyz");
+		} finally {
+			for (const k of keys) {
+				if (previous[k] === undefined) delete process.env[k];
+				else process.env[k] = previous[k]!;
+			}
 		}
 	});
 });
