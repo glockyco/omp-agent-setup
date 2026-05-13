@@ -1,104 +1,43 @@
 # OMP Agent Setup
 
-Version-controlled global setup for Oh My Pi / OMP agent tooling on this workstation.
+[![CI](https://github.com/glockyco/omp-agent-setup/actions/workflows/ci.yml/badge.svg)](https://github.com/glockyco/omp-agent-setup/actions/workflows/ci.yml)
 
-This repository is the source of truth. The deployed runtime lives under `~/.omp/agent` and is managed from this repository.
+Version-controlled global setup for [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi) agent tooling.
 
-## What this manages
+This repository is the source of truth; the deployed runtime lives under `~/.omp/agent/` and is managed by a small Bun CLI.
 
-- Global OMP agent instructions: `AGENTS.md` -> `~/.omp/agent/AGENTS.md`
-- Superpowers bootstrap extension: `extensions/superpowers-bootstrap.ts` -> `~/.omp/agent/extensions/superpowers-bootstrap.ts`
-- OMP config managed settings in `~/.omp/agent/config.yml`
-- Local editable plugin checkouts recorded in `manifests/plugins.yml`
-
-Local plugin checkouts stay in their own repositories:
-
-- Superpowers: `~/Projects/superpowers`
-- Plannotator: `~/Projects/plannotator`
-
-## Quickstart on a new machine
+## Quickstart
 
 ```bash
 gh repo clone glockyco/omp-agent-setup ~/Projects/omp-agent-setup
 cd ~/Projects/omp-agent-setup
-scripts/bootstrap.sh
-scripts/verify.sh
+bun install
+bun run bootstrap
+bun run verify
 ```
 
-The bootstrap script is intentionally conservative: it snapshots existing OMP config files, links managed files, updates the managed OMP config keys, and clones missing plugin checkouts from the manifest.
+`bootstrap` snapshots existing OMP config files into `backups/<UTC-timestamp>/`, deploys managed symlinks, removes stale legacy-Pi temp-mirror symlinks from `~/.omp/agent/skills/`, merges managed keys into `~/.omp/agent/config.yml` while preserving unrelated user keys, and reconciles the plugin checkouts declared in [`manifests/plugins.yml`](./manifests/plugins.yml).
 
-## Managed OMP config
+`bun run --help` lists every command. Two non-obvious flags:
 
-The setup uses OMP-native paths and direct local extension paths while Superpowers and Plannotator are being adapted locally. It also keeps the existing high-control interaction defaults and switches compaction to an 80% threshold instead of a fixed token threshold so the same config is safe across models with different context windows:
+- `OMP_VERIFY_SKIP_ACCEPTANCE=1 bun run verify` — skip the model-heavy Superpowers acceptance smoke.
+- `bun run doctor` — reports the current health of managed symlinks, config, and plugin checkouts without changing anything.
 
-```yaml
-extensions:
-  - ~/Projects/plannotator/apps/pi-extension
-  - ~/.omp/agent/extensions/superpowers-bootstrap.ts
-skills:
-  customDirectories:
-    - ~/Projects/superpowers/skills
-    - ~/Projects/plannotator/apps/pi-extension/skills
-ask:
-  timeout: 0
-compaction:
-  strategy: handoff
-  thresholdPercent: 80
-  thresholdTokens: -1
-  handoffSaveToDisk: true
-  enabled: true
-contextPromotion:
-  enabled: false
-memory:
-  backend: "off"
-```
+## Plugin repositories
 
-`scripts/bootstrap.sh` preserves unrelated OMP settings instead of replacing the whole config file.
+Plugins are separate Git checkouts under `~/Projects/`; this repo only records desired remotes and branches in [`manifests/plugins.yml`](./manifests/plugins.yml).
 
-## Updating local plugin adaptations
+| Plugin | Upstream | Local fork |
+| --- | --- | --- |
+| Superpowers | [obra/superpowers](https://github.com/obra/superpowers) | [glockyco/superpowers](https://github.com/glockyco/superpowers/tree/omp-local) |
+| Plannotator | [backnotprop/plannotator](https://github.com/backnotprop/plannotator) | [glockyco/plannotator](https://github.com/glockyco/plannotator/tree/omp-local) |
 
-Use the `omp-local` branch in each plugin fork for OMP-specific adaptation work. Do not encode OMP version numbers in branch names.
-
-```bash
-git -C ~/Projects/superpowers status --short --branch
-git -C ~/Projects/plannotator status --short --branch
-```
-
-Before changing plugin code, ensure the working tree state is understood. After plugin changes, run plugin-local checks where available and then `scripts/verify.sh` here.
-
-## Verification
-
-Run:
-
-```bash
-scripts/verify.sh
-```
-
-The verifier checks:
-
-- direct OMP operation without extensions;
-- OMP smoke prompt with configured extensions;
-- Superpowers skill discovery;
-- Plannotator skill discovery;
-- Superpowers behavior on a small app prompt.
-
-`/plannotator-status` still needs to be checked in an interactive OMP session when Plannotator command loading changes.
+Locally adapted changes live on the `omp-local` branch of each fork.
 
 ## Rollback
 
-Bootstrap snapshots are written under `backups/` in this repository. To rollback manually, copy the relevant snapshot back to its original path, then rerun `scripts/verify.sh`.
+Every `bootstrap` writes `backups/<UTC-timestamp>/manifest.json` recording exactly what was captured. To restore a previous state, copy entries back to their original paths or remove the managed symlinks under `~/.omp/agent/` and rerun `bootstrap`.
 
-Managed symlinks can be removed directly:
+## License
 
-```bash
-rm ~/.omp/agent/AGENTS.md
-rm ~/.omp/agent/extensions/superpowers-bootstrap.ts
-```
-
-Then restore `~/.omp/agent/config.yml` from a backup.
-
-## Plugin docs
-
-- Superpowers: `~/Projects/superpowers/README.md`
-- Plannotator: `~/Projects/plannotator/README.md`
-- Plannotator OMP/Pi extension: `~/Projects/plannotator/apps/pi-extension/README.md`
+[MIT](./LICENSE).
