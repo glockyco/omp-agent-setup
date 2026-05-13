@@ -10,10 +10,11 @@
     "doctor": "bun run src/cli.ts doctor",
     "update-superpowers": "bun run src/cli.ts update-superpowers",
     "update-plannotator": "bun run src/cli.ts update-plannotator",
-    "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:test",
+    "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:test",
     "check:lint": "biome ci .",
     "check:types": "tsc --noEmit",
     "check:dead": "knip",
+    "check:audit": "bun audit --prod --audit-level=moderate",
     "check:test": "bun test",
     "fix": "biome check --write ."
   },
