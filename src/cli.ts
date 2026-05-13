@@ -95,7 +95,14 @@ async function cmdVerify(_args: string[]): Promise<number> {
 		const acceptance = await ompAcceptanceSmoke(realRunner, {
 			model: VERIFY_MODEL,
 			prompt: "Let's make a react todo list",
-			mentionPatterns: [/[Bb]rainstorm/, /[Ss]uperpowers/],
+			mentionPatterns: [
+				/[Bb]rainstorm/,
+				/[Ss]uperpowers/,
+				/[Mm]ockups?/,
+				/[Dd]iagrams?/,
+				/understand.+(intent|requirements|design)/i,
+				/before (we|I) (start|code|build|implement)/i,
+			],
 		});
 		process.stdout.write(acceptance.stdout);
 		if (acceptance.failure) {
