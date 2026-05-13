@@ -1,11 +1,23 @@
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import { expandHome } from "../src/paths.ts";
 
 export const MARKER = "<SUPERPOWERS_BOOTSTRAP>";
 export const END_MARKER = "</SUPERPOWERS_BOOTSTRAP>";
 const DEFAULT_SUPERPOWERS_ROOT = "~/Projects/superpowers";
+
+/**
+ * Inline tilde expansion. The bootstrap extension ships as a self-contained
+ * file deployed via symlink to `~/.omp/agent/extensions/`; OMP resolves its
+ * relative imports against the symlink path rather than the source path, so
+ * the extension cannot reach back into the repository's src/ tree at runtime.
+ */
+function expandHome(path: string): string {
+	if (path === "~") return homedir();
+	if (path.startsWith("~/")) return join(homedir(), path.slice(2));
+	return path;
+}
 
 export interface BootstrapHandlerEvent {
 	systemPrompt: readonly string[];
