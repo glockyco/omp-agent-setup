@@ -1,0 +1,45 @@
+# Managed OMP global config template.
+# scripts/bootstrap.sh preserves unrelated settings in ~/.omp/agent/config.yml
+# and applies the OMP-native tooling keys below.
+
+lastChangelogVersion: 15.0.0
+modelRoles:
+  default: openai-codex/gpt-5.5
+  task: gpt-5.5
+  smol: openai-codex/gpt-5.5
+extensions:
+  - ~/Projects/plannotator/apps/pi-extension
+  - ~/.omp/agent/extensions/superpowers-bootstrap.ts
+skills:
+  customDirectories:
+    - ~/Projects/superpowers/skills
+    - ~/Projects/plannotator/apps/pi-extension/skills
+steeringMode: all
+memories:
+  enabled: false
+followUpMode: one-at-a-time
+interruptMode: immediate
+ask:
+  timeout: 0
+todo:
+  enabled: true
+  reminders: false
+edit:
+  mode: hashline
+defaultThinkingLevel: high
+compaction:
+  strategy: handoff
+  thresholdPercent: 80
+  thresholdTokens: 300000
+  handoffSaveToDisk: true
+  idleEnabled: false
+  idleThresholdTokens: 100000
+  idleTimeoutSeconds: 1800
+  enabled: true
+hideThinkingBlock: false
+display:
+  showTokenUsage: true
+contextPromotion:
+  enabled: false
+memory:
+  backend: "off"

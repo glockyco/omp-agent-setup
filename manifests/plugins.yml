@@ -1,0 +1,15 @@
+plugins:
+  superpowers:
+    path: ~/Projects/superpowers
+    upstream: https://github.com/obra/superpowers.git
+    fork: https://github.com/glockyco/superpowers.git
+    branch: omp-local
+    currentCommit: a68b3243337f1bfe5034cd4b658f51d3259692d4
+    purpose: Superpowers skills plus OMP bootstrap compatibility work
+  plannotator:
+    path: ~/Projects/plannotator
+    upstream: https://github.com/backnotprop/plannotator.git
+    fork: https://github.com/glockyco/plannotator.git
+    branch: omp-local
+    currentCommit: 39fe5ac1d102f2ecd9c6b2954c9875d53865a931
+    purpose: Plannotator OMP extension compatibility work
