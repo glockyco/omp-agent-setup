@@ -17,5 +17,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "extensions/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "extensions/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "backups"]
 }
