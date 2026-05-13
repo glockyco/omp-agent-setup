@@ -90,3 +90,54 @@ describe("createBootstrapHandler", () => {
 		expect(messages[0]).toContain("Superpowers bootstrap unavailable");
 	});
 });
+
+import type { BeforeAgentStartEvent, ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import superpowersBootstrap from "../extensions/superpowers-bootstrap.ts";
+
+describe("defaultResolveRoot", () => {
+	test("honors SUPERPOWERS_ROOT environment variable", async () => {
+		await seedSkill(workdir, "FROM ENV\n");
+		const previousEnv = process.env.SUPERPOWERS_ROOT;
+		process.env.SUPERPOWERS_ROOT = workdir;
+		try {
+			const handle = createBootstrapHandler({ logger });
+			const result = await handle({ systemPrompt: [] });
+			expect(result?.systemPrompt?.[0]).toContain("FROM ENV");
+		} finally {
+			if (previousEnv === undefined) delete process.env.SUPERPOWERS_ROOT;
+			else process.env.SUPERPOWERS_ROOT = previousEnv;
+		}
+	});
+});
+
+describe("superpowersBootstrap default export", () => {
+	test("registers a before_agent_start handler on the extension API", async () => {
+		const handlers: Array<(event: BeforeAgentStartEvent) => unknown> = [];
+		const stubApi = {
+			logger,
+			on(event: string, handler: (event: BeforeAgentStartEvent) => unknown) {
+				if (event === "before_agent_start") {
+					handlers.push(handler as (event: BeforeAgentStartEvent) => unknown);
+				}
+			},
+		} as unknown as ExtensionAPI;
+
+		await seedSkill(workdir, "EXTENSION CONTENT\n");
+		const previousEnv = process.env.SUPERPOWERS_ROOT;
+		process.env.SUPERPOWERS_ROOT = workdir;
+		try {
+			superpowersBootstrap(stubApi);
+			expect(handlers).toHaveLength(1);
+			const event: BeforeAgentStartEvent = {
+				type: "before_agent_start",
+				prompt: "",
+				systemPrompt: [],
+			};
+			const result = (await handlers[0]?.(event)) as { systemPrompt?: string[] };
+			expect(result?.systemPrompt?.[0]).toContain("EXTENSION CONTENT");
+		} finally {
+			if (previousEnv === undefined) delete process.env.SUPERPOWERS_ROOT;
+			else process.env.SUPERPOWERS_ROOT = previousEnv;
+		}
+	});
+});

@@ -14,9 +14,8 @@ import {
 	executeCheckoutSteps,
 	loadManifest,
 	planPluginCheckout,
-	realGitProbe,
-	realGitRunner,
 } from "./plugins.ts";
+import { realGitProbe, realGitRunner } from "./plugins-runtime.ts";
 import {
 	executeLinkPlan,
 	executeStaleSymlinkRemoval,
@@ -115,7 +114,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 				realGitProbe,
 			);
 			pluginSteps.push(...steps);
-			await executeCheckoutSteps(steps, realGitRunner);
+			await executeCheckoutSteps(steps, realGitRunner, realGitProbe);
 		}
 	}
 

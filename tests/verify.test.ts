@@ -107,3 +107,54 @@ describe("ompDirectSmoke", () => {
 		expect(result.failure).toContain("DIRECT_OK");
 	});
 });
+
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { checkSkillLoader, ompAcceptanceSmoke } from "../src/verify.ts";
+
+describe("ompAcceptanceSmoke", () => {
+	test("passes when at least one mention pattern matches", async () => {
+		const runner = stubRunner({ stdout: "Let's brainstorm before we code\n" });
+		const result = await ompAcceptanceSmoke(runner, {
+			model: "x",
+			prompt: "y",
+			mentionPatterns: [/[Bb]rainstorm/, /[Ss]uperpowers/],
+		});
+		expect(result.failure).toBeUndefined();
+	});
+
+	test("fails when no mention pattern matches", async () => {
+		const runner = stubRunner({ stdout: "irrelevant\n" });
+		const result = await ompAcceptanceSmoke(runner, {
+			model: "x",
+			prompt: "y",
+			mentionPatterns: [/[Bb]rainstorm/],
+		});
+		expect(result.failure).toContain("[Bb]rainstorm");
+	});
+});
+
+describe("checkSkillLoader", () => {
+	test("returns missing names that the loader did not surface", async () => {
+		const work = await mkdtemp(join(tmpdir(), "omp-skillcheck-test-"));
+		try {
+			const fakeLoader = join(work, "skills.ts");
+			await writeFile(
+				fakeLoader,
+				`export async function loadSkills() {
+					return { skills: [{ name: "alpha" }, { name: "beta" }] };
+				}`,
+			);
+			const result = await checkSkillLoader({
+				customDirectories: [],
+				requiredSkillNames: ["alpha", "missing"],
+				ompCodingAgentSrc: fakeLoader,
+			});
+			expect(result.loadedNames).toEqual(["alpha", "beta"]);
+			expect(result.missing).toEqual(["missing"]);
+		} finally {
+			await rm(work, { recursive: true, force: true });
+		}
+	});
+});

@@ -1,4 +1,3 @@
-import { type SpawnOptions, spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 import { expandHome } from "./paths.ts";
@@ -121,52 +120,10 @@ export interface GitRunner {
 	run(args: string[], options: { cwd?: string }): Promise<{ stdout: string; stderr: string }>;
 }
 
-/** Production GitRunner that shells out to the real git CLI. */
-export const realGitRunner: GitRunner = {
-	async run(args, options) {
-		return await execCapture("git", args, { cwd: options.cwd });
-	},
-};
-
-export const realGitProbe: GitProbe = {
-	async hasGit(path) {
-		const { stat } = await import("node:fs/promises");
-		try {
-			await stat(`${path}/.git`);
-			return true;
-		} catch {
-			return false;
-		}
-	},
-	async getRemoteUrl(path, remoteName) {
-		try {
-			const { stdout } = await execCapture("git", ["-C", path, "remote", "get-url", remoteName], {});
-			return stdout.trim();
-		} catch {
-			return null;
-		}
-	},
-	async hasLocalBranch(path, branch) {
-		try {
-			await execCapture("git", ["-C", path, "rev-parse", "--verify", branch], {});
-			return true;
-		} catch {
-			return false;
-		}
-	},
-	async hasOriginBranch(path, branch) {
-		try {
-			await execCapture("git", ["-C", path, "rev-parse", "--verify", `origin/${branch}`], {});
-			return true;
-		} catch {
-			return false;
-		}
-	},
-};
-
 export async function executeCheckoutSteps(
 	steps: readonly CheckoutStep[],
-	runner: GitRunner = realGitRunner,
+	runner: GitRunner,
+	probe: GitProbe,
 ): Promise<void> {
 	for (const step of steps) {
 		const { plugin } = step;
@@ -178,7 +135,7 @@ export async function executeCheckoutSteps(
 		} else if (step.kind === "set-origin") {
 			await runner.run(["-C", plugin.pathExpanded, "remote", "set-url", "origin", step.fork], {});
 		} else if (step.kind === "set-upstream") {
-			const existing = await realGitProbe.getRemoteUrl(plugin.pathExpanded, "upstream");
+			const existing = await probe.getRemoteUrl(plugin.pathExpanded, "upstream");
 			if (existing === null) {
 				await runner.run(["-C", plugin.pathExpanded, "remote", "add", "upstream", step.upstream], {});
 			} else {
@@ -200,30 +157,4 @@ export async function executeCheckoutSteps(
 			// Non-fatal; surfaced to the caller for reporting.
 		}
 	}
-}
-
-async function execCapture(
-	command: string,
-	args: string[],
-	options: SpawnOptions & { cwd?: string },
-): Promise<{ stdout: string; stderr: string }> {
-	return await new Promise((resolve, reject) => {
-		const child = spawn(command, args, {
-			cwd: options.cwd,
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-		let stdout = "";
-		let stderr = "";
-		child.stdout?.on("data", chunk => {
-			stdout += chunk.toString();
-		});
-		child.stderr?.on("data", chunk => {
-			stderr += chunk.toString();
-		});
-		child.on("error", reject);
-		child.on("close", code => {
-			if (code === 0) resolve({ stdout, stderr });
-			else reject(new Error(`${command} ${args.join(" ")} failed with exit ${code}\n${stderr}`));
-		});
-	});
 }

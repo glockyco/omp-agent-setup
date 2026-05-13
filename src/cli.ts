@@ -11,10 +11,9 @@ import {
 	ompAcceptanceSmoke,
 	ompDirectSmoke,
 	ompExtensionSmoke,
-	readLogFile,
-	realRunner,
 	scanLog,
 } from "./verify.ts";
+import { readLogFile, realRunner } from "./verify-runtime.ts";
 
 const VERIFY_MODEL = process.env.OMP_VERIFY_MODEL ?? "openai-codex/gpt-5.5";
 
