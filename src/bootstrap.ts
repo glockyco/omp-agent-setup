@@ -77,7 +77,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 
 	const links = await planManagedLinks([
 		{
-			source: join(options.repoRoot, "AGENTS.md"),
+			source: join(options.repoRoot, "agent", "AGENTS.md"),
 			destination: join(agentDir, "AGENTS.md"),
 		},
 		{

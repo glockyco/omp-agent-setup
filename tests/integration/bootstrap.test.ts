@@ -15,9 +15,10 @@ beforeEach(async () => {
 	// Copy the minimum repo surface needed to bootstrap into a sandbox so we
 	// don't touch the real ~/.omp/agent.
 	repoRoot = await mkdtemp(join(tmpdir(), "omp-int-repo-"));
+	await mkdir(join(repoRoot, "agent"), { recursive: true });
 	await mkdir(join(repoRoot, "extensions"), { recursive: true });
 	await mkdir(join(repoRoot, "manifests"), { recursive: true });
-	await writeFile(join(repoRoot, "AGENTS.md"), "# Stub global AGENTS.md\n");
+	await writeFile(join(repoRoot, "agent", "AGENTS.md"), "# Stub global AGENTS.md\n");
 	await writeFile(
 		join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
 		"// stub bootstrap extension\n",
@@ -36,7 +37,9 @@ describe("runBootstrap (integration)", () => {
 		const report = await runBootstrap({ repoRoot, home: tempHome });
 
 		// Managed symlinks point at the repo source.
-		await expect(readlink(join(agentDir, "AGENTS.md"))).resolves.toBe(join(repoRoot, "AGENTS.md"));
+		await expect(readlink(join(agentDir, "AGENTS.md"))).resolves.toBe(
+			join(repoRoot, "agent", "AGENTS.md"),
+		);
 		await expect(readlink(join(agentDir, "extensions", "superpowers-bootstrap.ts"))).resolves.toBe(
 			join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
 		);
