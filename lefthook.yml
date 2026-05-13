@@ -1,0 +1,23 @@
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "*.{ts,js,json,md}"
+      run: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+    typecheck:
+      glob: "*.ts"
+      run: bunx tsc --noEmit
+
+pre-push:
+  parallel: true
+  commands:
+    test:
+      run: bun test
+    lint:
+      run: bunx biome check .
+
+commit-msg:
+  commands:
+    commitlint:
+      run: bunx commitlint --edit {1}
