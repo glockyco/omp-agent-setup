@@ -11,9 +11,11 @@
 - Removed broken Superpowers skill symlinks under `~/.omp/agent/skills`.
 - Removed stale plugin-manager leftovers: `superpowers` lock entry, `node_modules/superpowers` symlink, and empty `node_modules/@plannotator`.
 - Reviewed current OMP settings against the OMP v15 settings schema. Kept the high-control interaction defaults, disabled memory backend, visible thinking/token usage, and handoff compaction; changed planned compaction from fixed `thresholdTokens: 300000` to `thresholdTokens: -1` plus `thresholdPercent: 80` so smaller-context models do not overrun before compaction.
+- Applied `scripts/bootstrap.sh`, deploying `AGENTS.md` and `extensions/superpowers-bootstrap.ts` as symlinks under `~/.omp/agent` and updating `~/.omp/agent/config.yml` with managed extension, skill, compaction, context-promotion, ask, and memory settings.
+- Bootstrap created an additional runtime snapshot at `backups/20260513T133612Z/`.
 
 ## Current status
 
-- Source repository scaffold is committed and pushed.
-- Global `~/.omp` cleanup is complete; runtime configuration has not been rewired yet.
-- Next step: apply the managed OMP config and deploy the managed symlinks.
+- Source repository scaffold and managed config review are committed and pushed.
+- Global `~/.omp` cleanup and runtime config wiring are complete.
+- Next step: run verification and fix any Superpowers or Plannotator compatibility issues found.
