@@ -105,7 +105,10 @@ describe("planStaleSymlinkRemoval", () => {
 	test("targets only legacy-Pi temp-mirror symlinks", async () => {
 		const dir = join(workdir, "skills");
 		await mkdir(dir);
-		await symlink("/private/var/folders/xx/T/omp-legacy-pi-file/skills/using-superpowers", join(dir, "using-superpowers"));
+		await symlink(
+			"/private/var/folders/xx/T/omp-legacy-pi-file/skills/using-superpowers",
+			join(dir, "using-superpowers"),
+		);
 		await symlink("/Users/me/Projects/superpowers/skills/brainstorming", join(dir, "brainstorming"));
 		await writeFile(join(dir, "README.md"), "real file");
 

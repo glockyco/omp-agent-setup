@@ -5,9 +5,9 @@ import { join } from "node:path";
 import {
 	defaultProbe,
 	executeSnapshot,
+	type FsProbe,
 	planSnapshot,
 	timestampedBackupDirName,
-	type FsProbe,
 } from "../src/backup.ts";
 
 let workdir: string;
@@ -56,8 +56,14 @@ describe("executeSnapshot", () => {
 		const plan = await planSnapshot([fileSrc, linkSrc, missingSrc], backupDir, defaultProbe);
 		await executeSnapshot(plan);
 
-		const expectedFile = join(backupDir, `${fileSrc.slice(1).replaceAll("/", "__").replaceAll(".", "_")}`);
-		const expectedLink = join(backupDir, `${linkSrc.slice(1).replaceAll("/", "__").replaceAll(".", "_")}`);
+		const expectedFile = join(
+			backupDir,
+			`${fileSrc.slice(1).replaceAll("/", "__").replaceAll(".", "_")}`,
+		);
+		const expectedLink = join(
+			backupDir,
+			`${linkSrc.slice(1).replaceAll("/", "__").replaceAll(".", "_")}`,
+		);
 		await expect(readFile(expectedFile, "utf8")).resolves.toBe("hello\n");
 		await expect(readlink(expectedLink)).resolves.toBe("source.txt");
 

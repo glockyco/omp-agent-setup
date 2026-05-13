@@ -1,4 +1,4 @@
-import { spawn, type SpawnOptions } from "node:child_process";
+import { type SpawnOptions, spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
 export interface CommandResult {
@@ -39,10 +39,7 @@ export function findMissingSubstring(text: string, required: readonly string[]):
  * matching line, or null.
  */
 export function findExtensionError(text: string): string | null {
-	const patterns = [
-		/Extension error/i,
-		/Failed to load extension/i,
-	];
+	const patterns = [/Extension error/i, /Failed to load extension/i];
 	for (const line of text.split(/\r?\n/)) {
 		for (const pattern of patterns) {
 			if (pattern.test(line)) return line;
@@ -134,7 +131,13 @@ export async function ompDirectSmoke(
 ): Promise<CommandResult & { failure?: string }> {
 	const result = await runner.run(
 		"omp",
-		["--no-skills", "--no-extensions", "-p", "--no-session", `Reply with exactly: ${options.expected}`],
+		[
+			"--no-skills",
+			"--no-extensions",
+			"-p",
+			"--no-session",
+			`Reply with exactly: ${options.expected}`,
+		],
 		{ timeoutMs: options.timeoutMs ?? 60_000 },
 	);
 	const missing = findMissingSubstring(result.stdout, [options.expected]);

@@ -5,8 +5,8 @@ import { join } from "node:path";
 import {
 	createBootstrapHandler,
 	END_MARKER,
-	MARKER,
 	type Logger,
+	MARKER,
 } from "../extensions/superpowers-bootstrap.ts";
 
 let workdir: string;

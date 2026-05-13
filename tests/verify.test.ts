@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type CommandResult,
 	findExtensionError,
 	findMissingSubstring,
 	ompDirectSmoke,
 	ompExtensionSmoke,
-	scanLog,
-	type CommandResult,
 	type Runner,
+	scanLog,
 } from "../src/verify.ts";
 
 const stubRunner = (result: Partial<CommandResult>): Runner => ({
@@ -61,7 +61,10 @@ describe("scanLog", () => {
 			/Failed to load extension/,
 			/Extension error/,
 		]);
-		expect(findings.map(f => f.message).sort()).toEqual(["Extension error", "Failed to load extension"]);
+		expect(findings.map(f => f.message).sort()).toEqual([
+			"Extension error",
+			"Failed to load extension",
+		]);
 	});
 
 	test("ignores non-JSON and missing timestamps", () => {

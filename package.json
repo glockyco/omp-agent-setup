@@ -11,12 +11,20 @@
     "update-superpowers": "bun run src/cli.ts update-superpowers",
     "update-plannotator": "bun run src/cli.ts update-plannotator",
     "test": "bun test",
-    "typecheck": "bun --check src/**/*.ts tests/**/*.ts extensions/**/*.ts"
+    "test:coverage": "bun test --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "ci": "bun run lint && bun run typecheck && bun run test"
   },
   "dependencies": {
     "yaml": "^2.6.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@types/bun": "latest",
     "typescript": "^5.6.0"
   }

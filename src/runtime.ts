@@ -34,9 +34,7 @@ export async function planManagedLinks(links: readonly ManagedLink[]): Promise<L
 	const entries: LinkPlanEntry[] = [];
 	for (const link of links) {
 		if (!isAbsolute(link.source) || !isAbsolute(link.destination)) {
-			throw new Error(
-				`Managed link must use absolute paths: ${JSON.stringify(link)}`,
-			);
+			throw new Error(`Managed link must use absolute paths: ${JSON.stringify(link)}`);
 		}
 		const existing = await safeLstat(link.destination);
 		if (!existing) {
@@ -49,9 +47,19 @@ export async function planManagedLinks(links: readonly ManagedLink[]): Promise<L
 		}
 		const previousTarget = await readlink(link.destination);
 		if (previousTarget === link.source) {
-			entries.push({ kind: "skip", reason: "up-to-date", source: link.source, destination: link.destination });
+			entries.push({
+				kind: "skip",
+				reason: "up-to-date",
+				source: link.source,
+				destination: link.destination,
+			});
 		} else {
-			entries.push({ kind: "update", source: link.source, destination: link.destination, previousTarget });
+			entries.push({
+				kind: "update",
+				source: link.source,
+				destination: link.destination,
+				previousTarget,
+			});
 		}
 	}
 	return { entries };

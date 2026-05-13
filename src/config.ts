@@ -1,4 +1,4 @@
-import { parseDocument, type Document } from "yaml";
+import { type Document, parseDocument } from "yaml";
 
 /**
  * The top-level OMP config keys this repository owns. Anything else in the

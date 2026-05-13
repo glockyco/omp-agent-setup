@@ -1,4 +1,4 @@
-import { spawn, type SpawnOptions } from "node:child_process";
+import { type SpawnOptions, spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 import { expandHome } from "./paths.ts";
@@ -84,7 +84,10 @@ export interface GitProbe {
  * The ordering of returned steps matches execution order: clone (if needed)
  * happens first, then remote URLs are corrected, then branch resolution.
  */
-export async function planPluginCheckout(plugin: PluginSpec, probe: GitProbe): Promise<CheckoutStep[]> {
+export async function planPluginCheckout(
+	plugin: PluginSpec,
+	probe: GitProbe,
+): Promise<CheckoutStep[]> {
 	const steps: CheckoutStep[] = [];
 	const repoExists = await probe.hasGit(plugin.pathExpanded);
 	if (!repoExists) {
@@ -179,7 +182,10 @@ export async function executeCheckoutSteps(
 			if (existing === null) {
 				await runner.run(["-C", plugin.pathExpanded, "remote", "add", "upstream", step.upstream], {});
 			} else {
-				await runner.run(["-C", plugin.pathExpanded, "remote", "set-url", "upstream", step.upstream], {});
+				await runner.run(
+					["-C", plugin.pathExpanded, "remote", "set-url", "upstream", step.upstream],
+					{},
+				);
 			}
 		} else if (step.kind === "checkout-branch") {
 			if (step.source === "local") {

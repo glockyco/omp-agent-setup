@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { parseManifest, planPluginCheckout, type GitProbe, type PluginSpec } from "../src/plugins.ts";
+import {
+	type GitProbe,
+	type PluginSpec,
+	parseManifest,
+	planPluginCheckout,
+} from "../src/plugins.ts";
 
 const HOME = "/Users/test";
 
@@ -81,8 +86,7 @@ describe("planPluginCheckout", () => {
 			SP_SPEC,
 			stubProbe({
 				hasGit: async () => true,
-				getRemoteUrl: async (_p, remote) =>
-					remote === "origin" ? "https://fork" : "https://up",
+				getRemoteUrl: async (_p, remote) => (remote === "origin" ? "https://fork" : "https://up"),
 				hasLocalBranch: async () => true,
 			}),
 		);
@@ -96,8 +100,7 @@ describe("planPluginCheckout", () => {
 			SP_SPEC,
 			stubProbe({
 				hasGit: async () => true,
-				getRemoteUrl: async (_p, remote) =>
-					remote === "origin" ? "https://wrong-fork" : null,
+				getRemoteUrl: async (_p, remote) => (remote === "origin" ? "https://wrong-fork" : null),
 				hasOriginBranch: async () => true,
 			}),
 		);

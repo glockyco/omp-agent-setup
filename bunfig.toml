@@ -1,0 +1,9 @@
+[install]
+# Bun resolves to lockfile entries by default. Set exact=true if we ever want
+# semver pinning enforced for new adds.
+exact = false
+
+[test]
+coverage = false
+coverageReporter = ["text", "lcov"]
+coverageThreshold = 0
