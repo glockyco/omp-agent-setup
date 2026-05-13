@@ -18,11 +18,7 @@ import {
 
 const VERIFY_MODEL = process.env.OMP_VERIFY_MODEL ?? "openai-codex/gpt-5.5";
 
-const REQUIRED_SKILLS = [
-	"superpowers:using-superpowers",
-	"superpowers:brainstorming",
-	"plannotator-review",
-];
+const REQUIRED_SKILLS = ["using-superpowers", "brainstorming", "plannotator-review"];
 
 function repoRoot(): string {
 	return resolve(dirname(fileURLToPath(import.meta.url)), "..");

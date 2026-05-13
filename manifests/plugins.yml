@@ -4,12 +4,12 @@ plugins:
     upstream: https://github.com/obra/superpowers.git
     fork: https://github.com/glockyco/superpowers.git
     branch: omp-local
-    currentCommit: a68b3243337f1bfe5034cd4b658f51d3259692d4
-    purpose: Superpowers skills plus OMP bootstrap compatibility work
+    currentCommit: 51ffd7a4f17c9cb3e2129757ed4bf1874b9e9c43
+    purpose: Superpowers skills with OMP tool-name adaptations applied
   plannotator:
     path: ~/Projects/plannotator
     upstream: https://github.com/backnotprop/plannotator.git
     fork: https://github.com/glockyco/plannotator.git
     branch: omp-local
-    currentCommit: 39fe5ac1d102f2ecd9c6b2954c9875d53865a931
-    purpose: Plannotator OMP extension compatibility work
+    currentCommit: 531625cc48c439c02e37e52cd18d8755089efe1e
+    purpose: Plannotator pi-extension with OMP loader and browser-asset fixes
