@@ -146,7 +146,44 @@ export const CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
 };
 
 /**
+ * Tolerate a `custom_message` session entry whose `content` field is missing
+ * when rendering the tree-selector overlay (`/tree`, history scrubbing).
+ *
+ * Without this guard, scrolling onto a malformed `custom_message` entry
+ * crashes the TUI with `undefined is not an object (evaluating
+ * 'entry.content.filter')` because the renderer's ternary only handles
+ * `string` and assumes the array branch is always defined.
+ */
+export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
+	id: "tree-selector-custom-message-guard",
+	targetRelative: "src/modes/components/tree-selector.ts",
+	description: "Render custom_message entries without crashing when `content` is missing.",
+	anchor: [
+		"\t\t\t\tconst content =",
+		'\t\t\t\t\ttypeof entry.content === "string"',
+		"\t\t\t\t\t\t? entry.content",
+		"\t\t\t\t\t\t: entry.content",
+		'\t\t\t\t\t\t\t\t.filter((c): c is { type: "text"; text: string } => c.type === "text")',
+		"\t\t\t\t\t\t\t\t.map(c => c.text)",
+		'\t\t\t\t\t\t\t\t.join("");',
+	].join("\n"),
+	replacement: [
+		"\t\t\t\tconst content =",
+		'\t\t\t\t\ttypeof entry.content === "string"',
+		"\t\t\t\t\t\t? entry.content",
+		"\t\t\t\t\t\t: (entry.content ?? [])",
+		'\t\t\t\t\t\t\t\t.filter((c): c is { type: "text"; text: string } => c.type === "text")',
+		"\t\t\t\t\t\t\t\t.map(c => c.text)",
+		'\t\t\t\t\t\t\t\t.join("");',
+	].join("\n"),
+	appliedSignature: ": (entry.content ?? [])",
+};
+
+/**
  * Ordered list of patches the bootstrap step applies, in declaration order.
  * Order matters: later patches see the file as left by earlier patches.
  */
-export const OMP_PATCHES: readonly Patch[] = [CONVERT_TO_LLM_CONTENT_GUARD];
+export const OMP_PATCHES: readonly Patch[] = [
+	CONVERT_TO_LLM_CONTENT_GUARD,
+	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
+];

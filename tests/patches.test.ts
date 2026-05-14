@@ -7,6 +7,7 @@ import {
 	OMP_PATCHES,
 	type Patch,
 	planPatch,
+	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
 } from "../src/patches.ts";
 import { applyPatches, patchTargetPaths, resolveOmpInstallRoot } from "../src/patches-runtime.ts";
 
@@ -117,6 +118,45 @@ describe("CONVERT_TO_LLM_CONTENT_GUARD", () => {
 
 	test("included in OMP_PATCHES", () => {
 		expect(OMP_PATCHES.map(p => p.id)).toContain(CONVERT_TO_LLM_CONTENT_GUARD.id);
+	});
+});
+
+describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
+	const unpatched = [
+		'\t\t\tcase "custom_message": {',
+		"\t\t\t\tconst content =",
+		'\t\t\t\t\ttypeof entry.content === "string"',
+		"\t\t\t\t\t\t? entry.content",
+		"\t\t\t\t\t\t: entry.content",
+		'\t\t\t\t\t\t\t\t.filter((c): c is { type: "text"; text: string } => c.type === "text")',
+		"\t\t\t\t\t\t\t\t.map(c => c.text)",
+		'\t\t\t\t\t\t\t\t.join("");',
+		"\t\t\t\tresult = render(content);",
+		"\t\t\t\tbreak;",
+		"\t\t\t}",
+		"",
+	].join("\n");
+
+	test("applies cleanly against an unpatched file", () => {
+		const plan = planPatch(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD, unpatched);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD.appliedSignature);
+			// Sanity: the unguarded form is gone.
+			expect(plan.nextContent).not.toContain("\t\t\t\t\t\t: entry.content\n");
+		}
+	});
+
+	test("re-running planner against the patched output is a no-op", () => {
+		const first = planPatch(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD, unpatched);
+		expect(first.kind).toBe("apply");
+		if (first.kind !== "apply") return;
+		const second = planPatch(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD, first.nextContent);
+		expect(second.kind).toBe("skip-already-applied");
+	});
+
+	test("included in OMP_PATCHES", () => {
+		expect(OMP_PATCHES.map(p => p.id)).toContain(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD.id);
 	});
 });
 
