@@ -43,10 +43,15 @@ Lefthook runs Biome + `tsc` on staged files at `pre-commit` and `bun install --f
 | Bypass the manifest when changing a plugin checkout | `bun run update-<plugin>` rebases `omp-local`, then update `manifests/plugins.yml` `currentCommit`. |
 | Suppress acceptance smoke patterns to silence `verify` | Broaden them in `src/cli.ts:cmdVerify` to match what real agents emit. |
 | Land non-OMP-specific changes on a plugin's `omp-local` branch | Keep `omp-local` as a minimal adapter on `upstream/main`. The recent superpowers audit cut 380 lines of unrelated rewrites. Treat plannotator the same way. |
+| Hand-edit installed `pi-coding-agent` sources to keep a modification across `omp update` | Add the modification to `src/patches.ts` (anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. |
 
 ## Plugin update
 
 `bun run update-<plugin>` → `bun run verify` → push `omp-local` with `--force-with-lease` → update `manifests/plugins.yml` `currentCommit`.
+
+## OMP update
+
+`omp update` reinstalls `@oh-my-pi/pi-coding-agent` and reverts anything our `src/patches.ts` modifies in place. Run `bun run bootstrap` after every `omp update` to re-apply. A healthy install reports `OMP patches: N skip-already-applied`. A `skip-anchor-missing` means OMP rewrote the surrounding code — update the patch's `anchor`/`replacement` in `src/patches.ts` to match the new shape and re-run `bootstrap`.
 
 ## Env contract
 

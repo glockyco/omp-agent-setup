@@ -12,6 +12,7 @@ It's published so I can clone it onto a fresh machine and have my agent environm
 - Symlinks managed files (`agent/AGENTS.md`, `extensions/superpowers-bootstrap.ts`) into `~/.omp/agent/`.
 - Merges managed keys into `~/.omp/agent/config.yml`, preserving any unrelated keys already there.
 - Pins specific commits of my two plugin forks ([superpowers](https://github.com/glockyco/superpowers/tree/omp-local), [plannotator](https://github.com/glockyco/plannotator/tree/omp-local)) at `manifests/plugins.yml` and reconciles them on `bootstrap`.
+- Re-applies the in-place source modifications declared in `src/patches.ts` against the globally installed `@oh-my-pi/pi-coding-agent` package, so `omp update` doesn't silently strip them.
 - Ships an in-process verify suite that exercises real oh-my-pi loading plus a Superpowers acceptance smoke.
 
 ## Conventions baked in
@@ -48,6 +49,7 @@ bun run verify
 | `extensions/superpowers-bootstrap.ts` | `~/.omp/agent/extensions/superpowers-bootstrap.ts` | symlink |
 | managed keys in `config/config.yml.template` | `~/.omp/agent/config.yml` | merged YAML, unrelated keys preserved |
 | `manifests/plugins.yml` | `~/Projects/{superpowers,plannotator}` | git clone + `omp-local` reconciled to pinned `currentCommit` |
+| `src/patches.ts` | files under `~/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/src/` | literal-block patches applied in place, pre-patch contents captured to the snapshot, no-op when the `appliedSignature` is already present |
 
 ## Commands
 
@@ -67,6 +69,19 @@ bun run verify
 | Plannotator | [`backnotprop/plannotator`](https://github.com/backnotprop/plannotator) | [`glockyco/plannotator`](https://github.com/glockyco/plannotator/tree/omp-local) |
 
 The `omp-local` branches carry OMP-specific adapters on top of `upstream/main`. To pull a fresh upstream into a fork: `bun run update-<plugin>` → `bun run verify` → push `omp-local` with `--force-with-lease` → bump `manifests/plugins.yml` `currentCommit`.
+
+## Updating OMP
+
+`omp update` reinstalls the `@oh-my-pi/pi-coding-agent` package, which overwrites the source files our `src/patches.ts` modifies. The expected flow:
+
+```bash
+omp update                       # update the binary and bundled package
+cd ~/Projects/omp-agent-setup
+bun run bootstrap                # re-apply patches; managed files unchanged
+bun run verify                   # optional: confirm subagents still work
+```
+
+Healthy installs are a no-op (`OMP patches: N skip-already-applied`). If the planner reports `skip-anchor-missing` for a patch, OMP rewrote the surrounding code enough that the literal-block replacement no longer matches — update the patch's `anchor` and `replacement` in `src/patches.ts` to match the new shape, then re-run `bootstrap`. `tests/patches.test.ts` documents the planner contract.
 
 ## Troubleshooting
 
