@@ -8,6 +8,13 @@ import {
 	timestampedBackupDirName,
 } from "./backup.ts";
 import { MANAGED_CONFIG, mergeManagedConfig } from "./config.ts";
+import { OMP_PATCHES } from "./patches.ts";
+import {
+	applyPatches,
+	type PatchExecution,
+	patchTargetPaths,
+	resolveOmpInstallRoot,
+} from "./patches-runtime.ts";
 import { expandHome } from "./paths.ts";
 import {
 	type CheckoutStep,
@@ -32,6 +39,10 @@ export interface BootstrapOptions {
 	agentDir?: string;
 	/** Skip cloning/checkouts when running unit/integration tests. */
 	skipPlugins?: boolean;
+	/** Skip OMP source patches when running unit/integration tests. */
+	skipPatches?: boolean;
+	/** Override the installed `@oh-my-pi/pi-coding-agent` root for tests. */
+	ompInstallRoot?: string;
 	/** Optional override for `manifests/plugins.yml`. */
 	manifestPath?: string;
 	/** Optional date for timestamped backup dir; defaults to `new Date()`. */
@@ -45,6 +56,7 @@ export interface BootstrapReport {
 	staleSymlinks: StaleSymlinkPlan;
 	configChanged: boolean;
 	pluginSteps: CheckoutStep[];
+	patchExecutions: PatchExecution[];
 }
 
 /**
@@ -61,12 +73,15 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		timestampedBackupDirName(options.now ?? new Date()),
 	);
 
+	const ompInstallRoot = options.ompInstallRoot ?? resolveOmpInstallRoot(process.env, home);
+	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompInstallRoot);
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
 		join(agentDir, "AGENTS.md"),
 		join(extensionsDir, "superpowers-bootstrap.ts"),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
+		...patchTargets,
 	];
 
 	await mkdir(agentDir, { recursive: true });
@@ -118,7 +133,19 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		}
 	}
 
-	return { backupDir, snapshot, links, staleSymlinks, configChanged, pluginSteps };
+	const patchExecutions: PatchExecution[] = options.skipPatches
+		? []
+		: await applyPatches(OMP_PATCHES, ompInstallRoot);
+
+	return {
+		backupDir,
+		snapshot,
+		links,
+		staleSymlinks,
+		configChanged,
+		pluginSteps,
+		patchExecutions,
+	};
 }
 
 export function summarizeReport(report: BootstrapReport): string {
@@ -142,5 +169,23 @@ export function summarizeReport(report: BootstrapReport): string {
 			lines.push(`  - ${step.kind} ${step.plugin.name}`);
 		}
 	}
+	if (report.patchExecutions.length > 0) {
+		const summary = summarizePatchExecutions(report.patchExecutions);
+		lines.push(`OMP patches: ${summary}`);
+		for (const execution of report.patchExecutions) {
+			if (execution.kind === "skip-already-applied") continue;
+			lines.push(`  - ${execution.kind} ${execution.patch.id} (${execution.targetPath})`);
+		}
+	}
 	return lines.join("\n");
+}
+
+function summarizePatchExecutions(executions: readonly PatchExecution[]): string {
+	const counts = new Map<PatchExecution["kind"], number>();
+	for (const execution of executions) {
+		counts.set(execution.kind, (counts.get(execution.kind) ?? 0) + 1);
+	}
+	return Array.from(counts.entries())
+		.map(([kind, count]) => `${count} ${kind}`)
+		.join(", ");
 }
