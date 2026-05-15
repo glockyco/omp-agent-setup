@@ -16,6 +16,7 @@ import {
 	type RepoInput,
 	type ServerDef,
 } from "./lsp-audit.ts";
+import { resolveOmpInstallRoot } from "./patches-runtime.ts";
 
 export const realFs: FsView = {
 	listDir(dir) {
@@ -114,14 +115,23 @@ interface RawOverride {
 	servers?: Record<string, RawServer>;
 }
 
-const OMP_INSTALL_CANDIDATES = [
-	join(homedir(), ".bun/install/global/node_modules/@oh-my-pi/pi-coding-agent"),
-	join(homedir(), ".bun/install/cache/@oh-my-pi/pi-coding-agent"),
-];
-
+/**
+ * Resolve the path to OMP's built-in `defaults.json`. Honors `$BUN_INSTALL`
+ * via `resolveOmpInstallRoot` so the audit works on machines that point Bun
+ * at a non-default install prefix. Falls back to the legacy `~/.bun/install`
+ * layout only if the BUN_INSTALL-derived path is missing, which keeps older
+ * installs working without changing their environment.
+ */
 function locateOmpDefaults(): string {
-	for (const root of OMP_INSTALL_CANDIDATES) {
-		const candidate = join(root, "src/lsp/defaults.json");
+	const primary = join(resolveOmpInstallRoot(), "src/lsp/defaults.json");
+	const fallbacks = [
+		primary,
+		join(
+			homedir(),
+			".bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/src/lsp/defaults.json",
+		),
+	];
+	for (const candidate of fallbacks) {
 		try {
 			statSync(candidate);
 			return candidate;
@@ -130,7 +140,7 @@ function locateOmpDefaults(): string {
 		}
 	}
 	throw new Error(
-		`Could not locate omp's lsp/defaults.json. Tried:\n  ${OMP_INSTALL_CANDIDATES.join("\n  ")}`,
+		`Could not locate omp's lsp/defaults.json. Tried:\n  ${fallbacks.join("\n  ")}\nSet BUN_INSTALL or reinstall @oh-my-pi/pi-coding-agent globally.`,
 	);
 }
 
