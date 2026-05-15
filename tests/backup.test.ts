@@ -9,6 +9,7 @@ import {
 	planSnapshot,
 	timestampedBackupDirName,
 } from "../src/backup.ts";
+import { backupSafeName } from "../src/paths.ts";
 
 let workdir: string;
 
@@ -36,9 +37,24 @@ describe("planSnapshot", () => {
 		});
 		const plan = await planSnapshot(["/a/file", "/a/dir", "/a/link", "/a/missing"], "/b/run1", probe);
 		expect(plan.entries).toEqual([
-			{ kind: "copy", source: "/a/file", destination: "/b/run1/a__file", type: "file" },
-			{ kind: "copy", source: "/a/dir", destination: "/b/run1/a__dir", type: "directory" },
-			{ kind: "copy", source: "/a/link", destination: "/b/run1/a__link", type: "symlink" },
+			{
+				kind: "copy",
+				source: "/a/file",
+				destination: `/b/run1/${backupSafeName("/a/file")}`,
+				type: "file",
+			},
+			{
+				kind: "copy",
+				source: "/a/dir",
+				destination: `/b/run1/${backupSafeName("/a/dir")}`,
+				type: "directory",
+			},
+			{
+				kind: "copy",
+				source: "/a/link",
+				destination: `/b/run1/${backupSafeName("/a/link")}`,
+				type: "symlink",
+			},
 			{ kind: "skip", reason: "missing", source: "/a/missing" },
 		]);
 	});
@@ -56,14 +72,8 @@ describe("executeSnapshot", () => {
 		const plan = await planSnapshot([fileSrc, linkSrc, missingSrc], backupDir, defaultProbe);
 		await executeSnapshot(plan);
 
-		const expectedFile = join(
-			backupDir,
-			`${fileSrc.slice(1).replaceAll("/", "__").replaceAll(".", "_")}`,
-		);
-		const expectedLink = join(
-			backupDir,
-			`${linkSrc.slice(1).replaceAll("/", "__").replaceAll(".", "_")}`,
-		);
+		const expectedFile = join(backupDir, backupSafeName(fileSrc));
+		const expectedLink = join(backupDir, backupSafeName(linkSrc));
 		await expect(readFile(expectedFile, "utf8")).resolves.toBe("hello\n");
 		await expect(readlink(expectedLink)).resolves.toBe("source.txt");
 
@@ -84,7 +94,7 @@ describe("executeSnapshot", () => {
 		const plan = await planSnapshot([dirSrc], backupDir);
 		await executeSnapshot(plan);
 
-		const destBase = join(backupDir, dirSrc.slice(1).replaceAll("/", "__"));
+		const destBase = join(backupDir, backupSafeName(dirSrc));
 		await expect(readFile(join(destBase, "a.txt"), "utf8")).resolves.toBe("A\n");
 		await expect(readFile(join(destBase, "sub", "b.txt"), "utf8")).resolves.toBe("B\n");
 	});
