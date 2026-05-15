@@ -135,11 +135,20 @@ export async function ompDirectSmoke(
 	return { ...result, failure: missing ? `expected output to contain "${missing}"` : undefined };
 }
 
+/**
+ * Minimal contract for OMP's `loadSkills`. Defined here so the pure check
+ * doesn't depend on the installed `@oh-my-pi/pi-coding-agent` source layout.
+ */
+export type SkillLoader = (opts: {
+	cwd?: string;
+	customDirectories?: readonly string[];
+}) => Promise<{ skills: ReadonlyArray<{ name: string }> }>;
+
 export interface SkillLoaderCheckOptions {
 	customDirectories: readonly string[];
-	cwd?: string;
+	cwd: string;
 	requiredSkillNames: readonly string[];
-	ompCodingAgentSrc?: string;
+	loader: SkillLoader;
 }
 
 export interface SkillLoaderResult {
@@ -148,27 +157,16 @@ export interface SkillLoaderResult {
 }
 
 /**
- * Drives OMP's own skill loader to verify that custom directories surface the
- * expected skills. We import the loader directly from the installed
- * `@oh-my-pi/pi-coding-agent` source tree so we exercise the exact code path
- * the running OMP session uses.
+ * Drive a skill loader and compare its output to the required names. Pure
+ * given an injected `loader`; the real loader lives in `verify-runtime.ts`
+ * so machine-layout assumptions (HOME, the installed OMP source path) stay
+ * out of the verifier itself.
  */
 export async function checkSkillLoader(
 	options: SkillLoaderCheckOptions,
 ): Promise<SkillLoaderResult> {
-	const home = process.env.HOME;
-	if (!home) throw new Error("HOME is required for skill loader check");
-	const modulePath =
-		options.ompCodingAgentSrc ??
-		`${home}/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/src/extensibility/skills.ts`;
-	const mod = (await import(modulePath)) as {
-		loadSkills: (opts: {
-			cwd?: string;
-			customDirectories?: readonly string[];
-		}) => Promise<{ skills: Array<{ name: string }> }>;
-	};
-	const result = await mod.loadSkills({
-		cwd: options.cwd ?? process.cwd(),
+	const result = await options.loader({
+		cwd: options.cwd,
 		customDirectories: options.customDirectories,
 	});
 	const loadedNames = result.skills.map(skill => skill.name).sort();

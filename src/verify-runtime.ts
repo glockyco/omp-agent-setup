@@ -10,7 +10,9 @@
  */
 import { type SpawnOptions, spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import type { CommandResult, Runner } from "./verify.ts";
+import { join } from "node:path";
+import { resolveOmpInstallRoot } from "./patches-runtime.ts";
+import type { CommandResult, Runner, SkillLoader } from "./verify.ts";
 
 export const realRunner: Runner = {
 	async run(command, args, options = {}) {
@@ -25,6 +27,24 @@ export async function readLogFile(path: string): Promise<string> {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return "";
 		throw error;
 	}
+}
+
+/**
+ * Build a `SkillLoader` that lazily imports OMP's `loadSkills` from the
+ * installed `@oh-my-pi/pi-coding-agent` source tree. The import is deferred
+ * so any path/HOME assumption only fires when the verifier actually runs.
+ * Honors `$BUN_INSTALL` via `resolveOmpInstallRoot`.
+ */
+export function makeRealSkillLoader(modulePath?: string): SkillLoader {
+	const resolved = modulePath ?? join(resolveOmpInstallRoot(), "src/extensibility/skills.ts");
+	let cached: SkillLoader | null = null;
+	return async opts => {
+		if (!cached) {
+			const mod = (await import(resolved)) as { loadSkills: SkillLoader };
+			cached = mod.loadSkills;
+		}
+		return await cached(opts);
+	};
 }
 
 async function execCapture(

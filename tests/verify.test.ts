@@ -108,9 +108,6 @@ describe("ompDirectSmoke", () => {
 	});
 });
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { checkSkillLoader, ompAcceptanceSmoke } from "../src/verify.ts";
 
 describe("ompAcceptanceSmoke", () => {
@@ -137,24 +134,27 @@ describe("ompAcceptanceSmoke", () => {
 
 describe("checkSkillLoader", () => {
 	test("returns missing names that the loader did not surface", async () => {
-		const work = await mkdtemp(join(tmpdir(), "omp-skillcheck-test-"));
-		try {
-			const fakeLoader = join(work, "skills.ts");
-			await writeFile(
-				fakeLoader,
-				`export async function loadSkills() {
-					return { skills: [{ name: "alpha" }, { name: "beta" }] };
-				}`,
-			);
-			const result = await checkSkillLoader({
-				customDirectories: [],
-				requiredSkillNames: ["alpha", "missing"],
-				ompCodingAgentSrc: fakeLoader,
-			});
-			expect(result.loadedNames).toEqual(["alpha", "beta"]);
-			expect(result.missing).toEqual(["missing"]);
-		} finally {
-			await rm(work, { recursive: true, force: true });
-		}
+		const result = await checkSkillLoader({
+			cwd: "/some/cwd",
+			customDirectories: [],
+			requiredSkillNames: ["alpha", "missing"],
+			loader: async () => ({ skills: [{ name: "alpha" }, { name: "beta" }] }),
+		});
+		expect(result.loadedNames).toEqual(["alpha", "beta"]);
+		expect(result.missing).toEqual(["missing"]);
+	});
+
+	test("propagates cwd and customDirectories to the loader", async () => {
+		const calls: Array<{ cwd?: string; customDirectories?: readonly string[] }> = [];
+		await checkSkillLoader({
+			cwd: "/the/cwd",
+			customDirectories: ["/a", "/b"],
+			requiredSkillNames: [],
+			loader: async opts => {
+				calls.push(opts);
+				return { skills: [] };
+			},
+		});
+		expect(calls).toEqual([{ cwd: "/the/cwd", customDirectories: ["/a", "/b"] }]);
 	});
 });

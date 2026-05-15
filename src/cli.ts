@@ -15,7 +15,7 @@ import {
 	ompExtensionSmoke,
 	scanLog,
 } from "./verify.ts";
-import { readLogFile, realRunner } from "./verify-runtime.ts";
+import { makeRealSkillLoader, readLogFile, realRunner } from "./verify-runtime.ts";
 
 const VERIFY_MODEL = process.env.OMP_VERIFY_MODEL ?? "openai-codex/gpt-5.5";
 
@@ -61,6 +61,7 @@ async function cmdVerify(_args: string[]): Promise<number> {
 				join(home, "Projects", "plannotator", "apps", "pi-extension", "skills"),
 			],
 			requiredSkillNames: REQUIRED_SKILLS,
+			loader: makeRealSkillLoader(),
 		});
 		for (const name of REQUIRED_SKILLS) {
 			console.log(`  ${loader.missing.includes(name) ? "MISSING" : "ok"}  ${name}`);
