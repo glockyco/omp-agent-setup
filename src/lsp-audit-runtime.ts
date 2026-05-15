@@ -179,13 +179,32 @@ function ompConfigPaths(cwd: string, home: string): string[] {
 	return out;
 }
 
-function parseOverride(filePath: string): RawOverride | null {
+/**
+ * Report shape used to surface override-file problems. The audit asks OMP's
+ * config files about every cwd we visit, so a single malformed override
+ * would otherwise be reported many times. The caller is expected to dedupe
+ * by `path` if it cares about message-level distinctness.
+ */
+export interface OverrideParseError {
+	readonly path: string;
+	readonly message: string;
+}
+
+function parseOverride(
+	filePath: string,
+	onError: (err: OverrideParseError) => void,
+): RawOverride | null {
 	const text = readFileSafe(filePath);
 	if (!text) return null;
 	try {
 		if (filePath.endsWith(".json")) return JSON.parse(text) as RawOverride;
 		return (parseYaml(text) ?? {}) as RawOverride;
-	} catch {
+	} catch (err) {
+		// The file exists on disk but is not valid JSON/YAML. Treating that as
+		// 'absent' would silently hide the real problem in audit output; surface
+		// it through the supplied callback so the CLI can render it explicitly.
+		const message = err instanceof Error ? err.message : String(err);
+		onError({ path: filePath, message });
 		return null;
 	}
 }
@@ -241,14 +260,31 @@ function toServerDefs(merged: Record<string, RawServer>): ServerDef[] {
  * `lsp.json` or `.omp/lsp.json` in a single repo only affects that repo's
  * directories — exactly what OMP does at runtime.
  */
-export function makeDefsResolver(home: string = homedir()): DefsForCwd {
+export function makeDefsResolver(
+	home: string = homedir(),
+	onParseError: (err: OverrideParseError) => void = () => {},
+): DefsForCwd {
 	const defaults = JSON.parse(readFileSync(locateOmpDefaults(), "utf8")) as RawDefaults;
+	// Each candidate override file is parsed at most once even though the same
+	// user-level paths are visited per cwd. Doubles as the dedupe for
+	// `onParseError` since failed reads also cache as `null`.
+	const overrideCache = new Map<string, RawOverride | null>();
+	const reportedErrors = new Set<string>();
+	const reportOnce = (err: OverrideParseError) => {
+		if (reportedErrors.has(err.path)) return;
+		reportedErrors.add(err.path);
+		onParseError(err);
+	};
 	return (cwd: string) => {
 		const merged: Record<string, RawServer> = { ...defaults };
 		// Lowest priority first so later iterations win on conflicting keys.
 		const paths = ompConfigPaths(cwd, home).slice().reverse();
 		for (const p of paths) {
-			const override = parseOverride(p);
+			let override = overrideCache.get(p);
+			if (override === undefined) {
+				override = parseOverride(p, reportOnce);
+				overrideCache.set(p, override);
+			}
 			if (!override) continue;
 			for (const [name, patch] of Object.entries(serversFromOverride(override))) {
 				merged[name] = { ...(merged[name] ?? {}), ...patch };

@@ -262,12 +262,23 @@ function todayLogDate(): string {
 async function cmdAuditLsp(args: string[]): Promise<number> {
 	const projectsDir = args.find(a => !a.startsWith("--")) ?? join(homedir(), "Projects");
 	const includeDormant = args.includes("--include-dormant");
-	const defsFor = makeDefsResolver();
+	const parseErrors: Array<{ path: string; message: string }> = [];
+	const defsFor = makeDefsResolver(undefined, err => parseErrors.push(err));
 	const repos = discoverRepos({ projectsDir });
 	const now = new Date();
 	let reports = auditFleet(repos, defsFor, realFs, makePathResolver(), now);
 	if (!includeDormant) reports = reports.filter(r => r.activity !== "dormant");
 	process.stdout.write(renderReport(reports, now));
+	if (parseErrors.length > 0) {
+		// Surfaced after the report so the user always sees coverage first,
+		// then sees what the audit could not honor and why. Non-zero exit so
+		// CI gates can pick the problem up.
+		process.stderr.write(`\nMalformed override files (ignored by the audit):\n`);
+		for (const e of parseErrors) {
+			process.stderr.write(`  - ${e.path}: ${e.message}\n`);
+		}
+		return 1;
+	}
 	return 0;
 }
 
