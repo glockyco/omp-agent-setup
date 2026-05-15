@@ -245,9 +245,12 @@ describe("superpowersBootstrap default export — session_start wiring", () => {
 		try {
 			superpowersBootstrap(stubApi);
 			expect(process.env.OMP_AGENT_DIR).toBeDefined();
-			expect(handlers.session_start ?? []).toHaveLength(1);
+			const sessionStart = handlers.session_start ?? [];
+			expect(sessionStart).toHaveLength(1);
+			const handler = sessionStart[0];
+			if (!handler) throw new Error("expected a session_start handler");
 
-			handlers.session_start![0]!(
+			handler(
 				{ type: "session_start" },
 				{
 					cwd: "/cwd",
@@ -264,8 +267,9 @@ describe("superpowersBootstrap default export — session_start wiring", () => {
 			expect(process.env.OMP_SESSION_ID).toBe("ses-xyz");
 		} finally {
 			for (const k of keys) {
-				if (previous[k] === undefined) delete process.env[k];
-				else process.env[k] = previous[k]!;
+				const value = previous[k];
+				if (value === undefined) delete process.env[k];
+				else process.env[k] = value;
 			}
 		}
 	});
