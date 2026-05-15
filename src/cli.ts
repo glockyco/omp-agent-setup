@@ -257,10 +257,30 @@ function todayLogDate(): string {
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+async function cmdInstallLsp(_args: string[]): Promise<number> {
+	const script = join(repoRoot(), "scripts", "install-lsp.sh");
+	return await new Promise<number>((resolveDone, reject) => {
+		const child = spawn("bash", [script], { stdio: "inherit" });
+		// `code === null` indicates termination by signal (SIGINT, SIGTERM, etc.).
+		// Treat that as a failed install so callers cannot mistake an aborted run
+		// for a successful one.
+		child.on("close", (code, signal) => {
+			if (signal !== null && signal !== undefined) {
+				console.error(`install-lsp terminated by signal: ${signal}`);
+				resolveDone(128);
+				return;
+			}
+			resolveDone(code ?? 1);
+		});
+		child.on("error", reject);
+	});
+}
+
 const COMMANDS: Record<string, (args: string[]) => Promise<number>> = {
 	bootstrap: cmdBootstrap,
 	verify: cmdVerify,
 	doctor: cmdDoctor,
+	"install-lsp": cmdInstallLsp,
 	"update-superpowers": () => cmdUpdatePlugin("superpowers"),
 	"update-plannotator": () => cmdUpdatePlugin("plannotator"),
 };
