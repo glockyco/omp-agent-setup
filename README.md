@@ -9,7 +9,7 @@ It's published so I can clone it onto a fresh machine and have my agent environm
 
 ## What it does
 
-- Symlinks managed files (`agent/AGENTS.md`, `agent/lsp.json`, `agent/skills/commit/`, `extensions/superpowers-bootstrap.ts`) into `~/.omp/agent/`.
+- Symlinks managed files (`agent/AGENTS.md`, `agent/lsp.json`, `agent/skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/`, `extensions/superpowers-bootstrap.ts`) into `~/.omp/agent/`.
 - Merges managed keys into `~/.omp/agent/config.yml`, preserving any unrelated keys already there.
 - Pins specific commits of my two plugin forks ([superpowers](https://github.com/glockyco/superpowers/tree/omp-local), [plannotator](https://github.com/glockyco/plannotator/tree/omp-local)) at `manifests/plugins.yml` and reconciles them on `bootstrap`.
 - Re-applies the in-place source modifications declared in `src/patches.ts` against the globally installed `@oh-my-pi/pi-coding-agent` package, so `omp update` doesn't silently strip them.
@@ -48,7 +48,7 @@ bun run verify
 | `agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | symlink |
 | `agent/lsp.json` | `~/.omp/agent/lsp.json` | symlink — global LSP overrides deep-merged into OMP's `defaults.json` |
 | `extensions/superpowers-bootstrap.ts` | `~/.omp/agent/extensions/superpowers-bootstrap.ts` | symlink |
-| `agent/skills/commit/` | `~/.omp/agent/skills/commit/` | symlink — global Conventional Commits guidance loaded on demand |
+| `agent/skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/` | `~/.omp/agent/skills/<name>/` | symlink — global skills for commits, READMEs, agent instructions, and OMP skill authoring |
 | managed keys in `config/config.yml.template` | `~/.omp/agent/config.yml` | merged YAML, unrelated keys preserved |
 | `manifests/plugins.yml` | `~/Projects/{superpowers,plannotator}` | git clone + `omp-local` reconciled to pinned `currentCommit` |
 | `src/patches.ts` | files under `~/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/src/` | literal-block patches applied in place, pre-patch contents captured to the snapshot, no-op when the `appliedSignature` is already present |

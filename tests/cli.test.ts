@@ -3,17 +3,34 @@ import { join } from "node:path";
 import { managedAgentChecks, REQUIRED_SKILLS } from "../src/cli.ts";
 
 describe("managedAgentChecks", () => {
-	test("includes the global commit skill as a managed symlink", () => {
-		const agentDir = "/tmp/omp-agent";
+	const localSkillNames = [
+		"commit",
+		"writing-project-readmes",
+		"writing-agent-instructions",
+		"writing-omp-skills",
+	];
 
-		expect(managedAgentChecks(agentDir)).toContainEqual([
-			join(agentDir, "skills", "commit"),
-			"skills/commit",
-			"symlink",
-		]);
+	test("includes source-managed local skills as managed symlinks", () => {
+		const agentDir = "/tmp/omp-agent";
+		const checks = managedAgentChecks(agentDir);
+
+		for (const skillName of localSkillNames) {
+			expect(checks).toContainEqual([
+				join(agentDir, "skills", skillName),
+				`skills/${skillName}`,
+				"symlink",
+			]);
+		}
 	});
 
-	test("requires the global commit skill during verification", () => {
-		expect(REQUIRED_SKILLS).toContain("commit");
+	test("requires source-managed local skills during verification", () => {
+		for (const skillName of localSkillNames) {
+			expect(REQUIRED_SKILLS).toContain(skillName);
+		}
+	});
+
+	test("requires the OMP-local skill authoring adapter, not a colliding Superpowers name", () => {
+		expect(REQUIRED_SKILLS).toContain("writing-omp-skills");
+		expect(REQUIRED_SKILLS).not.toContain("writing-skills");
 	});
 });

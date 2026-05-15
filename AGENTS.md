@@ -21,7 +21,7 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 
 ## Architecture
 
-Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads in `agent/` and `extensions/`.
+Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads live in `agent/` and `extensions/`; managed local skills live under `agent/skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/`.
 
 New pure logic gets unit tests before merge. Real-IO behaviour stays in `*-runtime.ts` and is injected into pure functions via parameters. See how `executeCheckoutSteps(steps, runner, probe)` takes its runtime as arguments.
 
@@ -39,7 +39,7 @@ Lefthook runs Biome + `tsc` on staged files at `pre-commit` and `bun install --f
 
 | Don't | Instead |
 |---|---|
-| Edit deployed copies under `~/.omp/agent/` | Edit the source in `agent/` or `extensions/`, then `bun run bootstrap`. |
+| Edit deployed copies under `~/.omp/agent/` | Edit the source in `agent/` or `extensions/`, then `bun run bootstrap`. Managed skill sources live under `agent/skills/<name>/SKILL.md`. |
 | Add relative imports outside `extensions/` to `superpowers-bootstrap.ts` | Inline the helper. The file is symlinked, so relative imports resolve against the symlink path and break the loader (commit `c313a49`). |
 | Take a runtime dep on `@oh-my-pi/pi-coding-agent` | Use the ambient declaration in `types/omp.d.ts` (whitelisted in `knip.json`). |
 | Bypass the manifest when changing a plugin checkout | `bun run update-<plugin>` rebases `omp-local`, then update `manifests/plugins.yml` `currentCommit`. |

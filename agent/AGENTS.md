@@ -12,6 +12,6 @@ Methodology is [Superpowers](https://github.com/glockyco/superpowers/tree/omp-lo
 
 ## Conventions and recovery
 
-Files under `~/.omp/agent/` (`AGENTS.md`, `extensions/superpowers-bootstrap.ts`, `lsp.json`, `skills/commit/`, managed keys in `config.yml`) are owned by `glockyco/omp-agent-setup`. Don't edit the deployed copies directly. Change the source in `~/Projects/omp-agent-setup/` and run `bun run bootstrap` (`bun run doctor` for a health check, `bun run verify` for the full gate). Commit guidance lives in `skill://commit`. Don't add repo-local plugin or skill copies unless a repo needs a genuine override.
+Files under `~/.omp/agent/` (`AGENTS.md`, `extensions/superpowers-bootstrap.ts`, `lsp.json`, `skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/`, managed keys in `config.yml`) are owned by `glockyco/omp-agent-setup`. Don't edit the deployed copies directly. Change the source in `~/Projects/omp-agent-setup/` and run `bun run bootstrap` (`bun run doctor` for a health check, `bun run verify` for the full gate). Commit guidance lives in `skill://commit`; documentation guidance lives in `skill://writing-project-readmes`, `skill://writing-agent-instructions`, and `skill://writing-omp-skills`. Don't add repo-local plugin or skill copies unless a repo needs a genuine override.
 
 If Superpowers seems inactive, verify `skill://using-superpowers` resolves and the bootstrap extension is loaded (check OMP logs). If Plannotator seems inactive, verify `~/Projects/plannotator/apps/pi-extension/` is built.

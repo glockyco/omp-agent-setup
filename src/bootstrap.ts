@@ -8,6 +8,7 @@ import {
 	timestampedBackupDirName,
 } from "./backup.ts";
 import { MANAGED_CONFIG, mergeManagedConfig } from "./config.ts";
+import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { OMP_PATCHES } from "./patches.ts";
 import {
 	applyPatches,
@@ -75,7 +76,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		join(agentDir, "AGENTS.md"),
 		join(agentDir, "lsp.json"),
 		join(extensionsDir, "superpowers-bootstrap.ts"),
-		join(agentDir, "skills", "commit"),
+		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
 		...patchTargets,
@@ -99,10 +100,10 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 			source: join(options.repoRoot, "extensions", "superpowers-bootstrap.ts"),
 			destination: join(extensionsDir, "superpowers-bootstrap.ts"),
 		},
-		{
-			source: join(options.repoRoot, "agent", "skills", "commit"),
-			destination: join(agentDir, "skills", "commit"),
-		},
+		...LOCAL_MANAGED_SKILLS.map(skillName => ({
+			source: join(options.repoRoot, "agent", "skills", skillName),
+			destination: join(agentDir, "skills", skillName),
+		})),
 	]);
 	await executeLinkPlan(links);
 

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { runBootstrap, summarizeReport } from "./bootstrap.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
+import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { loadManifest } from "./plugins-runtime.ts";
 import {
 	checkSkillLoader,
@@ -23,7 +24,7 @@ export const REQUIRED_SKILLS = [
 	"using-superpowers",
 	"brainstorming",
 	"plannotator-review",
-	"commit",
+	...LOCAL_MANAGED_SKILLS,
 ];
 
 function repoRoot(): string {
@@ -184,7 +185,14 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 		[join(agentDir, "AGENTS.md"), "AGENTS.md", "symlink"],
 		[join(agentDir, "extensions", "superpowers-bootstrap.ts"), "superpowers-bootstrap.ts", "symlink"],
 		[join(agentDir, "lsp.json"), "lsp.json", "symlink"],
-		[join(agentDir, "skills", "commit"), "skills/commit", "symlink"],
+		...LOCAL_MANAGED_SKILLS.map(
+			skillName =>
+				[
+					join(agentDir, "skills", skillName),
+					`skills/${skillName}`,
+					"symlink",
+				] satisfies ManagedAgentCheck,
+		),
 		[join(agentDir, "config.yml"), "config.yml", "file"],
 	];
 }
