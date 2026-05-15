@@ -77,11 +77,15 @@ ensure_brew() {
 }
 
 ensure_rust_analyzer() {
-	if resolve rust-analyzer >/dev/null; then
+	# `command -v rust-analyzer` is not enough: rustup writes a proxy stub at
+	# ~/.cargo/bin/rust-analyzer even when the component is not installed for
+	# the active toolchain. Invoke it once to confirm the component itself is
+	# present before believing the PATH check.
+	if resolve rust-analyzer >/dev/null && rust-analyzer --version >/dev/null 2>&1; then
 		ALREADY+=("rust-analyzer"); ok "rust-analyzer already on PATH"; return 0
 	fi
 	if ! resolve rustup >/dev/null; then
-		SKIPPED+=("rust-analyzer: rustup not on PATH"); warn "skipping rust-analyzer (install via 'brew install rustup' then 'rustup default stable')"; return 0
+		SKIPPED+=("rust-analyzer: rustup not on PATH"); warn "skipping rust-analyzer (install via 'curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y' then re-source ~/.cargo/env)"; return 0
 	fi
 	note "installing rust-analyzer via rustup component add"
 	if rustup component add rust-analyzer >/dev/null 2>&1; then
