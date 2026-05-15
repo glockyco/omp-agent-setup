@@ -99,6 +99,15 @@ ensure_dotnet_tool() {
 	if ! resolve dotnet >/dev/null; then
 		SKIPPED+=("$cmd: dotnet not on PATH"); warn "skipping $cmd (dotnet missing)"; return 0
 	fi
+	# `dotnet tool list -g` is the authoritative source. A common breakage:
+	# the tool is already installed but `~/.dotnet/tools` isn't on $PATH, so
+	# `command -v` misses it and we'd try `dotnet tool install -g` again —
+	# which exits non-zero for an already-installed tool. Detect first.
+	if dotnet tool list -g 2>/dev/null | awk -v pkg="$pkg" '$1 == pkg { found=1 } END { exit !found }'; then
+		ALREADY+=("$cmd (installed via dotnet, ensure ~/.dotnet/tools is on PATH)")
+		warn "$cmd is installed but not on PATH; add \$HOME/.dotnet/tools to PATH"
+		return 0
+	fi
 	note "installing $pkg via dotnet tool install -g"
 	if dotnet tool install -g "$pkg" >/dev/null 2>&1; then
 		INSTALLED+=("$cmd via dotnet:$pkg"); ok "$cmd installed"
