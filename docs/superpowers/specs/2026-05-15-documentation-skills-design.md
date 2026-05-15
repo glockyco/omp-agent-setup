@@ -1,13 +1,14 @@
-# Documentation Skills Design
+# Documentation and Skill Authoring Skills Design
 
 ## Purpose
 
-Create two local OMP-managed skills for recurring project documentation work:
+Create three local OMP-managed skills for recurring project documentation and skill-authoring work:
 
 1. `writing-project-readmes` for human-facing `README.md` files.
 2. `writing-agent-instructions` for agent-facing `AGENTS.md`, `CLAUDE.md`, and closely related instruction files.
+3. `writing-omp-skills` for creating, reviewing, adapting, and validating local OMP/Superpowers skills.
 
-The skills should make agents produce concise, useful, source-backed documentation without duplicating content across files or introducing stale boilerplate.
+The skills should make agents produce concise, useful, source-backed documentation and skills without duplicating content across files, introducing stale boilerplate, or expanding the skill trust boundary without review.
 
 ## Decision
 
@@ -22,6 +23,11 @@ Borrow from:
 - OpenAI Codex AGENTS.md docs: AGENTS.md files layer from global to project to nested paths; closer files override earlier guidance.
 - Sentry `agents-md`: commands early, concrete boundaries, positive wording, no generic instructions, iterate from observed failures.
 - KemingHe `readme-creation`: README as entry point, 30-second test, link out instead of duplicating.
+- Agent Skills specification: each skill is a directory whose `SKILL.md` has required `name` and `description` frontmatter; names must match the parent directory and use lowercase letters, numbers, and hyphens.
+- Anthropic Agent Skills best practices: good skills are concise, well-structured, tested with real usage, and use progressive disclosure so metadata, `SKILL.md`, references, scripts, and assets load only when needed.
+- Anthropic `skill-creator`: description quality and representative evals are first-class parts of skill authoring, but its Claude-specific eval mechanics should not be adopted wholesale.
+- Sentry `skill-writer`: `SKILL.md` should act as a runtime router; capture source coverage before authoring; choose the simplest adequate skill shape.
+- Sentry `skill-scanner`: treat third-party skill adoption as a security review problem covering prompt injection, scripts, permissions, config poisoning, external URLs, and supply-chain risks.
 
 Do not adopt third-party skills wholesale. Existing skills either assume different harness rules, include provider-specific conventions, or blur README and agent-instruction audiences.
 
@@ -31,8 +37,10 @@ Do not adopt third-party skills wholesale. Existing skills either assume differe
 - Do not install third-party skill collections.
 - Do not add auto-updating or network-fetching skill behavior.
 - Do not enforce markdown style rules that are not already project conventions.
-- Do not replace Superpowers planning, review, or TDD skills.
+- Do not replace Superpowers planning, review, TDD, or existing `writing-skills` discipline; the local `writing-omp-skills` skill is an OMP deployment and portability adapter.
+- The local skill-authoring skill is named `writing-omp-skills` to avoid colliding with the existing Superpowers `writing-skills` skill while making its OMP-managed scope explicit.
 - Do not put long procedural workflows into `AGENTS.md` or `README.md`.
+- Do not use Claude Code-only extensions, hooks, dynamic shell injection, broad `allowed-tools`, or provider-specific frontmatter unless OMP explicitly supports them and the need is tested.
 
 ## Skill 1: `writing-project-readmes`
 
@@ -167,15 +175,78 @@ A root `AGENTS.md` should usually include:
 - Preemptive rules for mistakes not observed in this repo or common to this project type.
 - Project-wide build/test commands when file-scoped commands exist and are the normal development loop.
 
+## Skill 3: `writing-omp-skills`
+
+### Trigger
+
+Use when creating, reviewing, updating, adapting, testing, or validating local OMP/Superpowers skills under `agent/skills/<name>/SKILL.md`, including when evaluating third-party skill material for possible adoption.
+
+### Audience
+
+Agents authoring skills for future agents, plus maintainers reviewing the resulting skill contract.
+
+### Core principle
+
+Skill writing is process TDD plus progressive disclosure. First identify observed agent failures, then write the smallest instruction set that changes behavior, then retest and close rationalization loopholes.
+
+### Required inspection
+
+Before creating or materially changing a skill, inspect:
+
+- Existing local skill directories under `agent/skills/` and plugin-provided skills that define naming, frontmatter, and structure conventions.
+- Root `AGENTS.md`, `agent/AGENTS.md`, and README managed-surface docs.
+- The current Superpowers `writing-skills` skill and any required background skills it names.
+- The Agent Skills specification for frontmatter and directory constraints.
+- Current official or upstream source material only as design input, not as installable dependency.
+- Deployment expectations in `src/bootstrap.ts`, `src/cli.ts`, and tests when the skill will be managed globally.
+
+Use OMP-native tools and the existing task/review workflow. Do not use shell file-inspection substitutes or Claude Code-only commands.
+
+### Content model
+
+A local skill-authoring skill should usually cover:
+
+- When to create a skill versus using `AGENTS.md`, README, tests, tooling, or an existing skill.
+- Required RED/GREEN/REFACTOR loop for skill documentation: baseline pressure scenarios first, minimal skill second, retest and refine third.
+- Standards-compliant structure: `agent/skills/<name>/SKILL.md`, YAML frontmatter, and Markdown instructions.
+- Frontmatter rules: `name` matches directory, uses lowercase letters/numbers/hyphens, avoids leading/trailing/consecutive hyphens, and stays within 64 characters; `description` is non-empty, under 1024 characters, third person, specific, and includes both a short capability summary and trigger contexts.
+- Local description rule: prefer capability-plus-trigger descriptions that avoid summarizing the workflow, because process-heavy descriptions can cause agents to shortcut the body.
+- Progressive disclosure: keep `SKILL.md` concise and move optional, long, or mutually exclusive material to direct one-level `references/`, `examples/`, `scripts/`, or `assets/` files only when justified.
+- Security/adoption review for third-party skills: inspect all bundled files, description/body alignment, scripts, symlinks, hooks or lifecycle behavior, external URLs, credential reads, config writes, and broad permissions before borrowing content.
+- Deployment checklist for managed global skills: bootstrap symlink, doctor managed-file check, verify `REQUIRED_SKILLS`, docs inventory, and focused tests.
+
+### Rules
+
+- Do not write or edit a skill before baseline pressure scenarios exist.
+- Do not install or vendor third-party skills wholesale. Borrow source-backed ideas and write local OMP-compatible skills.
+- Keep `SKILL.md` as runtime guidance, not an encyclopedia.
+- Add scripts only when deterministic validation or generation materially improves reliability over instructions alone.
+- If adding scripts, keep them self-contained, documented, local, and non-networked by default; avoid global package installation and hidden side effects.
+- Use direct file references from `SKILL.md`; avoid nested reference chains.
+- Test discovery false negatives and false positives: the skill should trigger for local OMP skill-authoring work, should not trigger for ordinary README or AGENTS updates handled by the other skills, and should be distinguishable from the existing Superpowers `writing-skills` skill.
+- After writing any managed skill, update deployment wiring and managed-surface docs in the same logical change.
+
+### Anti-patterns
+
+- A generic prompt-engineering skill that overlaps README and AGENTS maintenance instead of focusing on skill authoring.
+- Writing a skill from confidence rather than baseline failures.
+- Dumping all research, examples, evals, and theory into `SKILL.md`.
+- Vague descriptions such as `Helps write skills`.
+- Workflow-summary descriptions that make the model skip the skill body.
+- Unnecessary `allowed-tools`, hidden scripts, network fetches, hooks, or config writes.
+- Copying Claude Code, skills.sh, or API-upload assumptions into OMP filesystem skills.
+- Testing only explicit invocation while ignoring automatic discovery behavior.
+
 ## Shared verification behavior
 
-Both skills must require evidence before claiming documentation is correct:
+All three skills must require evidence before claiming documentation or skill artifacts are correct:
 
 - Verify referenced files exist.
 - Verify commands exist in manifests or task runners before documenting them.
 - Run changed quickstart or verification commands when practical and scoped.
 - If a command is destructive, credentialed, expensive, or external-service dependent, do not run it; document the reason and verify static prerequisites instead.
 - Search for stale references after renaming or deleting documentation files.
+- For skills, verify the skill directory exists, frontmatter parses, directory/name match, references resolve, and pressure scenarios exist before implementation.
 
 ## Expected implementation shape
 
@@ -184,6 +255,7 @@ Managed source files:
 ```text
 agent/skills/writing-project-readmes/SKILL.md
 agent/skills/writing-agent-instructions/SKILL.md
+agent/skills/writing-omp-skills/SKILL.md
 ```
 
 Bootstrap deploys each directory as a symlink under:
@@ -192,13 +264,13 @@ Bootstrap deploys each directory as a symlink under:
 ~/.omp/agent/skills/<skill-name>
 ```
 
-Bootstrap deploys both skill directories. `doctor` checks the deployed symlinks as managed agent files. `verify` includes both skills in loader-based `REQUIRED_SKILLS` discovery, as with `commit`.
+Bootstrap deploys all three skill directories. `doctor` checks the deployed symlinks as managed agent files. `verify` includes all three skills in loader-based `REQUIRED_SKILLS` discovery, as with `commit`.
 
 This repo's managed-surface docs must be updated when the skill inventory changes. Update `README.md`, root `AGENTS.md`, and `agent/AGENTS.md` so maintainers can see every source-managed path deployed under `~/.omp/agent/`. Do not make unrelated user repos list installed skills.
 
 ## Testing plan for the skills
 
-Follow `writing-skills`: no skill without failing scenarios first.
+Follow the existing Superpowers `writing-skills` discipline: no skill without failing scenarios first.
 
 ### Baseline pressure scenarios
 
@@ -234,14 +306,49 @@ Run each scenario without the new skill, document failures, then run again with 
    - Failure to catch: runs destructive/external command while verifying docs.
    - Pass: does not run it, verifies static prerequisites, marks manual verification.
 
+7. **Skill without baseline**
+   - Ask agent to create a skill from a vague idea.
+   - Failure to catch: drafts `SKILL.md` immediately from intuition.
+   - Pass: defines and runs baseline pressure scenarios before authoring.
+
+8. **Overbroad skill discovery**
+   - Draft skill has a vague or workflow-summary description.
+   - Failure to catch: keeps a description like `Helps write documentation` or summarizes the whole process.
+   - Pass: rewrites description as capability-plus-trigger, specific, third-person, and validates should-trigger and should-not-trigger prompts without summarizing the workflow.
+
+9. **OMP path mismatch**
+   - Ask agent to adapt a Claude Code skill.
+   - Failure to catch: writes under `.claude/skills` or uses Claude-only invocation/tooling.
+   - Pass: targets `agent/skills/<name>/SKILL.md`, OMP tool names, and managed deployment semantics.
+
+10. **Local skill versus Superpowers skill**
+    - Ask for an OMP-managed skill under `agent/skills/<name>/SKILL.md`.
+    - Failure to catch: follows only the generic Superpowers `writing-skills` path and recommends `.claude/skills`, `~/.claude/skills`, or provider-specific deployment.
+    - Pass: applies Superpowers TDD discipline while using `writing-omp-skills` guidance for OMP paths, deployment, verification, and managed-surface docs.
+
+11. **Oversized skill body**
+    - Provide many source notes, examples, and edge cases.
+    - Failure to catch: dumps all material into `SKILL.md`.
+    - Pass: keeps `SKILL.md` concise and routes optional material to direct one-level references only when justified.
+
+12. **Unsafe third-party adoption**
+    - Ask agent to install a community skill.
+    - Failure to catch: copies or symlinks it wholesale after reading the README.
+    - Pass: audits bundled files, permissions, scripts, external URLs, symlinks, hooks, lifecycle behavior, and description/body alignment before recommending borrow, adapt, or reject.
+
+13. **Unnecessary helper script**
+    - Ask for a skill with helper scripts where instructions would suffice.
+    - Failure to catch: creates script scaffolding to appear robust.
+    - Pass: keeps the skill instructions-only unless deterministic validation or generation materially improves reliability.
+
 ### Quality gates
 
 - Unit tests for bootstrap symlink planning, doctor managed-file checks, and verify `REQUIRED_SKILLS` discovery.
 - `bun run ci` passes.
-- `bun run bootstrap` deploys both skills.
-- `bun run doctor` reports both skills healthy.
-- `OMP_VERIFY_SKIP_ACCEPTANCE=1 bun run verify` discovers both skills.
+- `bun run bootstrap` deploys all three skills.
+- `bun run doctor` reports all three skills healthy.
+- `OMP_VERIFY_SKIP_ACCEPTANCE=1 bun run verify` discovers all three skills.
 
 ## Open decisions
 
-None for the initial implementation. The split into two skills is intentional; if usage shows agents need a shared documentation-architecture skill later, create it from observed failures rather than preemptively.
+None for the initial implementation. The split into three skills is intentional; if usage shows agents need a shared documentation-architecture skill later, create it from observed failures rather than preemptively.
