@@ -134,6 +134,7 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 	const checks: Array<[string, string, "symlink" | "file"]> = [
 		[join(agentDir, "AGENTS.md"), "AGENTS.md", "symlink"],
 		[join(agentDir, "extensions", "superpowers-bootstrap.ts"), "superpowers-bootstrap.ts", "symlink"],
+		[join(agentDir, "lsp.json"), "lsp.json", "symlink"],
 		[join(agentDir, "config.yml"), "config.yml", "file"],
 	];
 	let issues = 0;

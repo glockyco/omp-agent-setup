@@ -1,0 +1,34 @@
+{
+  "$comment": "Global OMP LSP overrides. Deep-merged into omp's built-in defaults.json by ~/.omp/agent/lsp.json. See scripts/install-lsp.sh for the matching binary install matrix and agent/AGENTS.md for the three-layer model.",
+  "servers": {
+    "csharp-ls": {
+      "command": "csharp-ls",
+      "args": [],
+      "fileTypes": [".cs", ".csx"],
+      "rootMarkers": ["*.sln", "*.slnx", "*.csproj", "global.json"]
+    },
+    "taplo": {
+      "command": "taplo",
+      "args": ["lsp", "stdio"],
+      "fileTypes": [".toml"],
+      "rootMarkers": ["*.toml", ".taplo.toml", "taplo.toml"]
+    },
+    "svelte": {
+      "rootMarkers": ["svelte.config.js", "svelte.config.mjs", "svelte.config.ts"]
+    },
+    "omnisharp": { "disabled": true },
+    "pyright": { "disabled": true },
+    "pylsp": { "disabled": true },
+    "vue-language-server": { "disabled": true },
+    "astro": { "disabled": true },
+    "intelephense": { "disabled": true },
+    "phpactor": { "disabled": true },
+    "ols": { "disabled": true },
+    "vimls": { "disabled": true },
+    "emmet-language-server": { "disabled": true },
+    "denols": { "disabled": true },
+    "solargraph": { "disabled": true },
+    "ruby-lsp": { "disabled": true },
+    "rubocop": { "disabled": true }
+  }
+}

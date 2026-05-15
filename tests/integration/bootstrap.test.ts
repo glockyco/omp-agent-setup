@@ -19,6 +19,7 @@ beforeEach(async () => {
 	await mkdir(join(repoRoot, "extensions"), { recursive: true });
 	await mkdir(join(repoRoot, "manifests"), { recursive: true });
 	await writeFile(join(repoRoot, "agent", "AGENTS.md"), "# Stub global AGENTS.md\n");
+	await writeFile(join(repoRoot, "agent", "lsp.json"), '{ "servers": {} }\n');
 	await writeFile(
 		join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
 		"// stub bootstrap extension\n",
@@ -39,6 +40,9 @@ describe("runBootstrap (integration)", () => {
 		// Managed symlinks point at the repo source.
 		await expect(readlink(join(agentDir, "AGENTS.md"))).resolves.toBe(
 			join(repoRoot, "agent", "AGENTS.md"),
+		);
+		await expect(readlink(join(agentDir, "lsp.json"))).resolves.toBe(
+			join(repoRoot, "agent", "lsp.json"),
 		);
 		await expect(readlink(join(agentDir, "extensions", "superpowers-bootstrap.ts"))).resolves.toBe(
 			join(repoRoot, "extensions", "superpowers-bootstrap.ts"),

@@ -78,12 +78,12 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
 		join(agentDir, "AGENTS.md"),
+		join(agentDir, "lsp.json"),
 		join(extensionsDir, "superpowers-bootstrap.ts"),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
 		...patchTargets,
 	];
-
 	await mkdir(agentDir, { recursive: true });
 	await mkdir(extensionsDir, { recursive: true });
 
@@ -94,6 +94,10 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		{
 			source: join(options.repoRoot, "agent", "AGENTS.md"),
 			destination: join(agentDir, "AGENTS.md"),
+		},
+		{
+			source: join(options.repoRoot, "agent", "lsp.json"),
+			destination: join(agentDir, "lsp.json"),
 		},
 		{
 			source: join(options.repoRoot, "extensions", "superpowers-bootstrap.ts"),
