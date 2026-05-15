@@ -153,7 +153,7 @@ export interface RepoInput {
 interface DirReport {
 	readonly relPath: string;
 	readonly activeServers: readonly ServerStatus[];
-	readonly dormantServers: readonly ServerStatus[];
+	readonly unresolvedServers: readonly ServerStatus[];
 }
 
 export interface RepoReport {
@@ -186,7 +186,7 @@ export function auditFleet(
 			return {
 				relPath: dir === repo.path ? "/" : dir.slice(repo.path.length + 1),
 				activeServers: detected.filter(s => s.reason === "matched-and-resolved"),
-				dormantServers: detected.filter(s => s.reason === "matched-no-binary"),
+				unresolvedServers: detected.filter(s => s.reason === "matched-no-binary"),
 			};
 		});
 		return {
@@ -223,21 +223,23 @@ export function renderReport(reports: readonly RepoReport[], now: Date): string 
 			lines.push(`  ${repo.label.padEnd(36)} ${age}`);
 			for (const dir of repo.directories) {
 				const active = dir.activeServers.map(s => s.name).join(", ");
-				const dormant = dir.dormantServers.map(s => s.name).join(", ");
-				if (!active && !dormant) continue;
+				const unresolved = dir.unresolvedServers.map(s => s.name).join(", ");
+				if (!active && !unresolved) continue;
 				const prefix = `      ${dir.relPath}`.padEnd(40);
-				if (active) lines.push(`${prefix} active:  ${active}`);
-				if (dormant) lines.push(`${prefix} dormant: ${dormant}`);
+				if (active) lines.push(`${prefix} active:    ${active}`);
+				if (unresolved) lines.push(`${prefix} unresolved: ${unresolved}`);
 			}
 		}
 		lines.push("");
 	}
 
-	// Coverage gaps: any active repo with a dormant server flagged in any sub-dir.
+	// Coverage gaps: any active repo with an unresolved server in any sub-dir.
+	// 'Unresolved' means the root markers matched but the binary did not resolve,
+	// which is OMP's true definition of a coverage gap.
 	const gaps = new Map<string, string[]>();
 	for (const repo of buckets.active) {
 		for (const dir of repo.directories) {
-			for (const s of dir.dormantServers) {
+			for (const s of dir.unresolvedServers) {
 				const list = gaps.get(s.name) ?? [];
 				list.push(`${repo.label}${dir.relPath === "/" ? "" : `:${dir.relPath}`}`);
 				gaps.set(s.name, list);

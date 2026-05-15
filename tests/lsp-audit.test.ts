@@ -204,7 +204,7 @@ describe("auditFleet", () => {
 		expect(r.activity).toBe("active");
 		expect(r.directories.map(d => d.relPath)).toEqual(["/", "packages/x", "packages/y"]);
 		expect(r.directories.every(d => d.activeServers.length === 1)).toBe(true);
-		expect(r.directories.every(d => d.dormantServers.length === 0)).toBe(true);
+		expect(r.directories.every(d => d.unresolvedServers.length === 0)).toBe(true);
 	});
 
 	test("flags coverage gaps when binary is missing", () => {
@@ -218,7 +218,7 @@ describe("auditFleet", () => {
 			path,
 			now,
 		);
-		expect(reports[0]?.directories[0]?.dormantServers.map(s => s.name)).toEqual([
+		expect(reports[0]?.directories[0]?.unresolvedServers.map(s => s.name)).toEqual([
 			"typescript-language-server",
 		]);
 	});
@@ -258,7 +258,7 @@ describe("auditFleet", () => {
 			"typescript-language-server",
 		]);
 		expect(reports[1]?.directories[0]?.activeServers.map(s => s.name)).toEqual(["denols"]);
-		expect(reports[1]?.directories[0]?.dormantServers).toHaveLength(0);
+		expect(reports[1]?.directories[0]?.unresolvedServers).toHaveLength(0);
 	});
 
 	test("PathResolver receives cwd so local-bin precedence can be tested", () => {
