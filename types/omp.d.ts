@@ -60,9 +60,14 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		sessionManager: ReadonlySessionManager;
 	}
 
+	// `void` is intentional here: it expresses "caller ignores the return value"
+	// rather than the value `undefined`. Using `undefined` would forbid a
+	// handler from returning a meaningful R, even when R is bound to a concrete
+	// type. This mirrors OMP's upstream `ExtensionHandler` contract.
 	export type ExtensionHandler<E, R = void> = (
 		event: E,
 		ctx: ExtensionContext,
+		// biome-ignore lint/suspicious/noConfusingVoidType: see comment above
 	) => Promise<R | void> | R | void;
 
 	export interface ExtensionAPI {
