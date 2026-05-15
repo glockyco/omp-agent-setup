@@ -323,7 +323,17 @@ async function main(): Promise<number> {
 		console.error(`Unknown command: ${command}`);
 		return 2;
 	}
-	return await handler(rest);
+	try {
+		return await handler(rest);
+	} catch (error) {
+		// Several handlers reject on operational failures (`runGit`, `captureGit`,
+		// child-process spawn errors). Normalize: every command exits the same
+		// way — one stable error line, non-zero code — instead of dumping a
+		// stack trace for some commands and a clean diagnostic for others.
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(`${command}: ${message}`);
+		return 1;
+	}
 }
 
 if (import.meta.main) {
