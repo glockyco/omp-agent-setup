@@ -9,8 +9,18 @@
  * This file is excluded from coverage reporting on purpose.
  */
 import { type SpawnOptions, spawn } from "node:child_process";
-import { stat } from "node:fs/promises";
-import type { GitProbe, GitRunner } from "./plugins.ts";
+import { readFile, stat } from "node:fs/promises";
+import { type GitProbe, type GitRunner, type PluginManifest, parseManifest } from "./plugins.ts";
+
+/**
+ * Read and parse the plugin manifest from disk. Pure parsing lives in
+ * `plugins.ts:parseManifest`; the filesystem read stays here so the planner
+ * can be tested without touching the disk.
+ */
+export async function loadManifest(manifestPath: string, home: string): Promise<PluginManifest> {
+	const text = await readFile(manifestPath, "utf8");
+	return parseManifest(text, home);
+}
 
 export const realGitRunner: GitRunner = {
 	async run(args, options) {

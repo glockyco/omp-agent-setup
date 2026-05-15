@@ -16,13 +16,8 @@ import {
 	resolveOmpInstallRoot,
 } from "./patches-runtime.ts";
 import { expandHome } from "./paths.ts";
-import {
-	type CheckoutStep,
-	executeCheckoutSteps,
-	loadManifest,
-	planPluginCheckout,
-} from "./plugins.ts";
-import { realGitProbe, realGitRunner } from "./plugins-runtime.ts";
+import { type CheckoutStep, executeCheckoutSteps, planPluginCheckout } from "./plugins.ts";
+import { loadManifest, realGitProbe, realGitRunner } from "./plugins-runtime.ts";
 import {
 	executeLinkPlan,
 	executeStaleSymlinkRemoval,

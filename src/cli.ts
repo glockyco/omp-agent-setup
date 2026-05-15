@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { runBootstrap, summarizeReport } from "./bootstrap.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
-import { loadManifest } from "./plugins.ts";
+import { loadManifest } from "./plugins-runtime.ts";
 import {
 	checkSkillLoader,
 	findExtensionError,

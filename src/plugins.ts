@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 import { expandHome } from "./paths.ts";
 
@@ -50,12 +49,6 @@ export function parseManifest(yamlText: string, home: string): PluginManifest {
 		});
 	}
 	return { plugins };
-}
-
-/** Loads and parses the manifest file at `manifestPath`. */
-export async function loadManifest(manifestPath: string, home: string): Promise<PluginManifest> {
-	const text = await readFile(manifestPath, "utf8");
-	return parseManifest(text, home);
 }
 
 export type CheckoutStep =
