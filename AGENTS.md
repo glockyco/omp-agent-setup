@@ -31,7 +31,7 @@ TypeScript strict. Biome enforces format and lint, and `bun run fix` rewrites.
 
 ## Commits
 
-Conventional Commits format, enforced by commitlint at `commit-msg`. The subject is imperative, around 50 characters, capitalized, no trailing period. The body explains the change and the reasoning. The diff already shows the mechanics. Wrap the body at 72.
+Commit guidance lives in `skill://commit`; use Conventional Commits with 50/72 and commitlint where configured.
 
 Lefthook runs Biome + `tsc` on staged files at `pre-commit` and `bun install --frozen-lockfile && bun run ci` at `pre-push`. GitHub merge mode is rebase-only with auto-branch-delete.
 

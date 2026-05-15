@@ -19,7 +19,12 @@ import { makeRealSkillLoader, readLogFile, realRunner } from "./verify-runtime.t
 
 const VERIFY_MODEL = process.env.OMP_VERIFY_MODEL ?? "openai-codex/gpt-5.5";
 
-const REQUIRED_SKILLS = ["using-superpowers", "brainstorming", "plannotator-review"];
+export const REQUIRED_SKILLS = [
+	"using-superpowers",
+	"brainstorming",
+	"plannotator-review",
+	"commit",
+];
 
 function repoRoot(): string {
 	return resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -134,12 +139,7 @@ async function cmdVerify(_args: string[]): Promise<number> {
 async function cmdDoctor(_args: string[]): Promise<number> {
 	const home = homedir();
 	const agentDir = join(home, ".omp", "agent");
-	const checks: Array<[string, string, "symlink" | "file"]> = [
-		[join(agentDir, "AGENTS.md"), "AGENTS.md", "symlink"],
-		[join(agentDir, "extensions", "superpowers-bootstrap.ts"), "superpowers-bootstrap.ts", "symlink"],
-		[join(agentDir, "lsp.json"), "lsp.json", "symlink"],
-		[join(agentDir, "config.yml"), "config.yml", "file"],
-	];
+	const checks = managedAgentChecks(agentDir);
 	let issues = 0;
 	for (const [path, label, expected] of checks) {
 		try {
@@ -175,6 +175,18 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 	}
 	console.log("\nDoctor: healthy.");
 	return 0;
+}
+
+type ManagedAgentCheck = [path: string, label: string, expected: "symlink" | "file"];
+
+export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
+	return [
+		[join(agentDir, "AGENTS.md"), "AGENTS.md", "symlink"],
+		[join(agentDir, "extensions", "superpowers-bootstrap.ts"), "superpowers-bootstrap.ts", "symlink"],
+		[join(agentDir, "lsp.json"), "lsp.json", "symlink"],
+		[join(agentDir, "skills", "commit"), "skills/commit", "symlink"],
+		[join(agentDir, "config.yml"), "config.yml", "file"],
+	];
 }
 
 async function cmdUpdatePlugin(name: "superpowers" | "plannotator"): Promise<number> {

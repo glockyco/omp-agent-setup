@@ -20,10 +20,12 @@ beforeEach(async () => {
 	await mkdir(join(repoRoot, "manifests"), { recursive: true });
 	await writeFile(join(repoRoot, "agent", "AGENTS.md"), "# Stub global AGENTS.md\n");
 	await writeFile(join(repoRoot, "agent", "lsp.json"), '{ "servers": {} }\n');
+	await mkdir(join(repoRoot, "agent", "skills", "commit"), { recursive: true });
 	await writeFile(
 		join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
 		"// stub bootstrap extension\n",
 	);
+	await writeFile(join(repoRoot, "agent", "skills", "commit", "SKILL.md"), "# Commit skill\n");
 	// Empty manifest so we don't hit the real Git remotes.
 	await writeFile(join(repoRoot, "manifests", "plugins.yml"), "plugins: {}\n");
 });
@@ -46,6 +48,9 @@ describe("runBootstrap (integration)", () => {
 		);
 		await expect(readlink(join(agentDir, "extensions", "superpowers-bootstrap.ts"))).resolves.toBe(
 			join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
+		);
+		await expect(readlink(join(agentDir, "skills", "commit"))).resolves.toBe(
+			join(repoRoot, "agent", "skills", "commit"),
 		);
 
 		// Managed config keys are present.
