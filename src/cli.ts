@@ -4,6 +4,8 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runBootstrap, summarizeReport } from "./bootstrap.ts";
+import { auditFleet, renderReport } from "./lsp-audit.ts";
+import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
 import { loadManifest } from "./plugins.ts";
 import {
 	checkSkillLoader,
@@ -257,6 +259,18 @@ function todayLogDate(): string {
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+async function cmdAuditLsp(args: string[]): Promise<number> {
+	const projectsDir = args.find(a => !a.startsWith("--")) ?? join(homedir(), "Projects");
+	const includeDormant = args.includes("--include-dormant");
+	const defsFor = makeDefsResolver();
+	const repos = discoverRepos({ projectsDir });
+	const now = new Date();
+	let reports = auditFleet(repos, defsFor, realFs, makePathResolver(), now);
+	if (!includeDormant) reports = reports.filter(r => r.activity !== "dormant");
+	process.stdout.write(renderReport(reports, now));
+	return 0;
+}
+
 async function cmdInstallLsp(_args: string[]): Promise<number> {
 	const script = join(repoRoot(), "scripts", "install-lsp.sh");
 	return await new Promise<number>((resolveDone, reject) => {
@@ -280,6 +294,7 @@ const COMMANDS: Record<string, (args: string[]) => Promise<number>> = {
 	bootstrap: cmdBootstrap,
 	verify: cmdVerify,
 	doctor: cmdDoctor,
+	"audit-lsp": cmdAuditLsp,
 	"install-lsp": cmdInstallLsp,
 	"update-superpowers": () => cmdUpdatePlugin("superpowers"),
 	"update-plannotator": () => cmdUpdatePlugin("plannotator"),

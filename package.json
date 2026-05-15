@@ -8,6 +8,7 @@
     "bootstrap": "bun run src/cli.ts bootstrap",
     "verify": "bun run src/cli.ts verify",
     "doctor": "bun run src/cli.ts doctor",
+    "audit-lsp": "bun run src/cli.ts audit-lsp",
     "install-lsp": "bun run src/cli.ts install-lsp",
     "update-superpowers": "bun run src/cli.ts update-superpowers",
     "update-plannotator": "bun run src/cli.ts update-plannotator",
