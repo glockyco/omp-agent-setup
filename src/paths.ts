@@ -26,16 +26,16 @@ export function expandAndNormalize(path: string, home: string = homedir()): stri
 
 /**
  * Encode an absolute filesystem path as a filename-safe single segment for use
- * inside a backup directory. The encoding is deterministic, reversible by
- * inspection, and avoids collisions between paths that differ only in
- * separators or dot placement.
+ * as a backup-snapshot key. The encoding is injective: every byte in the
+ * input maps to a unique output sequence, so two distinct paths can never
+ * collide on disk.
  *
- * Rules:
- * - Leading slash is dropped.
- * - Path separators become `__`.
- * - Dots become `_`.
- * - Any character outside `[A-Za-z0-9_-]` becomes its lowercase hex code prefixed by `x`,
- *   so unusual filenames remain reversible at a glance.
+ * Strategy: leading slash is stripped, then `_` becomes the escape lead. Every
+ * non-`[A-Za-z0-9-]` character is replaced with `_HH` where `HH` is its
+ * two-digit lowercase hex code. `_` itself is encoded as `_5f` for the same
+ * reason, which keeps `_` from appearing as a literal in the output and makes
+ * decoding unambiguous: any `_` in the output is always the start of a
+ * three-character escape.
  */
 export function backupSafeName(absolutePath: string): string {
 	if (!absolutePath.startsWith("/")) {
@@ -44,15 +44,14 @@ export function backupSafeName(absolutePath: string): string {
 	const stripped = absolutePath.slice(1);
 	let out = "";
 	for (const ch of stripped) {
-		if (ch === "/") {
-			out += "__";
-		} else if (ch === ".") {
-			out += "_";
-		} else if (/[A-Za-z0-9_-]/.test(ch)) {
+		// Single-byte safe set passes through. Non-`_` matches let us keep human
+		// readability; `_` itself must escape so the escape lead remains unique.
+		if (/[A-Za-z0-9-]/.test(ch)) {
 			out += ch;
-		} else {
-			out += `x${ch.charCodeAt(0).toString(16)}`;
+			continue;
 		}
+		const codePoint = ch.codePointAt(0) ?? 0;
+		out += `_${codePoint.toString(16).padStart(2, "0")}`;
 	}
 	return out;
 }

@@ -32,7 +32,7 @@ describe("expandAndNormalize", () => {
 describe("backupSafeName", () => {
 	test("encodes a typical config path", () => {
 		expect(backupSafeName("/Users/test/.omp/agent/config.yml")).toBe(
-			"Users__test___omp__agent__config_yml",
+			"Users_2ftest_2f_2eomp_2fagent_2fconfig_2eyml",
 		);
 	});
 
@@ -41,14 +41,23 @@ describe("backupSafeName", () => {
 	});
 
 	test("encodes unusual characters reversibly", () => {
-		const encoded = backupSafeName("/a b");
-		expect(encoded).toBe("ax20b");
+		expect(backupSafeName("/a b")).toBe("a_20b");
 	});
 
 	test("paths that differ only in dots vs slashes do not collide", () => {
-		const a = backupSafeName("/foo.bar");
-		const b = backupSafeName("/foo/bar");
-		expect(a).not.toBe(b);
+		expect(backupSafeName("/foo.bar")).not.toBe(backupSafeName("/foo/bar"));
+	});
+
+	test("paths containing underscores do not collide with separator-encoded paths", () => {
+		// Previous encoding mapped `/` to `__` and `_` passed through, so
+		// `/foo/bar` and `/foo__bar` both encoded to `foo__bar`.
+		expect(backupSafeName("/foo/bar")).not.toBe(backupSafeName("/foo__bar"));
+	});
+
+	test("paths containing dots do not collide with underscore-bearing paths", () => {
+		// Previous encoding mapped `.` to `_` and `_` passed through, so
+		// `/foo.bar` and `/foo_bar` both encoded to `foo_bar`.
+		expect(backupSafeName("/foo.bar")).not.toBe(backupSafeName("/foo_bar"));
 	});
 });
 
