@@ -142,12 +142,18 @@ main() {
 	printf '  skipped:    %d\n' "${#SKIPPED[@]}"
 	printf '  failed:     %d\n' "${#FAILED[@]}"
 	if [[ ${#SKIPPED[@]} -gt 0 ]]; then
-		printf '\nSkipped:\n'
+		printf '\nSkipped (install the missing prerequisite, then re-run):\n'
 		for item in "${SKIPPED[@]}"; do printf '  - %s\n' "$item"; done
 	fi
 	if [[ ${#FAILED[@]} -gt 0 ]]; then
 		printf '\nFailed:\n'
 		for item in "${FAILED[@]}"; do printf '  - %s\n' "$item"; done
+	fi
+	# Anything in SKIPPED means an ecosystem-level installer wasn't on PATH,
+	# so the corresponding language servers cannot be installed at all. Treat
+	# that as a failure so callers (and the install-lsp wrapper command) do not
+	# read a clean exit code as 'fleet provisioned'.
+	if [[ ${#FAILED[@]} -gt 0 || ${#SKIPPED[@]} -gt 0 ]]; then
 		return 1
 	fi
 	printf '\nNext: bun run audit-lsp to verify fleet coverage.\n'
