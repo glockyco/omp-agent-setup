@@ -297,3 +297,42 @@ export function parseGradleIncludeArgs(args: string): string[] {
 	}
 	return out;
 }
+
+/**
+ * Find every `include(...)`/`include ':a', ':b'` call body in a Gradle settings
+ * script. Returns the inside-of-the-call substring(s) for each call, ready to
+ * pass through `parseGradleIncludeArgs`.
+ *
+ * Two valid Gradle syntaxes are recognised:
+ *
+ *   include(':app', ':lib')           // Kotlin DSL or modern Groovy. May span lines.
+ *   include ':app', ':lib'            // Groovy without parens. Single line.
+ *
+ * Implementation note: a single line-bounded regex (e.g. `include[ (](...)`)
+ * is unsafe because the paren form is commonly written as
+ *
+ *   include(
+ *     ':app',
+ *     ':lib',
+ *   )
+ *
+ * — and stopping at the first newline truncates the args. Handle the two
+ * forms with separate passes.
+ */
+export function parseGradleIncludeCalls(text: string): string[] {
+	const bodies: string[] = [];
+	// Paren form: balanced parens with no nesting (Gradle does not allow nested
+	// parens inside include calls). `[\s\S]*?` is non-greedy across newlines.
+	const parenRe = /\binclude\s*\(([\s\S]*?)\)/g;
+	for (const m of text.matchAll(parenRe)) {
+		if (m[1] !== undefined) bodies.push(m[1]);
+	}
+	// No-paren form: `include` followed by whitespace and a quoted arg, up to
+	// end-of-line. Negative lookahead skips the paren form so we don't capture
+	// the bare 'include' word that introduces it.
+	const groovyRe = /\binclude\b(?!\s*\()\s+([^\n]*)/g;
+	for (const m of text.matchAll(groovyRe)) {
+		if (m[1] !== undefined) bodies.push(m[1]);
+	}
+	return bodies;
+}

@@ -13,6 +13,7 @@ import {
 	type FsView,
 	type PathResolver,
 	parseGradleIncludeArgs,
+	parseGradleIncludeCalls,
 	type RepoInput,
 	type ServerDef,
 } from "./lsp-audit.ts";
@@ -468,12 +469,11 @@ function addGradleSettings(repoDir: string, out: Set<string>): void {
 			if (key && customPath) remaps.set(key, customPath);
 		}
 		// `include` accepts variadic arguments in both Groovy (`include ':a', ':b'`)
-		// and Kotlin DSL (`include(":a", ":b")`). Capture every quoted segment that
-		// belongs to the same include call by scanning until the next newline or
-		// matched closing paren.
-		const includeCallRe = /\binclude\b[ (]([^\n)]*)/g;
-		for (const call of text.matchAll(includeCallRe)) {
-			for (const seg of parseGradleIncludeArgs(call[1] ?? "")) {
+		// and Kotlin DSL (`include(":a", ":b")`), with the paren form commonly
+		// spread across multiple lines. `parseGradleIncludeCalls` walks both
+		// shapes and returns each call's arg body for `parseGradleIncludeArgs`.
+		for (const body of parseGradleIncludeCalls(text)) {
+			for (const seg of parseGradleIncludeArgs(body)) {
 				const key = seg.startsWith(":") ? seg : `:${seg}`;
 				const rel = remaps.get(key) ?? seg.replace(/^:/, "").replace(/:/g, "/");
 				const abs = join(repoDir, rel);

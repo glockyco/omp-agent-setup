@@ -9,6 +9,7 @@ import {
 	hasRootMarkers,
 	type PathResolver,
 	parseGradleIncludeArgs,
+	parseGradleIncludeCalls,
 	renderReport,
 	type ServerDef,
 } from "../src/lsp-audit.ts";
@@ -377,6 +378,30 @@ describe("parseGradleIncludeArgs", () => {
 
 	test("returns an empty list when no quoted segments are present", () => {
 		expect(parseGradleIncludeArgs("project(foo)")).toEqual([]);
+	});
+});
+
+describe("parseGradleIncludeCalls", () => {
+	test("captures a single-line paren call", () => {
+		expect(parseGradleIncludeCalls(`include(":app", ":lib")`)).toEqual([`":app", ":lib"`]);
+	});
+
+	test("captures a multi-line paren call", () => {
+		const text = `include(\n  ":app",\n  ":lib",\n)\n`;
+		const [body] = parseGradleIncludeCalls(text);
+		expect(body).toBeDefined();
+		expect(parseGradleIncludeArgs(body ?? "")).toEqual([":app", ":lib"]);
+	});
+
+	test("captures Groovy no-paren form", () => {
+		const [body] = parseGradleIncludeCalls(`include ':app', ':lib'\n`);
+		expect(parseGradleIncludeArgs(body ?? "")).toEqual([":app", ":lib"]);
+	});
+
+	test("returns one body per include call", () => {
+		const text = `include ':a'\ninclude(\n  ':b',\n  ':c',\n)\n`;
+		const all = parseGradleIncludeCalls(text).flatMap(parseGradleIncludeArgs);
+		expect(all).toEqual([":b", ":c", ":a"]);
 	});
 });
 
