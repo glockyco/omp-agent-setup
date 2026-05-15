@@ -13,6 +13,8 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 | `bun run bootstrap` | Deploy managed symlinks, merge managed config keys, reconcile plugin checkouts. Idempotent. |
 | `bun run verify` | Live gate. `OMP_VERIFY_SKIP_ACCEPTANCE=1` skips the model-heavy Superpowers acceptance smoke. |
 | `bun run doctor` | Read-only health report. |
+| `bun run audit-lsp` | Fleet-wide LSP audit. Walks `~/Projects/*`, simulates OMP's per-directory server detection, classifies by git activity, surfaces missing-binary gaps. |
+| `bun run install-lsp` | Idempotent install of every LSP binary in the canonical channel (bun / uv / rustup / dotnet tool / brew). Source-of-truth: `scripts/install-lsp.sh`. |
 | `bun run update-{superpowers,plannotator}` | Rebase the fork's `omp-local` onto `upstream/main` and print the new SHA to record. |
 | `bun run ci` | Lint + types + dead-code + audit + tests. Mirrors lefthook `pre-push` and the GitHub workflow. |
 | `bun run fix` | Biome auto-fix. |
@@ -44,6 +46,17 @@ Lefthook runs Biome + `tsc` on staged files at `pre-commit` and `bun install --f
 | Suppress acceptance smoke patterns to silence `verify` | Broaden them in `src/cli.ts:cmdVerify` to match what real agents emit. |
 | Land non-OMP-specific changes on a plugin's `omp-local` branch | Keep `omp-local` as a minimal adapter on `upstream/main`. The recent superpowers audit cut 380 lines of unrelated rewrites. Treat plannotator the same way. |
 | Hand-edit installed `pi-coding-agent` sources to keep a modification across `omp update` | Add the modification to `src/patches.ts` (anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. |
+| Add an `lsp.json` to a user project to "fix" missing LSP coverage | The fleet is configured globally. Either install the missing binary via `scripts/install-lsp.sh` (preferred) or extend `agent/lsp.json`. Per-repo overrides only when project conventions genuinely differ. |
+
+## LSP maintenance
+
+LSP coverage is owned by this repo end-to-end. Individual user projects never carry LSP config. Three layers, all maintained here:
+
+- **`scripts/install-lsp.sh`** declares which binaries exist on `$PATH` and via which channel.
+- **`agent/lsp.json`** declares which servers are disabled, which root markers we tighten, and which servers we substitute (e.g. `omnisharp` → `csharp-ls`). Symlinked to `~/.omp/agent/lsp.json` by `bun run bootstrap`.
+- **`scripts/audit-lsp` via `src/lsp-audit.ts` + `-runtime.ts`** is the verification mechanism. `bun run audit-lsp` re-applies OMP's detection algorithm and reports drift.
+
+Touching any one of these implies updating the audit's view of "active fleet" and the override accordingly. If a new language enters the active fleet, install the binary in `scripts/install-lsp.sh` first; only add an `agent/lsp.json` entry if the default needs changing.
 
 ## Plugin update
 

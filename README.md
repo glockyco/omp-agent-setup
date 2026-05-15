@@ -46,6 +46,7 @@ bun run verify
 | Repo source | Deployed at | Semantics |
 |---|---|---|
 | `agent/AGENTS.md` | `~/.omp/agent/AGENTS.md` | symlink |
+| `agent/lsp.json` | `~/.omp/agent/lsp.json` | symlink — global LSP overrides deep-merged into OMP's `defaults.json` |
 | `extensions/superpowers-bootstrap.ts` | `~/.omp/agent/extensions/superpowers-bootstrap.ts` | symlink |
 | managed keys in `config/config.yml.template` | `~/.omp/agent/config.yml` | merged YAML, unrelated keys preserved |
 | `manifests/plugins.yml` | `~/Projects/{superpowers,plannotator}` | git clone + `omp-local` reconciled to pinned `currentCommit` |
@@ -58,8 +59,20 @@ bun run verify
 | `bun run bootstrap` | Deploy / redeploy managed files. |
 | `bun run verify` | Full live gate. `OMP_VERIFY_SKIP_ACCEPTANCE=1` skips the model-heavy smoke. |
 | `bun run doctor` | Read-only health report. |
+| `bun run audit-lsp` | Fleet audit: per-repo active / dormant servers + coverage gaps for active repos. `--include-dormant` to widen. |
+| `bun run install-lsp` | Install all LSP binaries listed in `scripts/install-lsp.sh` via the canonical channel per tool. Idempotent. |
 | `bun run update-{superpowers,plannotator}` | Rebase the fork's `omp-local` onto upstream and print the new SHA. |
 | `bun run ci` / `bun run fix` | All quality gates / Biome auto-fix. |
+
+## LSP
+
+OMP's `lsp` tool auto-detects language servers per directory: walk OMP's `defaults.json`, match root markers against `cwd`, then resolve each candidate's command on `$PATH`. Three layers of configuration, all owned by this repo:
+
+1. **Binaries on `$PATH`.** `scripts/install-lsp.sh` is the single source of truth for which servers exist and how they get there. One channel per tool: `bun add -g` for JS/TS, `uv tool install` for Python, `rustup component add` for Rust, `dotnet tool install -g` for .NET, `brew install` for standalone Rust binaries. `bun run install-lsp` runs it idempotently.
+2. **Global override `agent/lsp.json`** → `~/.omp/agent/lsp.json` (symlink). Deep-merged over OMP's defaults. Swaps `omnisharp` for `csharp-ls` (Microsoft put OmniSharp in maintenance mode), tightens noisy root markers (e.g. `svelte`'s bare `package.json` fallback), and disables defaults whose binary isn't part of the install matrix (`intelephense`, `ols`, `vimls`, `emmet-language-server`, …) so they don't show up in audit gaps.
+3. **Repo-local `./lsp.json`** — only when a single project genuinely needs to deviate (Deno-only repo, vendored toolchain). Don't add prophylactically; they go stale.
+
+Individual repos never need an `lsp.json`. Auditing the fleet is the verification mechanism: `bun run audit-lsp` walks `~/Projects/*`, applies OMP's exact detection algorithm to every workspace sub-package (pnpm / bun / Cargo / Maven / Gradle / `.sln`), classifies repos by last-commit age (active ≤ 90d, warm ≤ 365d, dormant beyond), and surfaces coverage gaps grouped by missing server. Re-runs in seconds.
 
 ## Plugins
 
