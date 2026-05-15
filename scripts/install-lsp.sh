@@ -108,6 +108,17 @@ ensure_dotnet_tool() {
 	# `command -v` misses it and we'd try `dotnet tool install -g` again —
 	# which exits non-zero for an already-installed tool. Detect first.
 	if dotnet tool list -g 2>/dev/null | awk -v pkg="$pkg" '$1 == pkg { found=1 } END { exit !found }'; then
+		# Tool is registered. If the literal binary exists under $HOME/.dotnet/tools
+		# but `command -v` couldn't find it, the user is hitting the macOS dotnet
+		# installer bug: `/etc/paths.d/dotnet-cli-tools` ships with a literal
+		# `~/.dotnet/tools` entry that `path_helper` does NOT expand. Surface a
+		# concrete fix command rather than letting the tool look 'installed but
+		# broken'.
+		if [[ -x "$HOME/.dotnet/tools/$cmd" ]] && echo "$PATH" | tr ':' '\n' | grep -qx '~/.dotnet/tools'; then
+			FAILED+=("$cmd: /etc/paths.d/dotnet-cli-tools has unexpanded ~ entry")
+			fail "$cmd installed at $HOME/.dotnet/tools but PATH has literal '~/.dotnet/tools'; fix with: echo \"\$HOME/.dotnet/tools\" | sudo tee /etc/paths.d/dotnet-cli-tools >/dev/null"
+			return 0
+		fi
 		ALREADY+=("$cmd (installed via dotnet, ensure ~/.dotnet/tools is on PATH)")
 		warn "$cmd is installed but not on PATH; add \$HOME/.dotnet/tools to PATH"
 		return 0
