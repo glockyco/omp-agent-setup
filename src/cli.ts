@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { lstat, readlink } from "node:fs/promises";
+import { lstat, readFile, readlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,12 @@ import {
 	scanLog,
 } from "./verify.ts";
 import { makeRealSkillLoader, readLogFile, realRunner } from "./verify-runtime.ts";
+import {
+	buildManagedZedSettings,
+	readZedAgentServer,
+	ZedSettingsParseError,
+} from "./zed-settings.ts";
+import { resolveOmpBinary, zedSettingsPath } from "./zed-settings-runtime.ts";
 
 const VERIFY_MODEL = process.env.OMP_VERIFY_MODEL ?? "openai-codex/gpt-5.5";
 
@@ -170,6 +176,19 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 			issues++;
 		}
 	}
+	const ompForDoctor = resolveOmpBinary();
+	if (!ompForDoctor) {
+		console.log("  WARN Zed settings: cannot resolve omp on $PATH");
+		issues++;
+	} else {
+		const zedLine = await checkZedSettings({ home, ompPath: ompForDoctor });
+		if (zedLine.startsWith("Zed settings: ok")) {
+			console.log(`  ok   ${zedLine}`);
+		} else {
+			console.log(`  WARN ${zedLine}`);
+			issues++;
+		}
+	}
 	if (issues > 0) {
 		console.error(`\nDoctor found ${issues} issue(s).`);
 		return 1;
@@ -195,6 +214,41 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 		),
 		[join(agentDir, "config.yml"), "config.yml", "file"],
 	];
+}
+
+export interface CheckZedSettingsOptions {
+	home: string;
+	ompPath: string;
+}
+
+export async function checkZedSettings(options: CheckZedSettingsOptions): Promise<string> {
+	const path = zedSettingsPath(options.home);
+	let text: string;
+	try {
+		text = await readFile(path, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			return `Zed settings: missing at ${path}`;
+		}
+		throw error;
+	}
+	let entry: unknown;
+	try {
+		entry = readZedAgentServer(text, "omp-acp");
+	} catch (error) {
+		if (error instanceof ZedSettingsParseError) {
+			return `Zed settings: parse error at ${path} (${error.message})`;
+		}
+		throw error;
+	}
+	const canonical = buildManagedZedSettings({ ompPath: options.ompPath }).agent_servers["omp-acp"];
+	if (entry === undefined) {
+		return `Zed settings: missing omp-acp entry (${path})`;
+	}
+	if (!Bun.deepEquals(entry, canonical)) {
+		return `Zed settings: drift in omp-acp entry (${path})`;
+	}
+	return `Zed settings: ok (${path})`;
 }
 
 async function cmdUpdatePlugin(name: "superpowers" | "plannotator"): Promise<number> {
