@@ -28,10 +28,10 @@ gh repo clone glockyco/omp-agent-setup ~/Projects/omp-agent-setup
 cd ~/Projects/omp-agent-setup
 bun install
 bun run bootstrap
-bun run verify
+OMP_VERIFY_SKIP_ACCEPTANCE=1 bun run verify  # full gate without the model-heavy smoke
 ```
 
-`bootstrap` is idempotent. Re-run after any source change.
+`bootstrap` is idempotent. Re-run after any source change. Drop `OMP_VERIFY_SKIP_ACCEPTANCE=1` from `verify` once when you want the full Superpowers acceptance smoke (slow, model-heavy, costs API calls).
 
 ## What gets deployed
 
