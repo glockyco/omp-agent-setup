@@ -12,9 +12,9 @@ Methodology is [Superpowers](https://github.com/glockyco/superpowers/tree/omp-lo
 
 ## Editor surface: Zed (ACP)
 
-OMP runs inside Zed via the [Agent Client Protocol](https://github.com/zed-industries/agent-client-protocol) (`omp acp`). When invoked from Zed's Agent panel, tool I/O routes through the editor: `read`/`write` go through Zed's buffer and save pipeline (so unsaved changes are visible to OMP, and writes hit Zed's formatter and undo history), `bash` calls render as Zed terminals, and destructive tools (`edit`, `ast_edit`, `write`, `bash`) gate via `session/request_permission` with an "allow always" option. LSP, DAP, and subagent fan-out stay inside OMP; ACP only bridges the editor-visible surface, so the agent and the IDE can independently disagree on, e.g., C# analyzer diagnostics (csharp-ls defaults `analyzersEnabled: false`).
+OMP runs inside Zed via the [Agent Client Protocol](https://github.com/zed-industries/agent-client-protocol) (`omp acp`). When invoked from Zed's Agent panel, `read`/`write` go through Zed's buffer and save pipeline (unsaved changes are visible to OMP, writes hit Zed's formatter and undo history), `bash` opens Zed terminals, and destructive tools prompt for permission with an "allow always" option. LSP, DAP, and subagents stay inside OMP — Zed only hosts the editor-visible I/O surface.
 
-The agent server is registered in `~/.config/zed/settings.json` under `agent_servers["omp-acp"]` by `omp-agent-setup`'s `bun run bootstrap`. C# LSP is intentionally split: Zed uses Roslyn (its default) for interactive editing; OMP uses csharp-ls for headless tool calls. Don't force parity.
+Bootstrap manages the `agent_servers["omp-acp"]` entry in `~/.config/zed/settings.json`; everything else there is user-owned.
 
 ## Conventions and recovery
 

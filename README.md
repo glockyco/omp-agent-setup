@@ -74,7 +74,7 @@ OMP runs inside Zed via the [Agent Client Protocol](https://github.com/zed-indus
 
 C# LSP is intentionally split. Zed uses Roslyn (its built-in default, via the `csharp` Zed extension); OMP uses csharp-ls (via `agent/lsp.json`). Roslyn is the actively-maintained first-party Zed C# server; csharp-ls is enough for the headless `lsp` ops the agent runs. The asymmetry is recorded: csharp-ls defaults analyzer-backed diagnostics off, source-generator support is upstream-WIP, and neither path supports Razor/CSHTML in Zed today ([extension #41](https://github.com/zed-extensions/csharp/issues/41)). Forcing parity would require shipping a third-party Zed extension for csharp-ls; not worth it.
 
-OmniSharp is a documented contingency, not the steady state — see `AGENTS.md`.
+OmniSharp remains a documented contingency: not deprecated (latest release 1.39.15 in 2025-11) but not the steady state either. If [Zed #55746](https://github.com/zed-industries/zed/issues/55746) ever recurs after a Zed update, the fallback ladder is: update Zed → set `"languages": { "CSharp": { "enable_language_server": false } }` → install OmniSharp temporarily.
 
 The OMP ↔ Zed bridge only covers editor-visible I/O (`fs/read_text_file`, `fs/write_text_file`, `terminal/*`, `session/request_permission`). OMP's own LSP, DAP, subagent fan-out, and tool implementations all stay inside OMP — Zed does not host the agent's brain.
 
