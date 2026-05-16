@@ -43,7 +43,7 @@ bun run verify
 | `agent/skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/` | `~/.omp/agent/skills/<name>/` | symlink — global skills for commits, READMEs, agent instructions, and OMP skill authoring |
 | managed keys in `src/config.ts` (`MANAGED_CONFIG`) | `~/.omp/agent/config.yml` | merged YAML, unrelated keys preserved |
 | `manifests/plugins.yml` | `~/Projects/{superpowers,plannotator}` | git clone + `omp-local` reconciled to pinned `currentCommit` |
-| managed keys in `src/zed-settings.ts` | `~/.config/zed/settings.json` | merged JSONC (via `jsonc-parser`), unrelated keys and comments preserved; managed entry uses absolute `omp` path resolved at bootstrap time |
+| managed keys in `src/zed-settings.ts` | `~/.config/zed/settings.json` | merged JSONC, unrelated keys and comments preserved |
 | `src/patches.ts` | files under `~/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/src/` | literal-block patches applied in place, pre-patch contents captured to the snapshot, no-op when the `appliedSignature` is already present |
 
 ## Commands
