@@ -1,6 +1,6 @@
 ---
 name: writing-agent-instructions
-description: Use when creating, reviewing, or updating AGENTS.md, CLAUDE.md, or similar coding-agent instruction files for repository commands, conventions, boundaries, and tool workflows.
+description: Use when creating, reviewing, or updating AGENTS.md, CLAUDE.md, .github/agents/*.md, or similar coding-agent instruction files for repository commands, conventions, boundaries, and tool workflows.
 ---
 
 # Writing Agent Instructions
@@ -13,7 +13,7 @@ Agent instruction files are loaded context. Every line must pay rent by preventi
 
 Inspect:
 
-- Existing `AGENTS.md`, `CLAUDE.md`, nested instruction files, and rules.
+- Existing `AGENTS.md`, `CLAUDE.md`, `.github/agents/*.md`, nested instruction files, and rules.
 - README and docs to avoid duplication.
 - Package manifests, task runners, and CI for exact commands.
 - Test and code layout for repo-specific conventions.
@@ -62,9 +62,9 @@ Root `AGENTS.md` usually includes:
 ## Verification
 
 - Verify every referenced file or directory exists.
-- Verify documented commands exist in package manifests, task runners, CI, or repo docs before writing them.
-- If the edit changes setup, test, deploy, or recovery commands, run the smallest safe scoped command that proves the documented behavior when practical.
-- Do not run destructive, credentialed, expensive, or external-service commands; verify static prerequisites and mark manual verification instead.
+- Verify documented commands exist in package manifests or task runners before writing them; use CI and docs as corroboration, not the sole source, unless no executable source exists.
+- If the edit changes documented commands, verify command existence statically by default; run only clearly read-only, scoped local verification commands, or commands the user explicitly approved.
+- Do not run setup, bootstrap, install, deploy, migration, credentialed, expensive, networked, external-service, or write-config commands just to verify instructions; verify static prerequisites and mark manual verification.
 - Search for stale references after renaming or deleting instruction files.
 
 ## Common mistakes

@@ -48,8 +48,10 @@ Subdirectory READMEs are rare. Add one only when the subtree is a real entry poi
 - Use relative links for in-repo files.
 - Omit sections that do not apply.
 - Remove placeholders, stale output, and generic boilerplate.
-- If changing setup or verification commands, run the smallest safe command that proves the documented command exists or behaves as claimed.
-- Do not run destructive, credentialed, expensive, or external-service commands just to verify docs; verify static prerequisites and mark manual verification.
+- If changing setup or verification commands, verify command existence statically by default; run only clearly read-only, scoped local verification commands, or commands the user explicitly approved.
+- Do not run setup, bootstrap, install, deploy, migration, credentialed, expensive, networked, external-service, or write-config commands just to verify docs; verify static prerequisites and mark manual verification.
+- Verify every referenced file or directory exists.
+- Search for stale references after renaming or deleting documentation files.
 
 ## Common mistakes
 

@@ -77,10 +77,11 @@ Before calling a skill complete, verify:
 When adding a managed global skill, update in the same logical change:
 
 - `agent/skills/<name>/SKILL.md`.
-- `src/bootstrap.ts` symlink planning and snapshot surface.
-- `src/cli.ts` doctor checks and `REQUIRED_SKILLS` discovery.
+- `src/managed-skills.ts` as the managed skill inventory source of truth.
+- `src/bootstrap.ts` and `src/cli.ts` fan-out behavior when inventory semantics change.
 - Focused tests for bootstrap, doctor inventory, and loader discovery.
 - Managed-surface docs: `README.md`, root `AGENTS.md`, and `agent/AGENTS.md`.
+- Live managed-skill verification: `bun run bootstrap`, `bun run doctor`, and `OMP_VERIFY_SKIP_ACCEPTANCE=1 bun run verify`.
 
 ## Discovery tests
 
