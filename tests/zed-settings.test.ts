@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
 	buildManagedZedSettings,
 	MANAGED_ZED_KEYS,
@@ -6,6 +9,7 @@ import {
 	readZedAgentServer,
 	ZedSettingsParseError,
 } from "../src/zed-settings.ts";
+import { applyManagedZedSettings, zedSettingsPath } from "../src/zed-settings-runtime.ts";
 
 const FAKE_OMP = "/fake/path/to/omp";
 
@@ -90,5 +94,58 @@ describe("readZedAgentServer", () => {
 
 	test("throws ZedSettingsParseError on invalid JSONC", () => {
 		expect(() => readZedAgentServer(`{ broken`, "omp-acp")).toThrow(ZedSettingsParseError);
+	});
+});
+
+let runtimeHome: string;
+
+beforeEach(async () => {
+	runtimeHome = await mkdtemp(join(tmpdir(), "omp-zed-rt-"));
+});
+
+afterEach(async () => {
+	await rm(runtimeHome, { recursive: true, force: true });
+});
+
+describe("zedSettingsPath", () => {
+	test("resolves under ~/.config/zed/settings.json", () => {
+		expect(zedSettingsPath(runtimeHome)).toBe(join(runtimeHome, ".config", "zed", "settings.json"));
+	});
+});
+
+describe("applyManagedZedSettings", () => {
+	test("seeds a missing file with the managed omp-acp entry", async () => {
+		const result = await applyManagedZedSettings({
+			path: zedSettingsPath(runtimeHome),
+			ompPath: "/fake/omp",
+		});
+		expect(result.existed).toBe(false);
+		expect(result.changed).toBe(true);
+		const text = await readFile(result.path, "utf8");
+		expect(readZedAgentServer(text, "omp-acp")).toEqual({
+			type: "custom",
+			command: "/fake/omp",
+			args: ["acp"],
+		});
+	});
+
+	test("preserves unrelated keys and is idempotent", async () => {
+		const target = zedSettingsPath(runtimeHome);
+		await mkdir(join(runtimeHome, ".config", "zed"), { recursive: true });
+		await writeFile(target, `// keep me\n{ "vim_mode": true }\n`);
+		const first = await applyManagedZedSettings({ path: target, ompPath: "/fake/omp" });
+		expect(first.changed).toBe(true);
+		expect(await readFile(target, "utf8")).toContain("// keep me");
+		const second = await applyManagedZedSettings({ path: target, ompPath: "/fake/omp" });
+		expect(second.changed).toBe(false);
+	});
+
+	test("throws ZedSettingsParseError on malformed user input", async () => {
+		const target = zedSettingsPath(runtimeHome);
+		await mkdir(join(runtimeHome, ".config", "zed"), { recursive: true });
+		await writeFile(target, `{ "agent_servers": { broken`);
+		await expect(applyManagedZedSettings({ path: target, ompPath: "/fake/omp" })).rejects.toThrow(
+			ZedSettingsParseError,
+		);
 	});
 });
