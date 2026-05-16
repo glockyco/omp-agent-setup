@@ -7,14 +7,6 @@ My personal global setup for [oh-my-pi](https://github.com/can1357/oh-my-pi), a 
 
 It's published so I can clone it onto a fresh machine and have my agent environment in one command. Public so I don't have to make it private. Reuse the parts you like, but treat it as a config dotfile, not a packaged tool. The paths, the plugin fork choices, and the bundle of conventions are mine.
 
-## What it does
-
-- Symlinks managed files (`agent/AGENTS.md`, `agent/lsp.json`, `agent/skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/`, `extensions/superpowers-bootstrap.ts`) into `~/.omp/agent/`.
-- Merges managed keys into `~/.omp/agent/config.yml`, preserving any unrelated keys already there.
-- Pins specific commits of my two plugin forks ([superpowers](https://github.com/glockyco/superpowers/tree/omp-local), [plannotator](https://github.com/glockyco/plannotator/tree/omp-local)) at `manifests/plugins.yml` and reconciles them on `bootstrap`.
-- Re-applies the in-place source modifications declared in `src/patches.ts` against the globally installed `@oh-my-pi/pi-coding-agent` package, so `omp update` doesn't silently strip them.
-- Ships an in-process verify suite that exercises real oh-my-pi loading plus a Superpowers acceptance smoke.
-
 ## Conventions baked in
 
 These are choices, not requirements. Nothing in oh-my-pi forces any of them.
