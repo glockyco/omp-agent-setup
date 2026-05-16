@@ -65,10 +65,6 @@ OmniSharp remains a documented contingency for when [Zed #55746](https://github.
 
 If a new Zed key needs to be managed, add it to `MANAGED_ZED_KEYS` and extend `buildManagedZedSettings` in `src/zed-settings.ts`, then add a test in `tests/zed-settings.test.ts`.
 
-## Plugin update
-
-`bun run update-<plugin>` → `bun run verify` → push `omp-local` with `--force-with-lease` → update `manifests/plugins.yml` `currentCommit`.
-
 ## OMP update
 
 `omp update` reinstalls `@oh-my-pi/pi-coding-agent` and reverts anything our `src/patches.ts` modifies in place. Run `bun run bootstrap` after every `omp update` to re-apply. A healthy install reports `OMP patches: N skip-already-applied`. A `skip-anchor-missing` means OMP rewrote the surrounding code — update the patch's `anchor`/`replacement` in `src/patches.ts` to match the new shape and re-run `bootstrap`.
