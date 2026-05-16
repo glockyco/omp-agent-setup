@@ -67,7 +67,7 @@ If a new Zed key needs to be managed, add it to `MANAGED_ZED_KEYS` and extend `b
 
 ## OMP update
 
-`omp update` reinstalls `@oh-my-pi/pi-coding-agent` and reverts anything our `src/patches.ts` modifies in place. Run `bun run bootstrap` after every `omp update` to re-apply. A healthy install reports `OMP patches: N skip-already-applied`. A `skip-anchor-missing` means OMP rewrote the surrounding code — update the patch's `anchor`/`replacement` in `src/patches.ts` to match the new shape and re-run `bootstrap`.
+Run `bun run bootstrap` after every `omp update` to re-apply patches; a healthy install reports `OMP patches: N skip-already-applied`. If `bootstrap` reports `skip-anchor-missing`, OMP rewrote the surrounding code — update the patch's `anchor`/`replacement` in `src/patches.ts` to match the new shape and re-run.
 
 ## Env contract
 
