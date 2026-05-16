@@ -7,5 +7,6 @@ exact = false
 coverage = true
 coverageReporter = ["text"]
 coverageSkipTestFiles = true
-coveragePathIgnorePatterns = ["src/cli.ts", "src/*-runtime.ts"]
+coveragePathIgnorePatterns = ["src/cli.ts", "src/*-runtime.ts", "tests/setup.ts"]
 coverageThreshold = 0.8
+preload = ["./tests/setup.ts"]
