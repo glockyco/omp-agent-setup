@@ -47,6 +47,7 @@ Lefthook runs Biome + `tsc` on staged files at `pre-commit` and `bun install --f
 | Land non-OMP-specific changes on a plugin's `omp-local` branch | Keep `omp-local` as a minimal adapter on `upstream/main`. The recent superpowers audit cut 380 lines of unrelated rewrites. Treat plannotator the same way. |
 | Hand-edit installed `pi-coding-agent` sources to keep a modification across `omp update` | Add the modification to `src/patches.ts` (anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. |
 | Add an `lsp.json` to a user project to "fix" missing LSP coverage | The fleet is configured globally. Either install the missing binary via `scripts/install-lsp.sh` (preferred) or extend `agent/lsp.json`. Per-repo overrides only when project conventions genuinely differ. |
+| Hand-edit `~/.config/zed/settings.json` for managed keys (`agent_servers.omp-acp`) | Change the source in `src/zed-settings.ts` (`MANAGED_ZED_KEYS` + `buildManagedZedSettings`), then `bun run bootstrap`. Other keys (`languages`, `theme`, panel placements) are user-owned and ignored by the merge. |
 
 ## LSP maintenance
 
@@ -57,6 +58,18 @@ LSP coverage is owned by this repo end-to-end. Individual user projects never ca
 - **`scripts/audit-lsp` via `src/lsp-audit.ts` + `-runtime.ts`** is the verification mechanism. `bun run audit-lsp` re-applies OMP's detection algorithm and reports drift.
 
 Touching any one of these implies updating the audit's view of "active fleet" and the override accordingly. If a new language enters the active fleet, install the binary in `scripts/install-lsp.sh` first; only add an `agent/lsp.json` entry if the default needs changing.
+
+## Zed integration
+
+Zed runs OMP via ACP (`omp acp`); the entry under `agent_servers["omp-acp"]` is owned by this repo and merged into `~/.config/zed/settings.json` by `bun run bootstrap`. The merger (`src/zed-settings.ts`) edits JSONC at character offsets via `jsonc-parser` (`modify` / `applyEdits` for writes, `findNodeAtLocation` + `getNodeValue` for reads, `parseTree(text, errors)` to fail closed on syntactically-broken user input). Comments and unrelated keys are preserved. The merged path is snapshotted to `backups/<UTC>/` on every bootstrap.
+
+The `omp` binary path written into the managed entry is resolved at bootstrap time via `Bun.which("omp")`, not baked into source — GUI-launched Zed on macOS does not always inherit the shell's PATH, so absolute paths are safer.
+
+C# LSP is split intentionally: Zed → Roslyn (its default, ships via the `csharp` Zed extension), OMP → csharp-ls (via `agent/lsp.json`). Roslyn is Zed's actively-maintained first-party C# server; csharp-ls is sufficient for headless `lsp` ops and avoids the third-party-extension footprint inside Zed. Known asymmetries: csharp-ls disables analyzers by default and source-generator support is in-progress; Razor/CSHTML is not supported in either path today (Zed C# extension #41). Don't try to force parity.
+
+OmniSharp remains a documented contingency for when [Zed #55746](https://github.com/zed-industries/zed/issues/55746) bites and a working C# LSP is urgent. It is not deprecated (latest release 1.39.15 in 2025-11) but it is not the steady state either.
+
+If a new Zed key needs to be managed, add it to `MANAGED_ZED_KEYS` and extend `buildManagedZedSettings` in `src/zed-settings.ts`, then add a test in `tests/zed-settings.test.ts`.
 
 ## Plugin update
 
