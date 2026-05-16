@@ -60,13 +60,9 @@ bun run verify
 
 ## LSP
 
-OMP's `lsp` tool auto-detects language servers per directory: walk OMP's `defaults.json`, match root markers against `cwd`, then resolve each candidate's command on `$PATH`. Three layers of configuration, all owned by this repo:
+LSP coverage is owned globally. Three layers, in install order: binaries on `$PATH` (`scripts/install-lsp.sh`), a global override (`agent/lsp.json` → `~/.omp/agent/lsp.json`), and a repo-local `./lsp.json` for genuine deviations only. Individual repos should not carry an `lsp.json`.
 
-1. **Binaries on `$PATH`.** `scripts/install-lsp.sh` is the single source of truth for which servers exist and how they get there. One channel per tool: `bun add -g` for JS/TS, `uv tool install` for Python, `rustup component add` for Rust, `dotnet tool install -g` for .NET, `brew install` for standalone Rust binaries. `bun run install-lsp` runs it idempotently.
-2. **Global override `agent/lsp.json`** → `~/.omp/agent/lsp.json` (symlink). Deep-merged over OMP's defaults. Swaps `omnisharp` for `csharp-ls` (Microsoft put OmniSharp in maintenance mode), tightens noisy root markers (e.g. `svelte`'s bare `package.json` fallback), and disables defaults whose binary isn't part of the install matrix (`intelephense`, `ols`, `vimls`, `emmet-language-server`, …) so they don't show up in audit gaps.
-3. **Repo-local `./lsp.json`** — only when a single project genuinely needs to deviate (Deno-only repo, vendored toolchain). Don't add prophylactically; they go stale.
-
-Individual repos never need an `lsp.json`. Auditing the fleet is the verification mechanism: `bun run audit-lsp` walks `~/Projects/*`, applies OMP's per-cwd detection (root marker match + binary resolution + project-local bin precedence) to every workspace sub-package it can enumerate (pnpm / bun / Cargo / Maven / Gradle / `.sln`), classifies repos by last-commit age (active ≤ 90d, warm ≤ 365d, dormant beyond), and surfaces coverage gaps grouped by missing server. Two known divergences from OMP's `loadConfig`: plugin-root configs are not scanned, and workspace-file parsing is best-effort (parse failures degrade to root-only coverage for that repo). Both are conservative — the audit may understate sub-package detail but never claims a server is active when it isn't. Re-runs in seconds.
+`bun run audit-lsp` walks `~/Projects/*`, simulates OMP's per-directory detection, and surfaces missing-binary gaps. See [`AGENTS.md`](./AGENTS.md#lsp-maintenance) for the layering policy and the audit's divergences from OMP's `loadConfig`.
 
 ## Zed integration
 
