@@ -144,7 +144,14 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const ompPath = options.ompPath ?? resolveOmpBinary();
 	if (!ompPath) {
 		throw new Error(
-			"Cannot resolve `omp` binary on $PATH; install via `bun add -g @oh-my-pi/pi-coding-agent`.",
+			[
+				"Cannot resolve `omp` binary on $PATH.",
+				"  - In production: install via `bun add -g @oh-my-pi/pi-coding-agent`",
+				"                  (or `curl -fsSL https://omp.sh/install | sh`).",
+				'  - In tests: pass `ompPath` to runBootstrap explicitly (e.g. `ompPath: "/fake/omp"`).',
+				"             tests/setup.ts mocks Bun.which to return null for this binary so",
+				"             the injection contract is enforced rather than documented.",
+			].join("\n"),
 		);
 	}
 	const zedSettings = await applyManagedZedSettings({ path: zedPath, ompPath });
