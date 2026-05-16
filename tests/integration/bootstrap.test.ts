@@ -88,6 +88,36 @@ describe("runBootstrap (integration)", () => {
 		expect(report.configChanged).toBe(true);
 	});
 
+	test("merges managed Zed settings under ~/.config/zed/settings.json", async () => {
+		const zedPath = join(tempHome, ".config", "zed", "settings.json");
+		await mkdir(join(tempHome, ".config", "zed"), { recursive: true });
+		await writeFile(zedPath, `// user comment\n{ "vim_mode": true }\n`);
+
+		const report = await runBootstrap({
+			repoRoot,
+			home: tempHome,
+			skipPlugins: true,
+			skipPatches: true,
+			ompPath: "/fake/omp",
+		});
+		expect(report.zedSettings.changed).toBe(true);
+		expect(report.zedSettings.existed).toBe(true);
+
+		const text = await readFile(zedPath, "utf8");
+		expect(text).toContain("// user comment");
+		expect(text).toContain('"vim_mode": true');
+		expect(text).toContain('"omp-acp"');
+
+		const second = await runBootstrap({
+			repoRoot,
+			home: tempHome,
+			skipPlugins: true,
+			skipPatches: true,
+			ompPath: "/fake/omp",
+		});
+		expect(second.zedSettings.changed).toBe(false);
+	});
+
 	test("second run is idempotent: no config change, symlinks unchanged", async () => {
 		await runBootstrap({ repoRoot, home: tempHome });
 		const configFirst = await readFile(join(agentDir, "config.yml"), "utf8");

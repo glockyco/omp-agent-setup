@@ -27,6 +27,11 @@ import {
 	planStaleSymlinkRemoval,
 	type StaleSymlinkPlan,
 } from "./runtime.ts";
+import {
+	applyManagedZedSettings,
+	resolveOmpBinary,
+	zedSettingsPath,
+} from "./zed-settings-runtime.ts";
 
 export interface BootstrapOptions {
 	repoRoot: string;
@@ -43,6 +48,8 @@ export interface BootstrapOptions {
 	manifestPath?: string;
 	/** Optional date for timestamped backup dir; defaults to `new Date()`. */
 	now?: Date;
+	/** Override the absolute `omp` path; defaults to `Bun.which("omp")`. */
+	ompPath?: string;
 }
 
 export interface BootstrapReport {
@@ -53,6 +60,7 @@ export interface BootstrapReport {
 	configChanged: boolean;
 	pluginSteps: CheckoutStep[];
 	patchExecutions: PatchExecution[];
+	zedSettings: { path: string; existed: boolean; changed: boolean };
 }
 
 /**
@@ -71,6 +79,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 
 	const ompInstallRoot = options.ompInstallRoot ?? resolveOmpInstallRoot(process.env, home);
 	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompInstallRoot);
+	const zedPath = zedSettingsPath(home);
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
 		join(agentDir, "AGENTS.md"),
@@ -79,6 +88,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
+		zedPath,
 		...patchTargets,
 	];
 	await mkdir(agentDir, { recursive: true });
@@ -124,6 +134,14 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		await writeFile(configPath, merged);
 	}
 
+	const ompPath = options.ompPath ?? resolveOmpBinary();
+	if (!ompPath) {
+		throw new Error(
+			"Cannot resolve `omp` binary on $PATH; install via `bun add -g @oh-my-pi/pi-coding-agent`.",
+		);
+	}
+	const zedSettings = await applyManagedZedSettings({ path: zedPath, ompPath });
+
 	const pluginSteps: CheckoutStep[] = [];
 	if (!options.skipPlugins) {
 		const manifestPath = options.manifestPath ?? join(options.repoRoot, "manifests", "plugins.yml");
@@ -150,6 +168,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		configChanged,
 		pluginSteps,
 		patchExecutions,
+		zedSettings,
 	};
 }
 
@@ -168,6 +187,11 @@ export function summarizeReport(report: BootstrapReport): string {
 		lines.push(`Removed stale legacy-Pi symlinks: ${report.staleSymlinks.entries.length}`);
 	}
 	lines.push(`Config: ${report.configChanged ? "updated" : "unchanged"}`);
+	lines.push(
+		`Zed settings: ${report.zedSettings.changed ? "updated" : "unchanged"}${
+			report.zedSettings.existed ? "" : " (created)"
+		}`,
+	);
 	if (report.pluginSteps.length > 0) {
 		lines.push(`Plugin steps: ${report.pluginSteps.length}`);
 		for (const step of report.pluginSteps) {
