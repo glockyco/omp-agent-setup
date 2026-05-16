@@ -1,22 +1,28 @@
+# GUI git clients (Fork, Tower, SourceTree, GitX) launch with macOS's
+# default PATH and do not inherit ~/.zshrc/~/.zprofile, so bare `bun` is
+# unresolved. Each `run:` prepends ~/.bun/bin to PATH so the same hooks
+# work from terminal git, Fork, etc. Bun's curl installer always places
+# the binary at ~/.bun/bin/bun; if you installed via Homebrew, prepend
+# /opt/homebrew/bin instead (or in addition).
 pre-commit:
   parallel: true
   commands:
     biome:
       glob: "*.{ts,js,json,md}"
-      run: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      run: PATH="$HOME/.bun/bin:$PATH" bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
     typecheck:
       glob: "*.ts"
-      run: bunx tsc --noEmit
+      run: PATH="$HOME/.bun/bin:$PATH" bunx tsc --noEmit
 
 pre-push:
   commands:
     lockfile:
-      run: bun install --frozen-lockfile
+      run: PATH="$HOME/.bun/bin:$PATH" bun install --frozen-lockfile
     ci:
-      run: bun run ci
+      run: PATH="$HOME/.bun/bin:$PATH" bun run ci
 
 commit-msg:
   commands:
     commitlint:
-      run: bunx commitlint --edit {1}
+      run: PATH="$HOME/.bun/bin:$PATH" bunx commitlint --edit {1}
