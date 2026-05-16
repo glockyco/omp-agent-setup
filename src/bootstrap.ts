@@ -48,7 +48,14 @@ export interface BootstrapOptions {
 	manifestPath?: string;
 	/** Optional date for timestamped backup dir; defaults to `new Date()`. */
 	now?: Date;
-	/** Override the absolute `omp` path; defaults to `Bun.which("omp")`. */
+	/**
+	 * Override the absolute `omp` path; defaults to `Bun.which("omp")`.
+	 *
+	 * Production callers should leave this undefined. Test code MUST inject
+	 * a placeholder (e.g. `ompPath: "/fake/omp"`) because CI environments do
+	 * not have `omp` on PATH — the default resolver returns null and
+	 * `runBootstrap` throws.
+	 */
 	ompPath?: string;
 }
 

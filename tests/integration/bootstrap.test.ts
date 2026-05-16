@@ -45,7 +45,7 @@ afterEach(async () => {
 
 describe("runBootstrap (integration)", () => {
 	test("first run deploys symlinks, writes managed config, and reports snapshot", async () => {
-		const report = await runBootstrap({ repoRoot, home: tempHome });
+		const report = await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
 
 		// Managed symlinks point at the repo source.
 		await expect(readlink(join(agentDir, "AGENTS.md"))).resolves.toBe(
@@ -119,10 +119,10 @@ describe("runBootstrap (integration)", () => {
 	});
 
 	test("second run is idempotent: no config change, symlinks unchanged", async () => {
-		await runBootstrap({ repoRoot, home: tempHome });
+		await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
 		const configFirst = await readFile(join(agentDir, "config.yml"), "utf8");
 
-		const second = await runBootstrap({ repoRoot, home: tempHome });
+		const second = await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
 		const configSecond = await readFile(join(agentDir, "config.yml"), "utf8");
 
 		expect(configSecond).toBe(configFirst);
@@ -136,7 +136,7 @@ describe("runBootstrap (integration)", () => {
 			join(agentDir, "config.yml"),
 			"modelRoles:\n  default: anthropic/claude-opus-4-7\nsteeringMode: all\n",
 		);
-		await runBootstrap({ repoRoot, home: tempHome });
+		await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
 		const written = await readFile(join(agentDir, "config.yml"), "utf8");
 		expect(readTopLevel(written, "modelRoles")).toEqual({ default: "anthropic/claude-opus-4-7" });
 		expect(readTopLevel(written, "steeringMode")).toBe("all");
@@ -153,7 +153,7 @@ describe("runBootstrap (integration)", () => {
 		);
 		await symlink("/tmp/real/skill", join(skillsDir, "keep-me"));
 
-		const report = await runBootstrap({ repoRoot, home: tempHome });
+		const report = await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
 
 		expect(report.staleSymlinks.entries.map(e => e.path)).toEqual([
 			join(skillsDir, "using-superpowers"),
@@ -164,7 +164,7 @@ describe("runBootstrap (integration)", () => {
 	test("refuses to clobber a real file at a managed destination", async () => {
 		await mkdir(agentDir, { recursive: true });
 		await writeFile(join(agentDir, "AGENTS.md"), "user-authored content");
-		await expect(runBootstrap({ repoRoot, home: tempHome })).rejects.toThrow(
+		await expect(runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" })).rejects.toThrow(
 			/Refusing to replace non-symlink/,
 		);
 	});
