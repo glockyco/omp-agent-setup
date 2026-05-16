@@ -4,9 +4,21 @@ import {
 	getNodeValue,
 	modify,
 	type ParseError,
+	type ParseOptions,
 	parseTree,
 	printParseErrorCode,
 } from "jsonc-parser";
+
+/**
+ * Parse options that match Zed's own JSONC dialect — comments and trailing
+ * commas are valid in `~/.config/zed/settings.json` and the merger must
+ * accept them. Without these, jsonc-parser flags trailing commas as
+ * `PropertyNameExpected` / `ValueExpected` errors.
+ */
+const ZED_PARSE_OPTIONS: ParseOptions = {
+	allowTrailingComma: true,
+	disallowComments: false,
+};
 
 /**
  * Top-level Zed settings keys this repository owns. Everything else in the
@@ -101,7 +113,7 @@ export function mergeManagedZedSettings(
  */
 export function readZedAgentServer(text: string, name: string): unknown {
 	assertValidJsonc(text);
-	const tree = parseTree(text);
+	const tree = parseTree(text, undefined, ZED_PARSE_OPTIONS);
 	if (!tree) return undefined;
 	const node = findNodeAtLocation(tree, ["agent_servers", name]);
 	return node ? getNodeValue(node) : undefined;
@@ -109,6 +121,6 @@ export function readZedAgentServer(text: string, name: string): unknown {
 
 function assertValidJsonc(text: string): void {
 	const errors: ParseError[] = [];
-	parseTree(text, errors);
+	parseTree(text, errors, ZED_PARSE_OPTIONS);
 	if (errors.length > 0) throw new ZedSettingsParseError(errors);
 }

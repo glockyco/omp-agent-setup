@@ -85,6 +85,25 @@ describe("mergeManagedZedSettings", () => {
 		const broken = `{ "agent_servers": { "claude-acp": { type: "registry" } }`;
 		expect(() => mergeManagedZedSettings(broken, canonical())).toThrow(ZedSettingsParseError);
 	});
+
+	test("accepts trailing commas and comments (Zed JSONC dialect)", () => {
+		const withTrailingCommas = `// hello
+{
+  "theme": {
+    "mode": "system",
+    "light": "One Light",
+    "dark": "One Dark",
+  },
+  "languages": {
+    "CSharp": { "language_servers": ["omnisharp", "!roslyn"], },
+  },
+}
+`;
+		const out = mergeManagedZedSettings(withTrailingCommas, canonical());
+		expect(out).toContain("// hello");
+		expect(out).toContain('"omnisharp"');
+		expect(readZedAgentServer(out, "omp-acp")).toEqual(canonical().agent_servers["omp-acp"]);
+	});
 });
 
 describe("readZedAgentServer", () => {
