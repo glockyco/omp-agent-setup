@@ -51,6 +51,7 @@ bun run verify
 | `agent/skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/` | `~/.omp/agent/skills/<name>/` | symlink — global skills for commits, READMEs, agent instructions, and OMP skill authoring |
 | managed keys in `config/config.yml.template` | `~/.omp/agent/config.yml` | merged YAML, unrelated keys preserved |
 | `manifests/plugins.yml` | `~/Projects/{superpowers,plannotator}` | git clone + `omp-local` reconciled to pinned `currentCommit` |
+| managed keys in `src/zed-settings.ts` | `~/.config/zed/settings.json` | merged JSONC (via `jsonc-parser`), unrelated keys and comments preserved; managed entry uses absolute `omp` path resolved at bootstrap time |
 | `src/patches.ts` | files under `~/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/src/` | literal-block patches applied in place, pre-patch contents captured to the snapshot, no-op when the `appliedSignature` is already present |
 
 ## Commands
@@ -74,6 +75,16 @@ OMP's `lsp` tool auto-detects language servers per directory: walk OMP's `defaul
 3. **Repo-local `./lsp.json`** — only when a single project genuinely needs to deviate (Deno-only repo, vendored toolchain). Don't add prophylactically; they go stale.
 
 Individual repos never need an `lsp.json`. Auditing the fleet is the verification mechanism: `bun run audit-lsp` walks `~/Projects/*`, applies OMP's per-cwd detection (root marker match + binary resolution + project-local bin precedence) to every workspace sub-package it can enumerate (pnpm / bun / Cargo / Maven / Gradle / `.sln`), classifies repos by last-commit age (active ≤ 90d, warm ≤ 365d, dormant beyond), and surfaces coverage gaps grouped by missing server. Two known divergences from OMP's `loadConfig`: plugin-root configs are not scanned, and workspace-file parsing is best-effort (parse failures degrade to root-only coverage for that repo). Both are conservative — the audit may understate sub-package detail but never claims a server is active when it isn't. Re-runs in seconds.
+
+## Zed integration
+
+OMP runs inside Zed via the [Agent Client Protocol](https://github.com/zed-industries/agent-client-protocol). `bun run bootstrap` registers `omp-acp` as a custom `agent_servers` entry in `~/.config/zed/settings.json` (`{ "type": "custom", "command": "<absolute omp path>", "args": ["acp"] }`); everything else is untouched. From Zed's Agent panel you get the same OMP you drive from the TUI — reading the buffer Zed sees, writing through Zed's save pipeline, opening shells in Zed's terminal. Permission prompts gate destructive tools; "allow always" persists per project.
+
+C# LSP is intentionally split. Zed uses Roslyn (its built-in default, via the `csharp` Zed extension); OMP uses csharp-ls (via `agent/lsp.json`). Roslyn is the actively-maintained first-party Zed C# server; csharp-ls is enough for the headless `lsp` ops the agent runs. The asymmetry is recorded: csharp-ls defaults analyzer-backed diagnostics off, source-generator support is upstream-WIP, and neither path supports Razor/CSHTML in Zed today ([extension #41](https://github.com/zed-extensions/csharp/issues/41)). Forcing parity would require shipping a third-party Zed extension for csharp-ls; not worth it.
+
+OmniSharp is a documented contingency, not the steady state — see `AGENTS.md`.
+
+The OMP ↔ Zed bridge only covers editor-visible I/O (`fs/read_text_file`, `fs/write_text_file`, `terminal/*`, `session/request_permission`). OMP's own LSP, DAP, subagent fan-out, and tool implementations all stay inside OMP — Zed does not host the agent's brain.
 
 ## Plugins
 
