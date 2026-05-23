@@ -57,7 +57,9 @@ Touching any one of these implies updating the audit's view of "active fleet" an
 
 `bun run bootstrap` merges `agent_servers["omp-acp"]` into `~/.config/zed/settings.json` via `src/zed-settings.ts` (`MANAGED_ZED_KEYS` + `buildManagedZedSettings`). The merger uses `jsonc-parser` `modify`/`applyEdits` at character offsets, preserves comments and unrelated keys, and fails closed via `parseTree(text, errors)` on syntactically-broken user input. The `omp` binary path is resolved at bootstrap time via `Bun.which("omp")` so the entry uses an absolute path.
 
-C# LSP is split intentionally: Zed → Roslyn (IDE), OMP → csharp-ls (headless). Rationale, trade-offs (Razor/CSHTML, analyzer defaults, source-generator gap), and the OmniSharp contingency live in [`README.md`](./README.md#zed-integration).
+C# LSP is split intentionally: Zed → Roslyn (IDE), OMP → csharp-ls (headless). Roslyn is the actively-maintained first-party Zed C# server; csharp-ls is sufficient for the headless `lsp` ops the agent runs. Trade-offs: csharp-ls defaults analyzer-backed diagnostics off, source-generator support is upstream-WIP, and neither path supports Razor/CSHTML in Zed today ([extension #41](https://github.com/zed-extensions/csharp/issues/41)). Forcing parity would require shipping a third-party Zed extension for csharp-ls; not worth it.
+
+OmniSharp remains a documented contingency: not deprecated (latest release 1.39.15 in 2025-11) but not the steady state. If [Zed #55746](https://github.com/zed-industries/zed/issues/55746) recurs after a Zed update, the fallback ladder is: update Zed → set `"languages": { "CSharp": { "enable_language_server": false } }` → install OmniSharp temporarily.
 
 To manage a new Zed key, extend `MANAGED_ZED_KEYS` and `buildManagedZedSettings` in `src/zed-settings.ts`, then add a test in `tests/zed-settings.test.ts`.
 
