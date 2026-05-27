@@ -97,6 +97,8 @@ ensure_rust_analyzer() {
 
 ensure_dotnet_tool() {
 	local cmd="$1" pkg="${2:-$1}"
+	shift 2
+	local install_args=("$@")
 	if resolve "$cmd" >/dev/null; then
 		ALREADY+=("$cmd"); ok "$cmd already on PATH"; return 0
 	fi
@@ -123,9 +125,9 @@ ensure_dotnet_tool() {
 		warn "$cmd is installed but not on PATH; add \$HOME/.dotnet/tools to PATH"
 		return 0
 	fi
-	note "installing $pkg via dotnet tool install -g"
-	if dotnet tool install -g "$pkg" >/dev/null 2>&1; then
-		INSTALLED+=("$cmd via dotnet:$pkg"); ok "$cmd installed"
+	note "installing $pkg via dotnet tool install -g ${install_args[*]}"
+	if dotnet tool install -g "$pkg" "${install_args[@]}" >/dev/null 2>&1; then
+		INSTALLED+=("$cmd via dotnet:$pkg ${install_args[*]}"); ok "$cmd installed"
 	else
 		FAILED+=("$cmd via dotnet:$pkg"); fail "$cmd failed to install"
 	fi
@@ -144,6 +146,8 @@ main() {
 	ensure_bun_global vscode-eslint-language-server vscode-eslint-language-server
 	ensure_bun_global yaml-language-server yaml-language-server
 	ensure_bun_global bash-language-server bash-language-server
+	ensure_bun_global tailwindcss-language-server @tailwindcss/language-server
+	ensure_bun_global docker-langserver dockerfile-language-server-nodejs
 
 	printf '\n[uv tool install] Python ecosystem\n'
 	ensure_uv_tool basedpyright basedpyright
@@ -153,7 +157,7 @@ main() {
 	ensure_rust_analyzer
 
 	printf '\n[dotnet tool -g] .NET ecosystem\n'
-	ensure_dotnet_tool csharp-ls csharp-ls
+	ensure_dotnet_tool roslyn-language-server roslyn-language-server --prerelease
 
 	printf '\n[brew] standalone binaries\n'
 	ensure_brew taplo taplo
