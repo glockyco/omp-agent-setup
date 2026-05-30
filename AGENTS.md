@@ -21,7 +21,7 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 
 ## Architecture
 
-Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads live in `agent/` and `extensions/`; managed local skills live under `agent/skills/{commit,writing-project-readmes,writing-agent-instructions,writing-omp-skills}/`.
+Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads live in `agent/` and `extensions/`; managed local skills live under `agent/skills/{commit,writing-project-readmes,writing-agent-instructions}/`.
 
 New pure logic gets unit tests before merge. Real-IO behaviour stays in `*-runtime.ts` and is injected into pure functions via parameters. See how `executeCheckoutSteps(steps, runner, probe)` takes its runtime as arguments.
 

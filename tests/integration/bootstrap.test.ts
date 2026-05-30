@@ -21,11 +21,7 @@ beforeEach(async () => {
 	await writeFile(join(repoRoot, "agent", "AGENTS.md"), "# Stub global AGENTS.md\n");
 	await writeFile(join(repoRoot, "agent", "lsp.json"), '{ "servers": {} }\n');
 	await mkdir(join(repoRoot, "agent", "skills", "commit"), { recursive: true });
-	for (const skillName of [
-		"writing-project-readmes",
-		"writing-agent-instructions",
-		"writing-omp-skills",
-	]) {
+	for (const skillName of ["writing-project-readmes", "writing-agent-instructions"]) {
 		await mkdir(join(repoRoot, "agent", "skills", skillName), { recursive: true });
 		await writeFile(join(repoRoot, "agent", "skills", skillName, "SKILL.md"), `# ${skillName}\n`);
 	}
@@ -60,11 +56,7 @@ describe("runBootstrap (integration)", () => {
 		await expect(readlink(join(agentDir, "skills", "commit"))).resolves.toBe(
 			join(repoRoot, "agent", "skills", "commit"),
 		);
-		for (const skillName of [
-			"writing-project-readmes",
-			"writing-agent-instructions",
-			"writing-omp-skills",
-		]) {
+		for (const skillName of ["writing-project-readmes", "writing-agent-instructions"]) {
 			await expect(readlink(join(agentDir, "skills", skillName))).resolves.toBe(
 				join(repoRoot, "agent", "skills", skillName),
 			);

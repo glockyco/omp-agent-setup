@@ -5,12 +5,7 @@ import { join } from "node:path";
 import { checkZedSettings, managedAgentChecks, REQUIRED_SKILLS } from "../src/cli.ts";
 
 describe("managedAgentChecks", () => {
-	const localSkillNames = [
-		"commit",
-		"writing-project-readmes",
-		"writing-agent-instructions",
-		"writing-omp-skills",
-	];
+	const localSkillNames = ["commit", "writing-project-readmes", "writing-agent-instructions"];
 
 	test("includes source-managed local skills as managed symlinks", () => {
 		const agentDir = "/tmp/omp-agent";
@@ -29,11 +24,6 @@ describe("managedAgentChecks", () => {
 		for (const skillName of localSkillNames) {
 			expect(REQUIRED_SKILLS).toContain(skillName);
 		}
-	});
-
-	test("requires the OMP-local skill authoring adapter, not a colliding Superpowers name", () => {
-		expect(REQUIRED_SKILLS).toContain("writing-omp-skills");
-		expect(REQUIRED_SKILLS).not.toContain("writing-skills");
 	});
 });
 
