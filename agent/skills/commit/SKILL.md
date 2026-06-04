@@ -5,7 +5,7 @@ description: Use when creating, amending, reviewing, or splitting git commits. A
 
 # Commit Messages
 
-## Policy
+## Required workflow
 
 Use Conventional Commits:
 
@@ -13,37 +13,61 @@ Use Conventional Commits:
 type[(scope)]: imperative summary
 ```
 
-Use commitlint-compatible types:
+For any commit that needs a body, write the complete message to a temp file and
+commit with `git commit -F <file>`. Do not assemble bodies with repeated `-m`
+flags; each `-m` is a separate paragraph, which produces fragmented messages and
+makes line wrapping unreliable.
 
-- `feat`: user-visible feature
-- `fix`: bug fix
-- `docs`: documentation-only change
-- `style`: formatting-only change with no behavior impact
-- `refactor`: code change that is neither a feature nor a fix
-- `perf`: performance improvement
-- `test`: test-only change
-- `build`: build system or dependency change
-- `ci`: continuous integration change
-- `chore`: maintenance change that fits no narrower type
-- `revert`: revert a previous commit
+Use a title-only commit only when the subject fully explains a mechanical change.
+If a future maintainer needs to know why the change exists or what tradeoff it
+makes, write a body.
 
-## Subject
+## Message format
 
+Subject:
+
+- Use a commitlint-compatible type: `feat`, `fix`, `docs`, `style`, `refactor`,
+  `perf`, `test`, `build`, `ci`, `chore`, or `revert`.
 - Target 50 characters; hard limit 72.
 - Use imperative mood: `add`, `fix`, `remove`; not `added` or `fixes`.
-- Lowercase the summary after the colon unless it starts with a proper noun or code symbol.
+- Lowercase the summary after the colon unless it starts with a proper noun or
+  code symbol.
 - Do not end with a period.
-- Scope is optional. Use a short, clear area only when it improves scanability.
-- Never invent or enforce project-specific scope vocabularies.
+- Use a scope only when it improves scanability.
 
-## Body
+Body:
 
 - Leave one blank line after the subject.
-- Wrap prose at 72 columns.
+- Write useful prose paragraphs, not disconnected sentence fragments.
 - Explain why the change exists and the tradeoff or constraint it addresses.
-- Prefer prose paragraphs; use bullets only when they are genuinely clearer.
-- Do not paste command output or test summaries into the commit message.
-- The diff shows what changed. The body explains what future maintainers cannot infer from the diff.
+- Wrap every body line at 72 characters or less.
+- Do not paste command output, test summaries, or an implementation laundry list.
+- The diff shows what changed; the body explains context future maintainers
+  cannot infer from the diff.
+
+## Commands
+
+Preferred body workflow:
+
+```bash
+# Create /tmp/commit-message.txt with the editor or file-write tool, then:
+git commit -F /tmp/commit-message.txt
+```
+
+Amend with the same workflow:
+
+```bash
+git commit --amend -F /tmp/commit-message.txt
+```
+
+A single `-m` is acceptable only for title-only mechanical commits:
+
+```bash
+git commit -m "style: format generated files"
+```
+
+If commitlint rejects a message, edit the temp file and rerun `git commit -F` or
+`git commit --amend -F`. Do not switch back to repeated `-m` fragments.
 
 ## Atomicity
 
@@ -51,9 +75,4 @@ Use commitlint-compatible types:
 - Keep code, tests, and docs for one logical change in the same commit.
 - Split unrelated cleanup from behavior changes.
 - Each commit should compile and test independently where practical.
-
-## Validation and enforcement
-
-- If commitlint is configured, treat it as the source of truth for syntax enforcement.
-- Per-repo validation commands live in that repo's `AGENTS.md` or `README`, not in this global skill.
 - Never push without an explicit user request.
