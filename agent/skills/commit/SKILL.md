@@ -13,14 +13,32 @@ Use Conventional Commits:
 type[(scope)]: imperative summary
 ```
 
-For any commit that needs a body, write the complete message to a temp file and
-commit with `git commit -F <file>`. Do not assemble bodies with repeated `-m`
-flags; each `-m` is a separate paragraph, which produces fragmented messages and
-makes line wrapping unreliable.
+For any commit with a body, use the bundled helper. Pass the subject and body as
+structured inputs; the helper wraps paragraphs, validates the final message with
+commitlint, writes the internal `git commit -F` file, and runs git.
 
-Use a title-only commit only when the subject fully explains a mechanical change.
-If a future maintainer needs to know why the change exists or what tradeoff it
-makes, write a body.
+Agent path in OMP:
+
+```bash
+bun skill://commit/commit-helper.ts
+```
+
+with tool `env`:
+
+```json
+{
+  "COMMIT_ACTION": "commit",
+  "COMMIT_SUBJECT": "feat(area): add durable behavior",
+  "COMMIT_BODY": "Explain why this change exists as normal prose. Separate paragraphs with a blank line."
+}
+```
+
+Use `COMMIT_ACTION=amend` for amendments and `COMMIT_ACTION=dry-run` to inspect
+the generated message without committing. Do not use repeated `git commit -m`
+flags for body commits.
+
+A title-only `git commit -m "type: summary"` is acceptable only for mechanical
+changes whose purpose is fully explained by the subject.
 
 ## Message format
 
@@ -37,37 +55,11 @@ Subject:
 
 Body:
 
-- Leave one blank line after the subject.
 - Write useful prose paragraphs, not disconnected sentence fragments.
 - Explain why the change exists and the tradeoff or constraint it addresses.
-- Wrap every body line at 72 characters or less.
 - Do not paste command output, test summaries, or an implementation laundry list.
 - The diff shows what changed; the body explains context future maintainers
   cannot infer from the diff.
-
-## Commands
-
-Preferred body workflow:
-
-```bash
-# Create /tmp/commit-message.txt with the editor or file-write tool, then:
-git commit -F /tmp/commit-message.txt
-```
-
-Amend with the same workflow:
-
-```bash
-git commit --amend -F /tmp/commit-message.txt
-```
-
-A single `-m` is acceptable only for title-only mechanical commits:
-
-```bash
-git commit -m "style: format generated files"
-```
-
-If commitlint rejects a message, edit the temp file and rerun `git commit -F` or
-`git commit --amend -F`. Do not switch back to repeated `-m` fragments.
 
 ## Atomicity
 
