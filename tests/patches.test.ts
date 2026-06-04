@@ -3,12 +3,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+	ANTHROPIC_DROP_CONTEXT_1M_BETA,
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	OMP_PATCHES,
 	type Patch,
 	planPatch,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
-	WEB_SEARCH_DROP_CONTEXT_1M_BETA,
 } from "../src/patches.ts";
 import {
 	applyPatches,
@@ -168,43 +168,43 @@ describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
 	});
 });
 
-describe("WEB_SEARCH_DROP_CONTEXT_1M_BETA", () => {
+describe("ANTHROPIC_DROP_CONTEXT_1M_BETA", () => {
 	const unpatched = [
-		'const DEFAULT_BASE_URL = "https://api.anthropic.com";',
-		"",
-		WEB_SEARCH_DROP_CONTEXT_1M_BETA.anchor,
+		"const claudeCodeAgentBetaDefaults = [",
+		ANTHROPIC_DROP_CONTEXT_1M_BETA.anchor,
+		'\t"context-management-2025-06-27",',
+		"] as const;",
 		"",
 	].join("\n");
 
-	test("targets the pi-ai package", () => {
-		expect(WEB_SEARCH_DROP_CONTEXT_1M_BETA.package).toBe("pi-ai");
-		expect(WEB_SEARCH_DROP_CONTEXT_1M_BETA.targetRelative).toBe("src/utils/anthropic-auth.ts");
+	test("targets pi-ai providers/anthropic.ts", () => {
+		expect(ANTHROPIC_DROP_CONTEXT_1M_BETA.package).toBe("pi-ai");
+		expect(ANTHROPIC_DROP_CONTEXT_1M_BETA.targetRelative).toBe("src/providers/anthropic.ts");
 	});
 
-	test("applies cleanly and drops the context-1m beta", () => {
-		const plan = planPatch(WEB_SEARCH_DROP_CONTEXT_1M_BETA, unpatched);
+	test("applies cleanly and removes the context-1m beta", () => {
+		const plan = planPatch(ANTHROPIC_DROP_CONTEXT_1M_BETA, unpatched);
 		expect(plan.kind).toBe("apply");
 		if (plan.kind === "apply") {
-			expect(plan.nextContent).toContain(WEB_SEARCH_DROP_CONTEXT_1M_BETA.appliedSignature);
-			// The bare `return buildProviderAnthropicHeaders(...)` form is gone; the
-			// headers are captured and post-filtered instead.
-			expect(plan.nextContent).not.toContain("\treturn buildProviderAnthropicHeaders({");
-			expect(plan.nextContent).toContain("const headers = buildProviderAnthropicHeaders({");
-			// The web-search beta is preserved; only context-1m is filtered.
-			expect(plan.nextContent).toContain('extraBetas: ["web-search-2025-03-05"]');
+			expect(plan.nextContent).toContain(ANTHROPIC_DROP_CONTEXT_1M_BETA.appliedSignature);
+			// The retired beta string is gone from the array...
+			expect(plan.nextContent).not.toContain('"context-1m-2025-08-07"');
+			// ...while the neighbouring betas are preserved.
+			expect(plan.nextContent).toContain('"claude-code-20250219"');
+			expect(plan.nextContent).toContain('"interleaved-thinking-2025-05-14"');
 		}
 	});
 
 	test("re-running planner against the patched output is a no-op", () => {
-		const first = planPatch(WEB_SEARCH_DROP_CONTEXT_1M_BETA, unpatched);
+		const first = planPatch(ANTHROPIC_DROP_CONTEXT_1M_BETA, unpatched);
 		expect(first.kind).toBe("apply");
 		if (first.kind !== "apply") return;
-		const second = planPatch(WEB_SEARCH_DROP_CONTEXT_1M_BETA, first.nextContent);
+		const second = planPatch(ANTHROPIC_DROP_CONTEXT_1M_BETA, first.nextContent);
 		expect(second.kind).toBe("skip-already-applied");
 	});
 
 	test("included in OMP_PATCHES", () => {
-		expect(OMP_PATCHES.map(p => p.id)).toContain(WEB_SEARCH_DROP_CONTEXT_1M_BETA.id);
+		expect(OMP_PATCHES.map(p => p.id)).toContain(ANTHROPIC_DROP_CONTEXT_1M_BETA.id);
 	});
 });
 
@@ -318,14 +318,14 @@ describe("patchTargetPaths", () => {
 	test("resolves <scopeRoot>/<package>/<targetRelative>", () => {
 		const paths = patchTargetPaths(OMP_PATCHES, "/scope");
 		expect(paths).toContain("/scope/pi-coding-agent/src/session/messages.ts");
-		expect(paths).toContain("/scope/pi-ai/src/utils/anthropic-auth.ts");
+		expect(paths).toContain("/scope/pi-ai/src/providers/anthropic.ts");
 	});
 });
 
 describe("patchTargetPath", () => {
 	test("joins scope root, package, and target relative", () => {
-		expect(patchTargetPath(WEB_SEARCH_DROP_CONTEXT_1M_BETA, "/scope")).toBe(
-			"/scope/pi-ai/src/utils/anthropic-auth.ts",
+		expect(patchTargetPath(ANTHROPIC_DROP_CONTEXT_1M_BETA, "/scope")).toBe(
+			"/scope/pi-ai/src/providers/anthropic.ts",
 		);
 		expect(patchTargetPath(SAMPLE_PATCH, "/scope")).toBe("/scope/pi-coding-agent/src/sample.ts");
 	});

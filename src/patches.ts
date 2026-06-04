@@ -194,63 +194,42 @@ export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 };
 
 /**
- * Strip the unentitled `context-1m-2025-08-07` (1M long-context) beta from
- * Anthropic web-search requests.
+ * Stop sending the retired `context-1m-2025-08-07` (1M long-context) beta on
+ * Anthropic OAuth requests.
  *
- * OMP 15.8.0 routed `web_search`'s Anthropic provider through the same header
- * builder as streaming chat, which unconditionally adds the agent-default
- * `context-1m-2025-08-07` beta. The web-search body is a one-line query sent to
- * `/v1/messages?beta=true`, where Anthropic strictly validates beta
- * entitlement and returns `400 ... The long context beta is not yet available
- * for this subscription` for OAuth tiers without 1M access — breaking every web
- * search. We post-filter the header instead of rebuilding the beta set, so the
- * fix survives upstream changes to the agent beta defaults.
+ * OMP adds this beta to every agent request (anything with tools) via
+ * `claudeCodeAgentBetaDefaults`. Anthropic retired the header on 2026-04-30 and
+ * now credit-gates its mere presence on Claude subscriptions: requests fail
+ * with `429 ... Usage credits are required for long context requests`,
+ * regardless of how small the actual context is (reproduced with a one-line
+ * subagent prompt on claude-sonnet-4-6). 1M context is GA on Opus 4.x and
+ * Sonnet 4.6 with no beta header, so dropping it loses nothing while unblocking
+ * every OAuth request — main chat, subagents, and web search alike.
+ *
+ * Removed at the source array rather than post-filtering each header, so one
+ * edit covers every code path that derives betas from it.
  */
-export const WEB_SEARCH_DROP_CONTEXT_1M_BETA: Patch = {
-	id: "web-search-drop-context-1m-beta",
+export const ANTHROPIC_DROP_CONTEXT_1M_BETA: Patch = {
+	id: "anthropic-drop-context-1m-beta",
 	package: "pi-ai",
-	targetRelative: "src/utils/anthropic-auth.ts",
-	description: "Drop the unentitled context-1m beta from Anthropic web-search requests.",
+	targetRelative: "src/providers/anthropic.ts",
+	description: "Stop sending the retired context-1m long-context beta on Anthropic OAuth requests.",
 	anchor: [
-		"export function buildAnthropicSearchHeaders(auth: AnthropicAuthConfig): Record<string, string> {",
-		"\treturn buildProviderAnthropicHeaders({",
-		"\t\tapiKey: auth.apiKey,",
-		"\t\tbaseUrl: auth.baseUrl,",
-		"\t\tisOAuth: auth.isOAuth,",
-		'\t\textraBetas: ["web-search-2025-03-05"],',
-		"\t\tstream: false,",
-		"\t\tmodelHeaders: resolveAnthropicCustomHeadersForBaseUrl(auth.baseUrl),",
-		"\t});",
-		"}",
+		'\t"claude-code-20250219",',
+		'\t"oauth-2025-04-20",',
+		'\t"context-1m-2025-08-07",',
+		'\t"interleaved-thinking-2025-05-14",',
 	].join("\n"),
 	replacement: [
-		"export function buildAnthropicSearchHeaders(auth: AnthropicAuthConfig): Record<string, string> {",
-		"\tconst headers = buildProviderAnthropicHeaders({",
-		"\t\tapiKey: auth.apiKey,",
-		"\t\tbaseUrl: auth.baseUrl,",
-		"\t\tisOAuth: auth.isOAuth,",
-		'\t\textraBetas: ["web-search-2025-03-05"],',
-		"\t\tstream: false,",
-		"\t\tmodelHeaders: resolveAnthropicCustomHeadersForBaseUrl(auth.baseUrl),",
-		"\t});",
-		"\t// OMP patch: a one-line web-search query never needs 1M context, but the",
-		"\t// shared builder injects the agent-default `context-1m-2025-08-07` beta.",
-		"\t// On `/v1/messages?beta=true` that beta is rejected for OAuth tiers without",
-		'\t// 1M entitlement ("The long context beta is not yet available for this',
-		'\t// subscription"), which breaks web search. Strip just that beta.',
-		"\tfor (const [key, value] of Object.entries(headers)) {",
-		'\t\tif (key.toLowerCase() !== "anthropic-beta") continue;',
-		"\t\tconst betas = value",
-		'\t\t\t.split(",")',
-		"\t\t\t.map(beta => beta.trim())",
-		'\t\t\t.filter(beta => beta.length > 0 && beta !== "context-1m-2025-08-07");',
-		'\t\tif (betas.length > 0) headers[key] = betas.join(",");',
-		"\t\telse delete headers[key];",
-		"\t}",
-		"\treturn headers;",
-		"}",
+		'\t"claude-code-20250219",',
+		'\t"oauth-2025-04-20",',
+		"\t// OMP patch: omit retired context-1m long-context beta (Anthropic turned",
+		"\t// it off 2026-04-30 and now credit-gates its presence on subscriptions —",
+		'\t// agent requests 429 "Usage credits are required for long context',
+		'\t// requests"). 1M is GA on Opus 4.x / Sonnet 4.6 without any beta header.',
+		'\t"interleaved-thinking-2025-05-14",',
 	].join("\n"),
-	appliedSignature: 'beta !== "context-1m-2025-08-07"',
+	appliedSignature: "omit retired context-1m long-context beta",
 };
 
 /**
@@ -260,5 +239,5 @@ export const WEB_SEARCH_DROP_CONTEXT_1M_BETA: Patch = {
 export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
-	WEB_SEARCH_DROP_CONTEXT_1M_BETA,
+	ANTHROPIC_DROP_CONTEXT_1M_BETA,
 ];
