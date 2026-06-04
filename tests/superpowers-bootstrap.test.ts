@@ -220,6 +220,36 @@ describe("installSessionEnvVars", () => {
 		expect(env.OMP_SESSION_DIR).toBeUndefined();
 		expect(env.OMP_SESSION_ID).toBe("ses-456");
 	});
+
+	test("sets Codex web search to a small model by default without overriding user env", () => {
+		const env: NodeJS.ProcessEnv = {};
+		installSessionEnvVars(
+			{
+				sessionManager: {
+					getCwd: () => "/cwd",
+					getSessionDir: () => "/parent",
+					getSessionId: () => "ses-789",
+					getArtifactsDir: () => null,
+				},
+			},
+			env,
+		);
+		expect(env.PI_CODEX_WEB_SEARCH_MODEL).toBe("gpt-5.4-mini");
+
+		const existingEnv: NodeJS.ProcessEnv = { PI_CODEX_WEB_SEARCH_MODEL: "gpt-5.4-nano" };
+		installSessionEnvVars(
+			{
+				sessionManager: {
+					getCwd: () => "/cwd",
+					getSessionDir: () => "/parent",
+					getSessionId: () => "ses-790",
+					getArtifactsDir: () => null,
+				},
+			},
+			existingEnv,
+		);
+		expect(existingEnv.PI_CODEX_WEB_SEARCH_MODEL).toBe("gpt-5.4-nano");
+	});
 });
 
 describe("superpowersBootstrap default export — session_start wiring", () => {

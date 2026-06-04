@@ -139,7 +139,7 @@ export function createBootstrapHandler(
  * - `OMP_SESSION_DIR`   — full per-session artifacts directory.
  * - `OMP_SESSION_ID`    — session UUID.
  * - `OMP_AGENT_DIR`     — `$PI_CODING_AGENT_DIR ?? ~/.omp/agent`.
- *
+ * - `PI_CODEX_WEB_SEARCH_MODEL` — small Codex model for fast web_search calls.
  * Timing note: `pi-utils/procmgr.ts:buildSpawnEnv` snapshots `Bun.env` into a
  * cached `cachedShellConfig` on the first bash spawn. We rely on `session_start`
  * firing during session bootstrap, before the agent loop starts dispatching
@@ -157,6 +157,7 @@ export function installSessionEnvVars(
 		env.OMP_LOCAL_DIR = join(artifactsDir, "local");
 		env.OMP_SESSION_DIR = artifactsDir;
 	}
+	env.PI_CODEX_WEB_SEARCH_MODEL ??= "gpt-5.4-mini";
 	env.OMP_SESSION_ID = sm.getSessionId();
 }
 

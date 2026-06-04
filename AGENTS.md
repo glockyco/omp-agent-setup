@@ -69,7 +69,7 @@ Run `bun run bootstrap` after every `omp update` to re-apply patches; a healthy 
 
 ## Env contract
 
-The `superpowers-bootstrap` extension's `session_start` handler exports session-scoped paths to `process.env` so subprocesses can resolve OMP internal URIs without relying on the bash-tool expansion path:
+The `superpowers-bootstrap` extension's `session_start` handler exports session-scoped paths and lightweight runtime defaults to `process.env` so subprocesses can resolve OMP internal URIs without relying on the bash-tool expansion path and tool providers can avoid heavyweight defaults:
 
 | Var | Value |
 |---|---|
@@ -77,5 +77,6 @@ The `superpowers-bootstrap` extension's `session_start` handler exports session-
 | `OMP_SESSION_DIR` | per-session artifacts directory |
 | `OMP_SESSION_ID` | session UUID |
 | `OMP_AGENT_DIR` | `$PI_CODING_AGENT_DIR` or `~/.omp/agent` |
+| `PI_CODEX_WEB_SEARCH_MODEL` | `gpt-5.4-mini` unless already set |
 
 Consumed by plannotator's standalone CLI when invoked outside OMP-bash. Available to anything else that wants it.
