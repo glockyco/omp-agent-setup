@@ -14,7 +14,7 @@ import {
 	applyPatches,
 	type PatchExecution,
 	patchTargetPaths,
-	resolveOmpInstallRoot,
+	resolveOmpScopeRoot,
 } from "./patches-runtime.ts";
 import { expandHome } from "./paths.ts";
 import { type CheckoutStep, executeCheckoutSteps, planPluginCheckout } from "./plugins.ts";
@@ -42,8 +42,8 @@ export interface BootstrapOptions {
 	skipPlugins?: boolean;
 	/** Skip OMP source patches when running unit/integration tests. */
 	skipPatches?: boolean;
-	/** Override the installed `@oh-my-pi/pi-coding-agent` root for tests. */
-	ompInstallRoot?: string;
+	/** Override the installed `@oh-my-pi` scope root (`node_modules/@oh-my-pi`) for tests. */
+	ompScopeRoot?: string;
 	/** Optional override for `manifests/plugins.yml`. */
 	manifestPath?: string;
 	/** Optional date for timestamped backup dir; defaults to `new Date()`. */
@@ -84,8 +84,8 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		timestampedBackupDirName(options.now ?? new Date()),
 	);
 
-	const ompInstallRoot = options.ompInstallRoot ?? resolveOmpInstallRoot(process.env, home);
-	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompInstallRoot);
+	const ompScopeRoot = options.ompScopeRoot ?? resolveOmpScopeRoot(process.env, home);
+	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompScopeRoot);
 	const zedPath = zedSettingsPath(home);
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
@@ -172,7 +172,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 
 	const patchExecutions: PatchExecution[] = options.skipPatches
 		? []
-		: await applyPatches(OMP_PATCHES, ompInstallRoot);
+		: await applyPatches(OMP_PATCHES, ompScopeRoot);
 
 	return {
 		backupDir,

@@ -1,6 +1,9 @@
 /**
  * Pure planner for source patches applied against the globally installed
- * `@oh-my-pi/pi-coding-agent` package.
+ * `@oh-my-pi` packages. Each {@link Patch} names its target
+ * {@link Patch.package} so siblings under `node_modules/@oh-my-pi/`
+ * (`pi-coding-agent`, `pi-ai`, …) are addressed explicitly instead of via
+ * relative path escapes.
  *
  * Why this module exists: OMP ships TypeScript sources verbatim (`bun run`
  * loads `src/*.ts` directly), and the package gets blown away on every
@@ -21,11 +24,20 @@
  * case so we notice).
  */
 
+/**
+ * Installed `@oh-my-pi` package a patch targets. The value is the directory
+ * name under `node_modules/@oh-my-pi/`, so it doubles as the path segment used
+ * to locate the target file at apply time.
+ */
+type PatchPackage = "pi-coding-agent" | "pi-ai";
+
 /** Identity and content of a single source patch. */
 export interface Patch {
 	/** Stable id used in reports and tests; one patch per id. */
 	id: string;
-	/** Path inside the installed pi-coding-agent package, POSIX style. */
+	/** Installed `@oh-my-pi` package the target file lives in. */
+	package: PatchPackage;
+	/** Path inside {@link Patch.package}, POSIX style. */
 	targetRelative: string;
 	/** One-line human-readable purpose. */
 	description: string;
@@ -99,6 +111,7 @@ function countOccurrences(haystack: string, needle: string): number {
  */
 export const CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
 	id: "convert-to-llm-content-guard",
+	package: "pi-coding-agent",
 	targetRelative: "src/session/messages.ts",
 	description: "Drop malformed custom/hookMessage entries in convertToLlm.",
 	anchor: [
@@ -156,6 +169,7 @@ export const CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
  */
 export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 	id: "tree-selector-custom-message-guard",
+	package: "pi-coding-agent",
 	targetRelative: "src/modes/components/tree-selector.ts",
 	description: "Render custom_message entries without crashing when `content` is missing.",
 	anchor: [
@@ -180,10 +194,71 @@ export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 };
 
 /**
+ * Strip the unentitled `context-1m-2025-08-07` (1M long-context) beta from
+ * Anthropic web-search requests.
+ *
+ * OMP 15.8.0 routed `web_search`'s Anthropic provider through the same header
+ * builder as streaming chat, which unconditionally adds the agent-default
+ * `context-1m-2025-08-07` beta. The web-search body is a one-line query sent to
+ * `/v1/messages?beta=true`, where Anthropic strictly validates beta
+ * entitlement and returns `400 ... The long context beta is not yet available
+ * for this subscription` for OAuth tiers without 1M access — breaking every web
+ * search. We post-filter the header instead of rebuilding the beta set, so the
+ * fix survives upstream changes to the agent beta defaults.
+ */
+export const WEB_SEARCH_DROP_CONTEXT_1M_BETA: Patch = {
+	id: "web-search-drop-context-1m-beta",
+	package: "pi-ai",
+	targetRelative: "src/utils/anthropic-auth.ts",
+	description: "Drop the unentitled context-1m beta from Anthropic web-search requests.",
+	anchor: [
+		"export function buildAnthropicSearchHeaders(auth: AnthropicAuthConfig): Record<string, string> {",
+		"\treturn buildProviderAnthropicHeaders({",
+		"\t\tapiKey: auth.apiKey,",
+		"\t\tbaseUrl: auth.baseUrl,",
+		"\t\tisOAuth: auth.isOAuth,",
+		'\t\textraBetas: ["web-search-2025-03-05"],',
+		"\t\tstream: false,",
+		"\t\tmodelHeaders: resolveAnthropicCustomHeadersForBaseUrl(auth.baseUrl),",
+		"\t});",
+		"}",
+	].join("\n"),
+	replacement: [
+		"export function buildAnthropicSearchHeaders(auth: AnthropicAuthConfig): Record<string, string> {",
+		"\tconst headers = buildProviderAnthropicHeaders({",
+		"\t\tapiKey: auth.apiKey,",
+		"\t\tbaseUrl: auth.baseUrl,",
+		"\t\tisOAuth: auth.isOAuth,",
+		'\t\textraBetas: ["web-search-2025-03-05"],',
+		"\t\tstream: false,",
+		"\t\tmodelHeaders: resolveAnthropicCustomHeadersForBaseUrl(auth.baseUrl),",
+		"\t});",
+		"\t// OMP patch: a one-line web-search query never needs 1M context, but the",
+		"\t// shared builder injects the agent-default `context-1m-2025-08-07` beta.",
+		"\t// On `/v1/messages?beta=true` that beta is rejected for OAuth tiers without",
+		'\t// 1M entitlement ("The long context beta is not yet available for this',
+		'\t// subscription"), which breaks web search. Strip just that beta.',
+		"\tfor (const [key, value] of Object.entries(headers)) {",
+		'\t\tif (key.toLowerCase() !== "anthropic-beta") continue;',
+		"\t\tconst betas = value",
+		'\t\t\t.split(",")',
+		"\t\t\t.map(beta => beta.trim())",
+		'\t\t\t.filter(beta => beta.length > 0 && beta !== "context-1m-2025-08-07");',
+		'\t\tif (betas.length > 0) headers[key] = betas.join(",");',
+		"\t\telse delete headers[key];",
+		"\t}",
+		"\treturn headers;",
+		"}",
+	].join("\n"),
+	appliedSignature: 'beta !== "context-1m-2025-08-07"',
+};
+
+/**
  * Ordered list of patches the bootstrap step applies, in declaration order.
  * Order matters: later patches see the file as left by earlier patches.
  */
 export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
+	WEB_SEARCH_DROP_CONTEXT_1M_BETA,
 ];

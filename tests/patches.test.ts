@@ -8,11 +8,19 @@ import {
 	type Patch,
 	planPatch,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
+	WEB_SEARCH_DROP_CONTEXT_1M_BETA,
 } from "../src/patches.ts";
-import { applyPatches, patchTargetPaths, resolveOmpInstallRoot } from "../src/patches-runtime.ts";
+import {
+	applyPatches,
+	patchTargetPath,
+	patchTargetPaths,
+	resolveOmpInstallRoot,
+	resolveOmpScopeRoot,
+} from "../src/patches-runtime.ts";
 
 const SAMPLE_PATCH: Patch = {
 	id: "test-patch",
+	package: "pi-coding-agent",
 	targetRelative: "src/sample.ts",
 	description: "Test patch.",
 	anchor: 'const x = "old";',
@@ -160,6 +168,46 @@ describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
 	});
 });
 
+describe("WEB_SEARCH_DROP_CONTEXT_1M_BETA", () => {
+	const unpatched = [
+		'const DEFAULT_BASE_URL = "https://api.anthropic.com";',
+		"",
+		WEB_SEARCH_DROP_CONTEXT_1M_BETA.anchor,
+		"",
+	].join("\n");
+
+	test("targets the pi-ai package", () => {
+		expect(WEB_SEARCH_DROP_CONTEXT_1M_BETA.package).toBe("pi-ai");
+		expect(WEB_SEARCH_DROP_CONTEXT_1M_BETA.targetRelative).toBe("src/utils/anthropic-auth.ts");
+	});
+
+	test("applies cleanly and drops the context-1m beta", () => {
+		const plan = planPatch(WEB_SEARCH_DROP_CONTEXT_1M_BETA, unpatched);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain(WEB_SEARCH_DROP_CONTEXT_1M_BETA.appliedSignature);
+			// The bare `return buildProviderAnthropicHeaders(...)` form is gone; the
+			// headers are captured and post-filtered instead.
+			expect(plan.nextContent).not.toContain("\treturn buildProviderAnthropicHeaders({");
+			expect(plan.nextContent).toContain("const headers = buildProviderAnthropicHeaders({");
+			// The web-search beta is preserved; only context-1m is filtered.
+			expect(plan.nextContent).toContain('extraBetas: ["web-search-2025-03-05"]');
+		}
+	});
+
+	test("re-running planner against the patched output is a no-op", () => {
+		const first = planPatch(WEB_SEARCH_DROP_CONTEXT_1M_BETA, unpatched);
+		expect(first.kind).toBe("apply");
+		if (first.kind !== "apply") return;
+		const second = planPatch(WEB_SEARCH_DROP_CONTEXT_1M_BETA, first.nextContent);
+		expect(second.kind).toBe("skip-already-applied");
+	});
+
+	test("included in OMP_PATCHES", () => {
+		expect(OMP_PATCHES.map(p => p.id)).toContain(WEB_SEARCH_DROP_CONTEXT_1M_BETA.id);
+	});
+});
+
 describe("resolveOmpInstallRoot", () => {
 	test("uses $BUN_INSTALL when set", () => {
 		const root = resolveOmpInstallRoot({ BUN_INSTALL: "/opt/bun" } as NodeJS.ProcessEnv, "/home/me");
@@ -172,11 +220,30 @@ describe("resolveOmpInstallRoot", () => {
 	});
 });
 
+describe("resolveOmpScopeRoot", () => {
+	test("uses $BUN_INSTALL when set", () => {
+		const root = resolveOmpScopeRoot({ BUN_INSTALL: "/opt/bun" } as NodeJS.ProcessEnv, "/home/me");
+		expect(root).toBe("/opt/bun/install/global/node_modules/@oh-my-pi");
+	});
+
+	test("falls back to ~/.bun when $BUN_INSTALL is unset", () => {
+		const root = resolveOmpScopeRoot({} as NodeJS.ProcessEnv, "/home/me");
+		expect(root).toBe("/home/me/.bun/install/global/node_modules/@oh-my-pi");
+	});
+
+	test("resolveOmpInstallRoot is the pi-coding-agent child of the scope root", () => {
+		const env = { BUN_INSTALL: "/opt/bun" } as NodeJS.ProcessEnv;
+		expect(resolveOmpInstallRoot(env, "/home/me")).toBe(
+			join(resolveOmpScopeRoot(env, "/home/me"), "pi-coding-agent"),
+		);
+	});
+});
+
 describe("applyPatches (filesystem-backed)", () => {
 	test("applies, then on a second run reports skip-already-applied", async () => {
 		const workdir = await mkdtemp(join(tmpdir(), "omp-patches-"));
 		try {
-			const targetPath = join(workdir, "src", "sample.ts");
+			const targetPath = join(workdir, SAMPLE_PATCH.package, "src", "sample.ts");
 			await writeFixture(targetPath, '// header\nconst x = "old";\n// footer\n');
 
 			const first = await applyPatches([SAMPLE_PATCH], workdir);
@@ -203,7 +270,7 @@ describe("applyPatches (filesystem-backed)", () => {
 	test("reports skip-anchor-missing when the file exists but the anchor is gone", async () => {
 		const workdir = await mkdtemp(join(tmpdir(), "omp-patches-"));
 		try {
-			const targetPath = join(workdir, "src", "sample.ts");
+			const targetPath = join(workdir, SAMPLE_PATCH.package, "src", "sample.ts");
 			await writeFixture(targetPath, "// totally unrelated content\n");
 			const results = await applyPatches([SAMPLE_PATCH], workdir);
 			expect(results).toMatchObject([{ kind: "skip-anchor-missing" }]);
@@ -215,7 +282,7 @@ describe("applyPatches (filesystem-backed)", () => {
 	test("reports error-anchor-ambiguous without mutating the file", async () => {
 		const workdir = await mkdtemp(join(tmpdir(), "omp-patches-"));
 		try {
-			const targetPath = join(workdir, "src", "sample.ts");
+			const targetPath = join(workdir, SAMPLE_PATCH.package, "src", "sample.ts");
 			const original = 'const x = "old";\nconst x = "old";\n';
 			await writeFixture(targetPath, original);
 			const results = await applyPatches([SAMPLE_PATCH], workdir);
@@ -237,7 +304,7 @@ describe("applyPatches (filesystem-backed)", () => {
 		};
 		const workdir = await mkdtemp(join(tmpdir(), "omp-patches-"));
 		try {
-			const targetPath = join(workdir, "src", "sample.ts");
+			const targetPath = join(workdir, SAMPLE_PATCH.package, "src", "sample.ts");
 			await writeFixture(targetPath, 'const x = "old";\n');
 			const results = await applyPatches([SAMPLE_PATCH], workdir, failingIO);
 			expect(results).toMatchObject([{ kind: "error-write" }]);
@@ -248,8 +315,18 @@ describe("applyPatches (filesystem-backed)", () => {
 });
 
 describe("patchTargetPaths", () => {
-	test("returns absolute paths under the install root", () => {
-		const paths = patchTargetPaths(OMP_PATCHES, "/install");
-		expect(paths).toContain("/install/src/session/messages.ts");
+	test("resolves <scopeRoot>/<package>/<targetRelative>", () => {
+		const paths = patchTargetPaths(OMP_PATCHES, "/scope");
+		expect(paths).toContain("/scope/pi-coding-agent/src/session/messages.ts");
+		expect(paths).toContain("/scope/pi-ai/src/utils/anthropic-auth.ts");
+	});
+});
+
+describe("patchTargetPath", () => {
+	test("joins scope root, package, and target relative", () => {
+		expect(patchTargetPath(WEB_SEARCH_DROP_CONTEXT_1M_BETA, "/scope")).toBe(
+			"/scope/pi-ai/src/utils/anthropic-auth.ts",
+		);
+		expect(patchTargetPath(SAMPLE_PATCH, "/scope")).toBe("/scope/pi-coding-agent/src/sample.ts");
 	});
 });

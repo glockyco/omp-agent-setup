@@ -9,19 +9,33 @@ import { join, resolve } from "node:path";
 import { type Patch, type PatchPlanEntry, planPatch } from "./patches.ts";
 
 /**
- * Resolve the directory the globally installed `@oh-my-pi/pi-coding-agent`
- * package lives in. Honors `$BUN_INSTALL` if set; falls back to Bun's
- * documented default of `~/.bun`.
+ * Resolve the `@oh-my-pi` scope directory inside the global Bun install — the
+ * parent of every installed OMP package (`pi-coding-agent`, `pi-ai`, …).
+ * Honors `$BUN_INSTALL` if set; falls back to Bun's documented default of
+ * `~/.bun`.
  *
- * Mirrors how `bun add -g` itself lays out the install tree so any path we
- * compute here is the same one `omp` resolves at runtime.
+ * Mirrors how `bun add -g` lays out the install tree so any path we compute
+ * here is the same one `omp` resolves at runtime.
+ */
+export function resolveOmpScopeRoot(
+	env: NodeJS.ProcessEnv = process.env,
+	home: string = homedir(),
+): string {
+	const bunInstall = env.BUN_INSTALL ?? join(home, ".bun");
+	return resolve(bunInstall, "install", "global", "node_modules", "@oh-my-pi");
+}
+
+/**
+ * Resolve the directory the globally installed `@oh-my-pi/pi-coding-agent`
+ * package lives in. Retained for callers that read coding-agent-only assets
+ * (LSP defaults, the skills module); patch resolution uses
+ * {@link resolveOmpScopeRoot} + {@link Patch.package} instead.
  */
 export function resolveOmpInstallRoot(
 	env: NodeJS.ProcessEnv = process.env,
 	home: string = homedir(),
 ): string {
-	const bunInstall = env.BUN_INSTALL ?? join(home, ".bun");
-	return resolve(bunInstall, "install", "global", "node_modules", "@oh-my-pi", "pi-coding-agent");
+	return join(resolveOmpScopeRoot(env, home), "pi-coding-agent");
 }
 
 /**
@@ -57,7 +71,8 @@ const realPatchIO: PatchIO = {
 };
 
 /**
- * Apply every patch in `patches` against `installRoot`, in order. The result
+ * Apply every patch in `patches` under `scopeRoot` (the `@oh-my-pi` dir), in
+ * order. The result
  * for each entry is one of the {@link PatchExecution} variants; later patches
  * see the file as left by earlier ones, so an `apply` is followed by
  * `skip-already-applied` on a second pass.
@@ -68,12 +83,12 @@ const realPatchIO: PatchIO = {
  */
 export async function applyPatches(
 	patches: readonly Patch[],
-	installRoot: string,
+	scopeRoot: string,
 	io: PatchIO = realPatchIO,
 ): Promise<PatchExecution[]> {
 	const results: PatchExecution[] = [];
 	for (const patch of patches) {
-		const targetPath = join(installRoot, patch.targetRelative);
+		const targetPath = patchTargetPath(patch, scopeRoot);
 		let current: string;
 		try {
 			current = await io.read(targetPath);
@@ -99,12 +114,20 @@ export async function applyPatches(
 }
 
 /**
+ * Resolve the absolute on-disk path of a patch target from the `@oh-my-pi`
+ * scope root: `<scopeRoot>/<package>/<targetRelative>`.
+ */
+export function patchTargetPath(patch: Patch, scopeRoot: string): string {
+	return join(scopeRoot, patch.package, patch.targetRelative);
+}
+
+/**
  * Resolve the target paths for a set of patches without performing any I/O.
  * Used by the bootstrap to extend the snapshot list before patches mutate
  * anything on disk.
  */
-export function patchTargetPaths(patches: readonly Patch[], installRoot: string): string[] {
-	return patches.map(patch => join(installRoot, patch.targetRelative));
+export function patchTargetPaths(patches: readonly Patch[], scopeRoot: string): string[] {
+	return patches.map(patch => patchTargetPath(patch, scopeRoot));
 }
 
 async function executePlan(
