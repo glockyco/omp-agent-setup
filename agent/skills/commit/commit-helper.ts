@@ -37,7 +37,11 @@ export interface RunCommitHelperResult {
 }
 
 const DEFAULT_LINE_LENGTH = 72;
-const SUBJECT_PATTERN = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?: .+/u;
+// Structural gate only: a lowercase type, optional scope, optional breaking-change
+// "!", then ": summary". The allowed type-enum is owned by each repo's commitlint
+// config (invoked by runCommitHelper); do not re-enumerate concrete types here, or
+// the helper will reject types a repo legitimately adds to its commitlint config.
+const SUBJECT_PATTERN = /^[a-z]+(\([^)]+\))?!?: .+/u;
 
 export function wrapBody(body: string, lineLength = DEFAULT_LINE_LENGTH): string {
 	return body

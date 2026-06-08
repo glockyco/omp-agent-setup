@@ -44,8 +44,10 @@ changes whose purpose is fully explained by the subject.
 
 Subject:
 
-- Use a commitlint-compatible type: `feat`, `fix`, `docs`, `style`, `refactor`,
-  `perf`, `test`, `build`, `ci`, `chore`, or `revert`.
+- Use a type allowed by the repo's `commitlint` config. The Conventional Commits
+  defaults are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
+  `build`, `ci`, `chore`, and `revert`; a repo may extend its `type-enum` (the
+  helper validates the subject shape and defers the type list to commitlint).
 - Target 50 characters; hard limit 72.
 - Use imperative mood: `add`, `fix`, `remove`; not `added` or `fixes`.
 - Lowercase the summary after the colon unless it starts with a proper noun or

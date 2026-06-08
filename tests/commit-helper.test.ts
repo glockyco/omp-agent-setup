@@ -57,6 +57,15 @@ describe("buildCommitMessage", () => {
 			}),
 		).toThrow(/subject must match Conventional Commits/);
 	});
+
+	test("accepts any repo-configured type, leaving the type-enum to commitlint", () => {
+		const message = buildCommitMessage({
+			subject: "revise(front): correct the publications page",
+			body: "Body text.",
+		});
+
+		expect(message.startsWith("revise(front): correct the publications page\n")).toBe(true);
+	});
 });
 
 describe("parseCommitInput", () => {
