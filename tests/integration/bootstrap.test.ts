@@ -39,9 +39,21 @@ afterEach(async () => {
 	await rm(repoRoot, { recursive: true, force: true });
 });
 
+function bootstrapSandbox(overrides: Partial<Parameters<typeof runBootstrap>[0]> = {}) {
+	return runBootstrap({
+		repoRoot,
+		home: tempHome,
+		// Keep patches off the real global install: point the @oh-my-pi scope at a
+		// nonexistent sandbox dir so they resolve skip-target-missing, never apply.
+		ompScopeRoot: join(tempHome, ".bun-sandbox", "node_modules", "@oh-my-pi"),
+		ompPath: "/fake/omp",
+		...overrides,
+	});
+}
+
 describe("runBootstrap (integration)", () => {
 	test("first run deploys symlinks, writes managed config, and reports snapshot", async () => {
-		const report = await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
+		const report = await bootstrapSandbox();
 
 		// Managed symlinks point at the repo source.
 		await expect(readlink(join(agentDir, "AGENTS.md"))).resolves.toBe(
@@ -85,13 +97,7 @@ describe("runBootstrap (integration)", () => {
 		await mkdir(join(tempHome, ".config", "zed"), { recursive: true });
 		await writeFile(zedPath, `// user comment\n{ "vim_mode": true }\n`);
 
-		const report = await runBootstrap({
-			repoRoot,
-			home: tempHome,
-			skipPlugins: true,
-			skipPatches: true,
-			ompPath: "/fake/omp",
-		});
+		const report = await bootstrapSandbox({ skipPlugins: true, skipPatches: true });
 		expect(report.zedSettings.changed).toBe(true);
 		expect(report.zedSettings.existed).toBe(true);
 
@@ -100,21 +106,15 @@ describe("runBootstrap (integration)", () => {
 		expect(text).toContain('"vim_mode": true');
 		expect(text).toContain('"omp-acp"');
 
-		const second = await runBootstrap({
-			repoRoot,
-			home: tempHome,
-			skipPlugins: true,
-			skipPatches: true,
-			ompPath: "/fake/omp",
-		});
+		const second = await bootstrapSandbox({ skipPlugins: true, skipPatches: true });
 		expect(second.zedSettings.changed).toBe(false);
 	});
 
 	test("second run is idempotent: no config change, symlinks unchanged", async () => {
-		await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
+		await bootstrapSandbox();
 		const configFirst = await readFile(join(agentDir, "config.yml"), "utf8");
 
-		const second = await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
+		const second = await bootstrapSandbox();
 		const configSecond = await readFile(join(agentDir, "config.yml"), "utf8");
 
 		expect(configSecond).toBe(configFirst);
@@ -128,7 +128,7 @@ describe("runBootstrap (integration)", () => {
 			join(agentDir, "config.yml"),
 			"modelRoles:\n  default: anthropic/claude-opus-4-7\nsteeringMode: all\n",
 		);
-		await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
+		await bootstrapSandbox();
 		const written = await readFile(join(agentDir, "config.yml"), "utf8");
 		expect(readTopLevel(written, "modelRoles")).toEqual({ default: "anthropic/claude-opus-4-7" });
 		expect(readTopLevel(written, "steeringMode")).toBe("all");
@@ -145,7 +145,7 @@ describe("runBootstrap (integration)", () => {
 		);
 		await symlink("/tmp/real/skill", join(skillsDir, "keep-me"));
 
-		const report = await runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" });
+		const report = await bootstrapSandbox();
 
 		expect(report.staleSymlinks.entries.map(e => e.path)).toEqual([
 			join(skillsDir, "using-superpowers"),
@@ -156,8 +156,13 @@ describe("runBootstrap (integration)", () => {
 	test("refuses to clobber a real file at a managed destination", async () => {
 		await mkdir(agentDir, { recursive: true });
 		await writeFile(join(agentDir, "AGENTS.md"), "user-authored content");
-		await expect(runBootstrap({ repoRoot, home: tempHome, ompPath: "/fake/omp" })).rejects.toThrow(
-			/Refusing to replace non-symlink/,
-		);
+		await expect(bootstrapSandbox()).rejects.toThrow(/Refusing to replace non-symlink/);
+	});
+
+	test("patch application stays inside the sandbox, never the real install", async () => {
+		const report = await bootstrapSandbox();
+		expect(report.patchExecutions.length).toBeGreaterThan(0);
+		expect(report.patchExecutions.every(e => e.kind === "skip-target-missing")).toBe(true);
+		expect(summarizeReport(report)).toContain("OMP patch drift");
 	});
 });
