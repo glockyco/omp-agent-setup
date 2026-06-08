@@ -118,7 +118,7 @@ export const CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
 		'\t\t\t\tcase "custom":',
 		'\t\t\t\tcase "hookMessage": {',
 		'\t\t\t\t\tconst content = typeof m.content === "string" ? [{ type: "text" as const, text: m.content }] : m.content;',
-		'\t\t\t\t\tconst role = "user";',
+		'\t\t\t\t\tconst role = "developer";',
 		"\t\t\t\t\tconst attribution = m.attribution;",
 		"\t\t\t\t\treturn {",
 		"\t\t\t\t\t\trole,",
@@ -147,7 +147,7 @@ export const CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
 		"\t\t\t\t\t\treturn undefined;",
 		"\t\t\t\t\t}",
 		"\t\t\t\t\treturn {",
-		'\t\t\t\t\t\trole: "user",',
+		'\t\t\t\t\t\trole: "developer",',
 		"\t\t\t\t\t\tcontent,",
 		"\t\t\t\t\t\tattribution: m.attribution,",
 		"\t\t\t\t\t\ttimestamp: m.timestamp,",
@@ -194,50 +194,10 @@ export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 };
 
 /**
- * Stop sending the retired `context-1m-2025-08-07` (1M long-context) beta on
- * Anthropic OAuth requests.
- *
- * OMP adds this beta to every agent request (anything with tools) via
- * `claudeCodeAgentBetaDefaults`. Anthropic retired the header on 2026-04-30 and
- * now credit-gates its mere presence on Claude subscriptions: requests fail
- * with `429 ... Usage credits are required for long context requests`,
- * regardless of how small the actual context is (reproduced with a one-line
- * subagent prompt on claude-sonnet-4-6). 1M context is GA on Opus 4.x and
- * Sonnet 4.6 with no beta header, so dropping it loses nothing while unblocking
- * every OAuth request — main chat, subagents, and web search alike.
- *
- * Removed at the source array rather than post-filtering each header, so one
- * edit covers every code path that derives betas from it.
- */
-export const ANTHROPIC_DROP_CONTEXT_1M_BETA: Patch = {
-	id: "anthropic-drop-context-1m-beta",
-	package: "pi-ai",
-	targetRelative: "src/providers/anthropic.ts",
-	description: "Stop sending the retired context-1m long-context beta on Anthropic OAuth requests.",
-	anchor: [
-		'\t"claude-code-20250219",',
-		'\t"oauth-2025-04-20",',
-		'\t"context-1m-2025-08-07",',
-		'\t"interleaved-thinking-2025-05-14",',
-	].join("\n"),
-	replacement: [
-		'\t"claude-code-20250219",',
-		'\t"oauth-2025-04-20",',
-		"\t// OMP patch: omit retired context-1m long-context beta (Anthropic turned",
-		"\t// it off 2026-04-30 and now credit-gates its presence on subscriptions —",
-		'\t// agent requests 429 "Usage credits are required for long context',
-		'\t// requests"). 1M is GA on Opus 4.x / Sonnet 4.6 without any beta header.',
-		'\t"interleaved-thinking-2025-05-14",',
-	].join("\n"),
-	appliedSignature: "omit retired context-1m long-context beta",
-};
-
-/**
  * Ordered list of patches the bootstrap step applies, in declaration order.
  * Order matters: later patches see the file as left by earlier patches.
  */
 export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
-	ANTHROPIC_DROP_CONTEXT_1M_BETA,
 ];

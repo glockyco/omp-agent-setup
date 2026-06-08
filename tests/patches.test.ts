@@ -3,7 +3,6 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
-	ANTHROPIC_DROP_CONTEXT_1M_BETA,
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	OMP_PATCHES,
 	type Patch,
@@ -89,7 +88,7 @@ describe("CONVERT_TO_LLM_CONTENT_GUARD", () => {
 		'\t\t\t\tcase "custom":',
 		'\t\t\t\tcase "hookMessage": {',
 		'\t\t\t\t\tconst content = typeof m.content === "string" ? [{ type: "text" as const, text: m.content }] : m.content;',
-		'\t\t\t\t\tconst role = "user";',
+		'\t\t\t\t\tconst role = "developer";',
 		"\t\t\t\t\tconst attribution = m.attribution;",
 		"\t\t\t\t\treturn {",
 		"\t\t\t\t\t\trole,",
@@ -165,46 +164,6 @@ describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
 
 	test("included in OMP_PATCHES", () => {
 		expect(OMP_PATCHES.map(p => p.id)).toContain(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD.id);
-	});
-});
-
-describe("ANTHROPIC_DROP_CONTEXT_1M_BETA", () => {
-	const unpatched = [
-		"const claudeCodeAgentBetaDefaults = [",
-		ANTHROPIC_DROP_CONTEXT_1M_BETA.anchor,
-		'\t"context-management-2025-06-27",',
-		"] as const;",
-		"",
-	].join("\n");
-
-	test("targets pi-ai providers/anthropic.ts", () => {
-		expect(ANTHROPIC_DROP_CONTEXT_1M_BETA.package).toBe("pi-ai");
-		expect(ANTHROPIC_DROP_CONTEXT_1M_BETA.targetRelative).toBe("src/providers/anthropic.ts");
-	});
-
-	test("applies cleanly and removes the context-1m beta", () => {
-		const plan = planPatch(ANTHROPIC_DROP_CONTEXT_1M_BETA, unpatched);
-		expect(plan.kind).toBe("apply");
-		if (plan.kind === "apply") {
-			expect(plan.nextContent).toContain(ANTHROPIC_DROP_CONTEXT_1M_BETA.appliedSignature);
-			// The retired beta string is gone from the array...
-			expect(plan.nextContent).not.toContain('"context-1m-2025-08-07"');
-			// ...while the neighbouring betas are preserved.
-			expect(plan.nextContent).toContain('"claude-code-20250219"');
-			expect(plan.nextContent).toContain('"interleaved-thinking-2025-05-14"');
-		}
-	});
-
-	test("re-running planner against the patched output is a no-op", () => {
-		const first = planPatch(ANTHROPIC_DROP_CONTEXT_1M_BETA, unpatched);
-		expect(first.kind).toBe("apply");
-		if (first.kind !== "apply") return;
-		const second = planPatch(ANTHROPIC_DROP_CONTEXT_1M_BETA, first.nextContent);
-		expect(second.kind).toBe("skip-already-applied");
-	});
-
-	test("included in OMP_PATCHES", () => {
-		expect(OMP_PATCHES.map(p => p.id)).toContain(ANTHROPIC_DROP_CONTEXT_1M_BETA.id);
 	});
 });
 
@@ -318,14 +277,14 @@ describe("patchTargetPaths", () => {
 	test("resolves <scopeRoot>/<package>/<targetRelative>", () => {
 		const paths = patchTargetPaths(OMP_PATCHES, "/scope");
 		expect(paths).toContain("/scope/pi-coding-agent/src/session/messages.ts");
-		expect(paths).toContain("/scope/pi-ai/src/providers/anthropic.ts");
+		expect(paths).toContain("/scope/pi-coding-agent/src/modes/components/tree-selector.ts");
 	});
 });
 
 describe("patchTargetPath", () => {
 	test("joins scope root, package, and target relative", () => {
-		expect(patchTargetPath(ANTHROPIC_DROP_CONTEXT_1M_BETA, "/scope")).toBe(
-			"/scope/pi-ai/src/providers/anthropic.ts",
+		expect(patchTargetPath(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD, "/scope")).toBe(
+			"/scope/pi-coding-agent/src/modes/components/tree-selector.ts",
 		);
 		expect(patchTargetPath(SAMPLE_PATCH, "/scope")).toBe("/scope/pi-coding-agent/src/sample.ts");
 	});
