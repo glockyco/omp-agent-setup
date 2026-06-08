@@ -3,7 +3,7 @@ import { lstat, readFile, readlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runBootstrap, summarizeReport } from "./bootstrap.ts";
+import { runBootstrap, summarizeReport, unhealthyPatchExecutions } from "./bootstrap.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
@@ -40,7 +40,7 @@ function repoRoot(): string {
 async function cmdBootstrap(_args: string[]): Promise<number> {
 	const report = await runBootstrap({ repoRoot: repoRoot() });
 	console.log(summarizeReport(report));
-	return 0;
+	return unhealthyPatchExecutions(report.patchExecutions).length > 0 ? 1 : 0;
 }
 
 async function cmdVerify(_args: string[]): Promise<number> {

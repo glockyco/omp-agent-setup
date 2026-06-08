@@ -213,11 +213,16 @@ export function summarizeReport(report: BootstrapReport): string {
 		}
 	}
 	if (report.patchExecutions.length > 0) {
-		const summary = summarizePatchExecutions(report.patchExecutions);
-		lines.push(`OMP patches: ${summary}`);
+		lines.push(`OMP patches: ${summarizePatchExecutions(report.patchExecutions)}`);
 		for (const execution of report.patchExecutions) {
 			if (execution.kind === "skip-already-applied") continue;
 			lines.push(`  - ${execution.kind} ${execution.patch.id} (${execution.targetPath})`);
+		}
+		const unhealthy = unhealthyPatchExecutions(report.patchExecutions);
+		if (unhealthy.length > 0) {
+			lines.push(
+				`⚠ OMP patch drift: ${unhealthy.length} patch(es) did not apply — update or remove them in src/patches.ts (see AGENTS.md "OMP update").`,
+			);
 		}
 	}
 	return lines.join("\n");
@@ -231,4 +236,16 @@ function summarizePatchExecutions(executions: readonly PatchExecution[]): string
 	return Array.from(counts.entries())
 		.map(([kind, count]) => `${count} ${kind}`)
 		.join(", ");
+}
+
+/**
+ * Patch executions that need human attention: anything that is neither a fresh
+ * `apply` nor an already-applied no-op. Drift such as `skip-anchor-missing` (an
+ * `omp update` rewrote the anchored code) means a patch silently stopped
+ * applying, so the CLI surfaces these prominently and exits non-zero.
+ */
+export function unhealthyPatchExecutions(executions: readonly PatchExecution[]): PatchExecution[] {
+	return executions.filter(
+		execution => execution.kind !== "apply" && execution.kind !== "skip-already-applied",
+	);
 }
