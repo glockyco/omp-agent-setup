@@ -2,7 +2,7 @@
  * Pure planner for source patches applied against the globally installed
  * `@oh-my-pi` packages. Each {@link Patch} names its target
  * {@link Patch.package} so siblings under `node_modules/@oh-my-pi/`
- * (`pi-coding-agent`, `pi-ai`, …) are addressed explicitly instead of via
+ * (`pi-coding-agent`, `pi-agent-core`, `pi-ai`, …) are addressed explicitly instead of via
  * relative path escapes.
  *
  * Why this module exists: OMP ships TypeScript sources verbatim (`bun run`
@@ -29,7 +29,7 @@
  * name under `node_modules/@oh-my-pi/`, so it doubles as the path segment used
  * to locate the target file at apply time.
  */
-type PatchPackage = "pi-coding-agent" | "pi-ai";
+type PatchPackage = "pi-coding-agent" | "pi-agent-core" | "pi-ai";
 
 /** Identity and content of a single source patch. */
 export interface Patch {
@@ -100,8 +100,9 @@ function countOccurrences(haystack: string, needle: string): number {
 }
 
 /**
- * Drop malformed custom/hookMessage entries inside `convertToLlm` instead of
- * forwarding a `content: undefined` payload to provider transports.
+ * Drop malformed custom/hookMessage entries inside the shared
+ * `convertMessageToLlm` transformer instead of forwarding a `content:
+ * undefined` payload to provider transports.
  *
  * Without this guard, subagent dispatch under `openai-codex-responses`
  * instantly fails with `undefined is not an object (evaluating
@@ -111,48 +112,49 @@ function countOccurrences(haystack: string, needle: string): number {
  */
 export const CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
 	id: "convert-to-llm-content-guard",
-	package: "pi-coding-agent",
-	targetRelative: "src/session/messages.ts",
-	description: "Drop malformed custom/hookMessage entries in convertToLlm.",
+	package: "pi-agent-core",
+	targetRelative: "src/compaction/messages.ts",
+	description: "Drop malformed custom/hookMessage entries in convertMessageToLlm.",
 	anchor: [
-		'\t\t\t\tcase "custom":',
-		'\t\t\t\tcase "hookMessage": {',
-		'\t\t\t\t\tconst content = typeof m.content === "string" ? [{ type: "text" as const, text: m.content }] : m.content;',
-		'\t\t\t\t\tconst role = "developer";',
-		"\t\t\t\t\tconst attribution = m.attribution;",
-		"\t\t\t\t\treturn {",
-		"\t\t\t\t\t\trole,",
-		"\t\t\t\t\t\tcontent,",
-		"\t\t\t\t\t\tattribution,",
-		"\t\t\t\t\t\ttimestamp: m.timestamp,",
-		"\t\t\t\t\t};",
-		"\t\t\t\t}",
+		'\t\t\tcase "custom":',
+		'\t\t\tcase "hookMessage": {',
+		"\t\t\t\tconst content =",
+		'\t\t\t\t\ttypeof message.content === "string"',
+		'\t\t\t\t\t\t? [{ type: "text" as const, text: message.content }]',
+		"\t\t\t\t\t\t: message.content;",
+		"\t\t\t\treturn {",
+		'\t\t\t\t\trole: "developer",',
+		"\t\t\t\t\tcontent,",
+		"\t\t\t\t\tattribution: message.attribution,",
+		"\t\t\t\t\ttimestamp: message.timestamp,",
+		"\t\t\t\t};",
+		"\t\t\t}",
 	].join("\n"),
 	replacement: [
-		'\t\t\t\tcase "custom":',
-		'\t\t\t\tcase "hookMessage": {',
-		"\t\t\t\t\t// CustomMessage.content is typed as string | content[], but extensions/hooks calling",
-		"\t\t\t\t\t// pi.sendMessage() can violate the contract at runtime (e.g. pi.sendMessage(stringArg)",
-		"\t\t\t\t\t// instead of pi.sendMessage({ customType, content, ... })). Drop messages without",
-		"\t\t\t\t\t// meaningful content rather than forwarding a malformed payload to providers, which",
-		'\t\t\t\t\t// otherwise crash deep in transport code with errors like "content.map is not a function".',
-		"\t\t\t\t\tconst raw = m.content;",
-		"\t\t\t\t\tlet content: (TextContent | ImageContent)[];",
-		'\t\t\t\t\tif (typeof raw === "string") {',
-		"\t\t\t\t\t\tif (raw.length === 0) return undefined;",
-		'\t\t\t\t\t\tcontent = [{ type: "text", text: raw }];',
-		"\t\t\t\t\t} else if (Array.isArray(raw) && raw.length > 0) {",
-		"\t\t\t\t\t\tcontent = raw;",
-		"\t\t\t\t\t} else {",
-		"\t\t\t\t\t\treturn undefined;",
-		"\t\t\t\t\t}",
-		"\t\t\t\t\treturn {",
-		'\t\t\t\t\t\trole: "developer",',
-		"\t\t\t\t\t\tcontent,",
-		"\t\t\t\t\t\tattribution: m.attribution,",
-		"\t\t\t\t\t\ttimestamp: m.timestamp,",
-		"\t\t\t\t\t};",
+		'\t\t\tcase "custom":',
+		'\t\t\tcase "hookMessage": {',
+		"\t\t\t\t// CustomMessage.content is typed as string | content[], but extensions/hooks calling",
+		"\t\t\t\t// pi.sendMessage() can violate the contract at runtime (e.g. pi.sendMessage(stringArg)",
+		"\t\t\t\t// instead of pi.sendMessage({ customType, content, ... })). Drop messages without",
+		"\t\t\t\t// meaningful content rather than forwarding a malformed payload to providers, which",
+		'\t\t\t\t// otherwise crash deep in transport code with errors like "content.map is not a function".',
+		"\t\t\t\tconst raw = message.content;",
+		"\t\t\t\tlet content: (TextContent | ImageContent)[];",
+		'\t\t\t\tif (typeof raw === "string") {',
+		"\t\t\t\t\tif (raw.length === 0) return undefined;",
+		'\t\t\t\t\tcontent = [{ type: "text", text: raw }];',
+		"\t\t\t\t} else if (Array.isArray(raw) && raw.length > 0) {",
+		"\t\t\t\t\tcontent = raw;",
+		"\t\t\t\t} else {",
+		"\t\t\t\t\treturn undefined;",
 		"\t\t\t\t}",
+		"\t\t\t\treturn {",
+		'\t\t\t\t\trole: "developer",',
+		"\t\t\t\t\tcontent,",
+		"\t\t\t\t\tattribution: message.attribution,",
+		"\t\t\t\t\ttimestamp: message.timestamp,",
+		"\t\t\t\t};",
+		"\t\t\t}",
 	].join("\n"),
 	appliedSignature:
 		"// CustomMessage.content is typed as string | content[], but extensions/hooks calling",

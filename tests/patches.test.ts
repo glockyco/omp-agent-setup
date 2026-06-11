@@ -81,38 +81,41 @@ describe("planPatch", () => {
 
 describe("CONVERT_TO_LLM_CONTENT_GUARD", () => {
 	const unpatched = [
-		"function transform(messages) {",
-		"\treturn messages",
-		"\t\t.map((m): Message | undefined => {",
-		"\t\t\tswitch (m.role) {",
-		'\t\t\t\tcase "custom":',
-		'\t\t\t\tcase "hookMessage": {',
-		'\t\t\t\t\tconst content = typeof m.content === "string" ? [{ type: "text" as const, text: m.content }] : m.content;',
-		'\t\t\t\t\tconst role = "developer";',
-		"\t\t\t\t\tconst attribution = m.attribution;",
-		"\t\t\t\t\treturn {",
-		"\t\t\t\t\t\trole,",
-		"\t\t\t\t\t\tcontent,",
-		"\t\t\t\t\t\tattribution,",
-		"\t\t\t\t\t\ttimestamp: m.timestamp,",
-		"\t\t\t\t\t};",
-		"\t\t\t\t}",
+		"export function convertMessageToLlm(message: AgentMessage): Message | undefined {",
+		"\tif (isCoreCompactionMessage(message)) {",
+		"\t\tswitch (message.role) {",
+		'\t\t\tcase "custom":',
+		'\t\t\tcase "hookMessage": {',
+		"\t\t\t\tconst content =",
+		'\t\t\t\t\ttypeof message.content === "string"',
+		'\t\t\t\t\t\t? [{ type: "text" as const, text: message.content }]',
+		"\t\t\t\t\t\t: message.content;",
+		"\t\t\t\treturn {",
+		'\t\t\t\t\trole: "developer",',
+		"\t\t\t\t\tcontent,",
+		"\t\t\t\t\tattribution: message.attribution,",
+		"\t\t\t\t\ttimestamp: message.timestamp,",
+		"\t\t\t\t};",
 		"\t\t\t}",
-		"\t\t});",
+		"\t\t}",
+		"\t}",
 		"}",
 		"",
 	].join("\n");
 
-	test("applies cleanly against an unpatched file", () => {
+	test("applies cleanly against the core converter", () => {
 		const plan = planPatch(CONVERT_TO_LLM_CONTENT_GUARD, unpatched);
 		expect(plan.kind).toBe("apply");
 		if (plan.kind === "apply") {
 			expect(plan.nextContent).toContain(CONVERT_TO_LLM_CONTENT_GUARD.appliedSignature);
 			// Sanity: the unpatched-form unique line is gone.
-			expect(plan.nextContent).not.toContain(
-				'const content = typeof m.content === "string" ? [{ type: "text" as const, text: m.content }] : m.content;',
-			);
+			expect(plan.nextContent).not.toContain(": message.content;");
 		}
+	});
+
+	test("targets the core compaction package where custom messages are converted", () => {
+		expect(CONVERT_TO_LLM_CONTENT_GUARD.package).toBe("pi-agent-core");
+		expect(CONVERT_TO_LLM_CONTENT_GUARD.targetRelative).toBe("src/compaction/messages.ts");
 	});
 
 	test("re-running planner against the patched output is a no-op", () => {
@@ -276,7 +279,7 @@ describe("applyPatches (filesystem-backed)", () => {
 describe("patchTargetPaths", () => {
 	test("resolves <scopeRoot>/<package>/<targetRelative>", () => {
 		const paths = patchTargetPaths(OMP_PATCHES, "/scope");
-		expect(paths).toContain("/scope/pi-coding-agent/src/session/messages.ts");
+		expect(paths).toContain("/scope/pi-agent-core/src/compaction/messages.ts");
 		expect(paths).toContain("/scope/pi-coding-agent/src/modes/components/tree-selector.ts");
 	});
 });
