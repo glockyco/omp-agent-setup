@@ -170,12 +170,66 @@ describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
 	});
 });
 
+describe("CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD", () => {
+	const sourceAnchor = [
+		"\tappendCustomMessageEntry<T = unknown>(",
+		"\t\tcustomType: string,",
+		"\t\tcontent: string | (TextContent | ImageContent)[],",
+		"\t\tdisplay: boolean,",
+		"\t\tdetails?: T,",
+		'\t\tattribution: MessageAttribution = "agent",',
+		"\t): string {",
+		"\t\tconst entry: CustomMessageEntry<T> = {",
+		'\t\t\ttype: "custom_message",',
+		"\t\t\tcustomType,",
+		"\t\t\tcontent,",
+	].join("\n");
+
+	test("guards malformed custom_message persistence in the source session manager", () => {
+		const patch = OMP_PATCHES.find(p => p.id === "custom-message-entry-content-guard");
+		expect(patch).toBeDefined();
+		if (!patch) return;
+		expect(patch.package).toBe("pi-coding-agent");
+		expect(patch.targetRelative).toBe("src/session/session-manager.ts");
+
+		const plan = planPatch(patch, `prefix\n${sourceAnchor}\nsuffix`);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain("typeof customType !==");
+			expect(plan.nextContent).toContain("!Array.isArray(content)");
+			expect(plan.nextContent).not.toContain(
+				"\t): string {\n\t\tconst entry: CustomMessageEntry<T> = {",
+			);
+		}
+	});
+
+	test("included in OMP_PATCHES", () => {
+		expect(OMP_PATCHES.map(p => p.id)).toContain("custom-message-entry-content-guard");
+	});
+});
 describe("bundled dist patches", () => {
 	const bundledConvertAnchor =
 		'case"custom":case"hookMessage":return{role:"developer",content:typeof message2.content==="string"?[{type:"text",text:message2.content}]:message2.content,attribution:message2.attribution,timestamp:message2.timestamp};';
+	const bundledAppendAnchor =
+		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,id:generateId(this.#byId),parentId:this.#leafId,timestamp:new Date().toISOString()};return this.#appendEntry(entry),entry.id}';
 	const bundledTreeAnchor =
 		'let content=typeof entry.content==="string"?entry.content:entry.content.filter((c2)=>c2.type==="text").map((c2)=>c2.text).join("");';
 
+	test("guards malformed custom_message persistence in the bundled CLI session manager", () => {
+		const patch = OMP_PATCHES.find(p => p.id === "bundled-custom-message-entry-content-guard");
+		expect(patch).toBeDefined();
+		if (!patch) return;
+		expect(patch.package).toBe("pi-coding-agent");
+		expect(patch.targetRelative).toBe("dist/cli.js");
+
+		const plan = planPatch(patch, `prefix ${bundledAppendAnchor} suffix`);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain('typeof customType!=="string"');
+			expect(plan.nextContent).toContain("!Array.isArray(content)");
+			expect(plan.nextContent).not.toContain('attribution="agent"){let entry=');
+		}
+	});
 	test("guards malformed custom messages in the bundled CLI converter", () => {
 		const patch = OMP_PATCHES.find(p => p.id === "bundled-convert-to-llm-content-guard");
 		expect(patch).toBeDefined();

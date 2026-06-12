@@ -161,6 +161,71 @@ export const CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
 };
 
 /**
+ * Refuse malformed custom-message session entries at the persistence boundary.
+ *
+ * Extension APIs are typed, but runtime callers can still pass missing
+ * `customType`/`content`. Persisting that shape creates `custom_message` JSONL
+ * entries with no content, which later crash provider conversion and tree
+ * rendering. Returning an empty id matches "nothing appended" without changing
+ * the public method signature.
+ */
+const CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD: Patch = {
+	id: "custom-message-entry-content-guard",
+	package: "pi-coding-agent",
+	targetRelative: "src/session/session-manager.ts",
+	description: "Skip malformed custom_message entries before they reach session history.",
+	anchor: [
+		"\tappendCustomMessageEntry<T = unknown>(",
+		"\t\tcustomType: string,",
+		"\t\tcontent: string | (TextContent | ImageContent)[],",
+		"\t\tdisplay: boolean,",
+		"\t\tdetails?: T,",
+		'\t\tattribution: MessageAttribution = "agent",',
+		"\t): string {",
+		"\t\tconst entry: CustomMessageEntry<T> = {",
+		'\t\t\ttype: "custom_message",',
+		"\t\t\tcustomType,",
+		"\t\t\tcontent,",
+	].join("\n"),
+	replacement: [
+		"\tappendCustomMessageEntry<T = unknown>(",
+		"\t\tcustomType: string,",
+		"\t\tcontent: string | (TextContent | ImageContent)[],",
+		"\t\tdisplay: boolean,",
+		"\t\tdetails?: T,",
+		'\t\tattribution: MessageAttribution = "agent",',
+		"\t): string {",
+		'\t\tif (typeof customType !== "string" || customType.length === 0) return "";',
+		'\t\tif (typeof content === "string") {',
+		'\t\t\tif (content.length === 0) return "";',
+		"\t\t} else if (!Array.isArray(content) || content.length === 0) {",
+		'\t\t\treturn "";',
+		"\t\t}",
+		"\t\tconst entry: CustomMessageEntry<T> = {",
+		'\t\t\ttype: "custom_message",',
+		"\t\t\tcustomType,",
+		"\t\t\tcontent,",
+	].join("\n"),
+	appliedSignature: 'typeof customType !== "string" || customType.length === 0',
+};
+
+/**
+ * Same persistence guard as {@link CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD}, but
+ * against the bundled CLI entrypoint that `~/.bun/bin/omp` executes.
+ */
+const BUNDLED_CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD: Patch = {
+	id: "bundled-custom-message-entry-content-guard",
+	package: "pi-coding-agent",
+	targetRelative: "dist/cli.js",
+	description: "Skip malformed bundled custom_message entries before they reach session history.",
+	anchor:
+		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,id:generateId(this.#byId),parentId:this.#leafId,timestamp:new Date().toISOString()};return this.#appendEntry(entry),entry.id}',
+	replacement:
+		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){if(typeof customType!=="string"||customType.length===0)return"";if(typeof content==="string"){if(content.length===0)return""}else if(!Array.isArray(content)||content.length===0)return"";let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,id:generateId(this.#byId),parentId:this.#leafId,timestamp:new Date().toISOString()};return this.#appendEntry(entry),entry.id}',
+	appliedSignature: 'typeof customType!=="string"||customType.length===0',
+};
+
+/**
  * Tolerate a `custom_message` session entry whose `content` field is missing
  * when rendering the tree-selector overlay (`/tree`, history scrubbing).
  *
@@ -234,7 +299,9 @@ const BUNDLED_TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
  */
 export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
+	CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD,
 	BUNDLED_CONVERT_TO_LLM_CONTENT_GUARD,
+	BUNDLED_CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
 	BUNDLED_TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
 ];
