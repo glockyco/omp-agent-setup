@@ -196,10 +196,45 @@ export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 };
 
 /**
+ * Same runtime guard as {@link CONVERT_TO_LLM_CONTENT_GUARD}, but against the
+ * bundled CLI entrypoint that `~/.bun/bin/omp` executes in current OMP builds.
+ */
+const BUNDLED_CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
+	id: "bundled-convert-to-llm-content-guard",
+	package: "pi-coding-agent",
+	targetRelative: "dist/cli.js",
+	description: "Drop malformed custom/hookMessage entries in the bundled CLI converter.",
+	anchor:
+		'case"custom":case"hookMessage":return{role:"developer",content:typeof message2.content==="string"?[{type:"text",text:message2.content}]:message2.content,attribution:message2.attribution,timestamp:message2.timestamp};',
+	replacement:
+		'case"custom":case"hookMessage":{let raw=message2.content;if(typeof raw==="string"){if(raw.length===0)return;let content=[{type:"text",text:raw}];return{role:"developer",content,attribution:message2.attribution,timestamp:message2.timestamp}}if(!Array.isArray(raw)||raw.length===0)return;return{role:"developer",content:raw,attribution:message2.attribution,timestamp:message2.timestamp}}',
+	appliedSignature: "!Array.isArray(raw)||raw.length===0",
+};
+
+/**
+ * Same runtime guard as {@link TREE_SELECTOR_CUSTOM_MESSAGE_GUARD}, but against
+ * the bundled CLI entrypoint that owns the interactive TUI renderer.
+ */
+const BUNDLED_TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
+	id: "bundled-tree-selector-custom-message-guard",
+	package: "pi-coding-agent",
+	targetRelative: "dist/cli.js",
+	description:
+		"Render bundled tree-selector custom_message entries without crashing when `content` is missing.",
+	anchor:
+		'let content=typeof entry.content==="string"?entry.content:entry.content.filter((c2)=>c2.type==="text").map((c2)=>c2.text).join("");',
+	replacement:
+		'let content=typeof entry.content==="string"?entry.content:(entry.content??[]).filter((c2)=>c2.type==="text").map((c2)=>c2.text).join("");',
+	appliedSignature: "(entry.content??[])",
+};
+
+/**
  * Ordered list of patches the bootstrap step applies, in declaration order.
  * Order matters: later patches see the file as left by earlier patches.
  */
 export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
+	BUNDLED_CONVERT_TO_LLM_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
+	BUNDLED_TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
 ];

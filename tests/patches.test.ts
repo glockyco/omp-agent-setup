@@ -170,6 +170,43 @@ describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
 	});
 });
 
+describe("bundled dist patches", () => {
+	const bundledConvertAnchor =
+		'case"custom":case"hookMessage":return{role:"developer",content:typeof message2.content==="string"?[{type:"text",text:message2.content}]:message2.content,attribution:message2.attribution,timestamp:message2.timestamp};';
+	const bundledTreeAnchor =
+		'let content=typeof entry.content==="string"?entry.content:entry.content.filter((c2)=>c2.type==="text").map((c2)=>c2.text).join("");';
+
+	test("guards malformed custom messages in the bundled CLI converter", () => {
+		const patch = OMP_PATCHES.find(p => p.id === "bundled-convert-to-llm-content-guard");
+		expect(patch).toBeDefined();
+		if (!patch) return;
+		expect(patch.package).toBe("pi-coding-agent");
+		expect(patch.targetRelative).toBe("dist/cli.js");
+
+		const plan = planPatch(patch, `prefix ${bundledConvertAnchor} suffix`);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain("!Array.isArray(raw)");
+			expect(plan.nextContent).not.toContain(":message2.content");
+		}
+	});
+
+	test("guards malformed custom messages in the bundled tree selector", () => {
+		const patch = OMP_PATCHES.find(p => p.id === "bundled-tree-selector-custom-message-guard");
+		expect(patch).toBeDefined();
+		if (!patch) return;
+		expect(patch.package).toBe("pi-coding-agent");
+		expect(patch.targetRelative).toBe("dist/cli.js");
+
+		const plan = planPatch(patch, `prefix ${bundledTreeAnchor} suffix`);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain("(entry.content??[])");
+			expect(plan.nextContent).not.toContain(":entry.content.filter");
+		}
+	});
+});
+
 describe("resolveOmpInstallRoot", () => {
 	test("uses $BUN_INSTALL when set", () => {
 		const root = resolveOmpInstallRoot({ BUN_INSTALL: "/opt/bun" } as NodeJS.ProcessEnv, "/home/me");
