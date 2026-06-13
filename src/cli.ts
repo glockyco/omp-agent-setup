@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runBootstrap, summarizeReport, unhealthyPatchExecutions } from "./bootstrap.ts";
+import { updateImpeccableFromRemote } from "./impeccable-update-runtime.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
@@ -251,6 +252,14 @@ export async function checkZedSettings(options: CheckZedSettingsOptions): Promis
 	return `Zed settings: ok (${path})`;
 }
 
+async function cmdUpdateImpeccable(_args: string[]): Promise<number> {
+	const result = await updateImpeccableFromRemote({ repoRoot: repoRoot() });
+	const oldVersion = result.oldVersion ?? "none";
+	console.log(`Impeccable skill updated: ${oldVersion} -> ${result.newVersion}`);
+	console.log("Review the git diff, then run 'bun run bootstrap' and 'bun run verify'.");
+	return 0;
+}
+
 async function cmdUpdatePlugin(name: "superpowers" | "plannotator"): Promise<number> {
 	const home = homedir();
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");
@@ -382,6 +391,7 @@ const COMMANDS: Record<string, (args: string[]) => Promise<number>> = {
 	doctor: cmdDoctor,
 	"audit-lsp": cmdAuditLsp,
 	"install-lsp": cmdInstallLsp,
+	"update-impeccable": cmdUpdateImpeccable,
 	"update-superpowers": () => cmdUpdatePlugin("superpowers"),
 	"update-plannotator": () => cmdUpdatePlugin("plannotator"),
 };

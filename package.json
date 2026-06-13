@@ -11,6 +11,7 @@
     "audit-lsp": "bun run src/cli.ts audit-lsp",
     "install-lsp": "bun run src/cli.ts install-lsp",
     "update-superpowers": "bun run src/cli.ts update-superpowers",
+    "update-impeccable": "bun run src/cli.ts update-impeccable",
     "update-plannotator": "bun run src/cli.ts update-plannotator",
     "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:test",
     "check:lint": "biome ci .",
@@ -21,6 +22,7 @@
     "fix": "biome check --write ."
   },
   "dependencies": {
+    "extract-zip": "^2.0.1",
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.6.1"
   },
