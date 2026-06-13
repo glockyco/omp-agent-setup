@@ -32,7 +32,6 @@ Drop `OMP_VERIFY_SKIP_ACCEPTANCE=1` once to run the full Superpowers acceptance 
 |---|---|
 | `agent/AGENTS.md`, `agent/lsp.json`, `extensions/`, `agent/skills/` | `~/.omp/agent/` — symlinked |
 | managed keys in `src/config.ts` | `~/.omp/agent/config.yml` — merged |
-| managed keys in `src/zed-settings.ts` | `~/.config/zed/settings.json` — merged |
 | `manifests/plugins.yml` | `~/Projects/{superpowers,plannotator}` — checkout at pinned `omp-local` commit |
 | `src/patches.ts` | OMP source files — patched in place; re-run `bootstrap` after `omp update` |
 
@@ -60,10 +59,6 @@ Every run snapshots the pre-deploy state to `backups/<UTC-timestamp>/` before to
 | Plannotator | [backnotprop/plannotator](https://github.com/backnotprop/plannotator) | [glockyco/plannotator](https://github.com/glockyco/plannotator/tree/omp-local) |
 
 `omp-local` branches carry minimal OMP-specific adapters on top of `upstream/main`. To pull a fresh upstream: `bun run update-<plugin>` → bump `currentCommit` in `manifests/plugins.yml` → `bun run verify`. If you fork this repo, point the manifest at your own forks.
-
-## Zed integration
-
-`bun run bootstrap` registers `omp-acp` in `~/.config/zed/settings.json`; everything else is untouched. C# LSP is intentionally split: Zed uses Roslyn for IDE use, OMP uses `csharp-ls` for headless agent ops. See [`AGENTS.md`](./AGENTS.md#zed-integration) for rationale and contingency details.
 
 ## LSP
 
