@@ -43,10 +43,8 @@ function bootstrapSandbox(overrides: Partial<Parameters<typeof runBootstrap>[0]>
 	return runBootstrap({
 		repoRoot,
 		home: tempHome,
-		// Keep patches off the real global install: point the @oh-my-pi scope at a
 		// nonexistent sandbox dir so they resolve skip-target-missing, never apply.
 		ompScopeRoot: join(tempHome, ".bun-sandbox", "node_modules", "@oh-my-pi"),
-		ompPath: "/fake/omp",
 		...overrides,
 	});
 }
@@ -92,22 +90,17 @@ describe("runBootstrap (integration)", () => {
 		expect(report.configChanged).toBe(true);
 	});
 
-	test("merges managed Zed settings under ~/.config/zed/settings.json", async () => {
+	test("leaves Zed settings untouched", async () => {
 		const zedPath = join(tempHome, ".config", "zed", "settings.json");
+		const original = `// user comment\n{ "vim_mode": true }\n`;
 		await mkdir(join(tempHome, ".config", "zed"), { recursive: true });
-		await writeFile(zedPath, `// user comment\n{ "vim_mode": true }\n`);
+		await writeFile(zedPath, original);
 
 		const report = await bootstrapSandbox({ skipPlugins: true, skipPatches: true });
-		expect(report.zedSettings.changed).toBe(true);
-		expect(report.zedSettings.existed).toBe(true);
 
-		const text = await readFile(zedPath, "utf8");
-		expect(text).toContain("// user comment");
-		expect(text).toContain('"vim_mode": true');
-		expect(text).toContain('"omp-acp"');
-
-		const second = await bootstrapSandbox({ skipPlugins: true, skipPatches: true });
-		expect(second.zedSettings.changed).toBe(false);
+		await expect(readFile(zedPath, "utf8")).resolves.toBe(original);
+		expect(summarizeReport(report)).not.toContain("Zed settings:");
+		expect("zedSettings" in report).toBe(false);
 	});
 
 	test("second run is idempotent: no config change, symlinks unchanged", async () => {

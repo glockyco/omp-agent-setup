@@ -1,5 +1,5 @@
 # Managed OMP global config template.
-# scripts/bootstrap.sh preserves unrelated settings in ~/.omp/agent/config.yml
+# `bun run bootstrap` preserves unrelated settings in ~/.omp/agent/config.yml
 # and applies the OMP-native tooling keys below.
 
 lastChangelogVersion: 15.0.0
