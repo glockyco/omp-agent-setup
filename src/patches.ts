@@ -219,9 +219,9 @@ const BUNDLED_CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD: Patch = {
 	targetRelative: "dist/cli.js",
 	description: "Skip malformed bundled custom_message entries before they reach session history.",
 	anchor:
-		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,id:generateId(this.#byId),parentId:this.#leafId,timestamp:new Date().toISOString()};return this.#appendEntry(entry),entry.id}',
+		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,...this.#freshEntryFields()};return this.#recordEntry(entry),entry.id}',
 	replacement:
-		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){if(typeof customType!=="string"||customType.length===0)return"";if(typeof content==="string"){if(content.length===0)return""}else if(!Array.isArray(content)||content.length===0)return"";let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,id:generateId(this.#byId),parentId:this.#leafId,timestamp:new Date().toISOString()};return this.#appendEntry(entry),entry.id}',
+		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){if(typeof customType!=="string"||customType.length===0)return"";if(typeof content==="string"){if(content.length===0)return""}else if(!Array.isArray(content)||content.length===0)return"";let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,...this.#freshEntryFields()};return this.#recordEntry(entry),entry.id}',
 	appliedSignature: 'typeof customType!=="string"||customType.length===0',
 };
 
