@@ -219,10 +219,11 @@ const BUNDLED_CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD: Patch = {
 	targetRelative: "dist/cli.js",
 	description: "Skip malformed bundled custom_message entries before they reach session history.",
 	anchor:
-		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,...this.#freshEntryFields()};return this.#recordEntry(entry),entry.id}',
+		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){let X={type:"custom_message",customType:f,content:W,display:Y,details:zB0(Z),attribution:q,...this.#r()};return this.#l(X),X.id}',
 	replacement:
-		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){if(typeof customType!=="string"||customType.length===0)return"";if(typeof content==="string"){if(content.length===0)return""}else if(!Array.isArray(content)||content.length===0)return"";let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,...this.#freshEntryFields()};return this.#recordEntry(entry),entry.id}',
-	appliedSignature: 'typeof customType!=="string"||customType.length===0',
+		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){if(typeof f!=="string"||f.length===0)return"";if(typeof W==="string"){if(W.length===0)return""}else if(!Array.isArray(W)||W.length===0)return"";let X={type:"custom_message",customType:f,content:W,display:Y,details:zB0(Z),attribution:q,...this.#r()};return this.#l(X),X.id}',
+	appliedSignature:
+		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){if(typeof f!=="string"||f.length===0)return"";if(typeof W==="string"){if(W.length===0)return""}else if(!Array.isArray(W)||W.length===0)return"";',
 };
 
 /**
@@ -270,10 +271,11 @@ const BUNDLED_CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
 	targetRelative: "dist/cli.js",
 	description: "Drop malformed custom/hookMessage entries in the bundled CLI converter.",
 	anchor:
-		'case"custom":case"hookMessage":return{role:"developer",content:typeof message2.content==="string"?[{type:"text",text:message2.content}]:message2.content,attribution:message2.attribution,timestamp:message2.timestamp};',
+		'case"custom":case"hookMessage":return{role:"developer",content:typeof f.content==="string"?[{type:"text",text:f.content}]:f.content,attribution:f.attribution,timestamp:f.timestamp};',
 	replacement:
-		'case"custom":case"hookMessage":{let raw=message2.content;if(typeof raw==="string"){if(raw.length===0)return;let content=[{type:"text",text:raw}];return{role:"developer",content,attribution:message2.attribution,timestamp:message2.timestamp}}if(!Array.isArray(raw)||raw.length===0)return;return{role:"developer",content:raw,attribution:message2.attribution,timestamp:message2.timestamp}}',
-	appliedSignature: "!Array.isArray(raw)||raw.length===0",
+		'case"custom":case"hookMessage":{let W=f.content;if(typeof W==="string"){if(W.length===0)return;return{role:"developer",content:[{type:"text",text:W}],attribution:f.attribution,timestamp:f.timestamp}}if(!Array.isArray(W)||W.length===0)return;return{role:"developer",content:W,attribution:f.attribution,timestamp:f.timestamp}}',
+	appliedSignature:
+		'case"custom":case"hookMessage":{let W=f.content;if(typeof W==="string"){if(W.length===0)return;return{role:"developer",content:[{type:"text",text:W}]',
 };
 
 /**
@@ -287,10 +289,10 @@ const BUNDLED_TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 	description:
 		"Render bundled tree-selector custom_message entries without crashing when `content` is missing.",
 	anchor:
-		'let content=typeof entry.content==="string"?entry.content:entry.content.filter((c2)=>c2.type==="text").map((c2)=>c2.text).join("");',
+		'case"custom_message":{let X=typeof Y.content==="string"?Y.content:Y.content.filter((w)=>w.type==="text").map((w)=>w.text).join("");',
 	replacement:
-		'let content=typeof entry.content==="string"?entry.content:(entry.content??[]).filter((c2)=>c2.type==="text").map((c2)=>c2.text).join("");',
-	appliedSignature: "(entry.content??[])",
+		'case"custom_message":{let X=typeof Y.content==="string"?Y.content:(Y.content??[]).filter((w)=>w.type==="text").map((w)=>w.text).join("");',
+	appliedSignature: "(Y.content??[])",
 };
 
 /**

@@ -209,11 +209,11 @@ describe("CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD", () => {
 });
 describe("bundled dist patches", () => {
 	const bundledConvertAnchor =
-		'case"custom":case"hookMessage":return{role:"developer",content:typeof message2.content==="string"?[{type:"text",text:message2.content}]:message2.content,attribution:message2.attribution,timestamp:message2.timestamp};';
+		'case"custom":case"hookMessage":return{role:"developer",content:typeof f.content==="string"?[{type:"text",text:f.content}]:f.content,attribution:f.attribution,timestamp:f.timestamp};';
 	const bundledAppendAnchor =
-		'appendCustomMessageEntry(customType,content,display,details,attribution="agent"){let entry={type:"custom_message",customType,content,display,details:stripInternalDetailsFields(details),attribution,...this.#freshEntryFields()};return this.#recordEntry(entry),entry.id}';
+		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){let X={type:"custom_message",customType:f,content:W,display:Y,details:zB0(Z),attribution:q,...this.#r()};return this.#l(X),X.id}';
 	const bundledTreeAnchor =
-		'let content=typeof entry.content==="string"?entry.content:entry.content.filter((c2)=>c2.type==="text").map((c2)=>c2.text).join("");';
+		'case"custom_message":{let X=typeof Y.content==="string"?Y.content:Y.content.filter((w)=>w.type==="text").map((w)=>w.text).join("");';
 
 	test("guards malformed custom_message persistence in the bundled CLI session manager", () => {
 		const patch = OMP_PATCHES.find(p => p.id === "bundled-custom-message-entry-content-guard");
@@ -225,9 +225,9 @@ describe("bundled dist patches", () => {
 		const plan = planPatch(patch, `prefix ${bundledAppendAnchor} suffix`);
 		expect(plan.kind).toBe("apply");
 		if (plan.kind === "apply") {
-			expect(plan.nextContent).toContain('typeof customType!=="string"');
-			expect(plan.nextContent).toContain("!Array.isArray(content)");
-			expect(plan.nextContent).not.toContain('attribution="agent"){let entry=');
+			expect(plan.nextContent).toContain('typeof f!=="string"');
+			expect(plan.nextContent).toContain("!Array.isArray(W)");
+			expect(plan.nextContent).not.toContain('q="agent"){let X=');
 		}
 	});
 	test("guards malformed custom messages in the bundled CLI converter", () => {
@@ -240,9 +240,29 @@ describe("bundled dist patches", () => {
 		const plan = planPatch(patch, `prefix ${bundledConvertAnchor} suffix`);
 		expect(plan.kind).toBe("apply");
 		if (plan.kind === "apply") {
-			expect(plan.nextContent).toContain("!Array.isArray(raw)");
-			expect(plan.nextContent).not.toContain(":message2.content");
+			expect(plan.nextContent).toContain("!Array.isArray(W)");
+			expect(plan.nextContent).not.toContain(":f.content,attribution");
 		}
+	});
+
+	test("bundled converter signature does not false-positive on unrelated minified guards", () => {
+		const patch = OMP_PATCHES.find(p => p.id === "bundled-convert-to-llm-content-guard");
+		expect(patch).toBeDefined();
+		if (!patch) return;
+
+		const unrelatedGuard = "if(!Array.isArray(W)||W.length===0)return;";
+		const plan = planPatch(patch, `prefix ${unrelatedGuard} ${bundledConvertAnchor} suffix`);
+		expect(plan.kind).toBe("apply");
+	});
+
+	test("bundled session-manager signature does not false-positive on unrelated minified guards", () => {
+		const patch = OMP_PATCHES.find(p => p.id === "bundled-custom-message-entry-content-guard");
+		expect(patch).toBeDefined();
+		if (!patch) return;
+
+		const unrelatedGuard = 'if(typeof f!=="string"||f.length===0)return"";';
+		const plan = planPatch(patch, `prefix ${unrelatedGuard} ${bundledAppendAnchor} suffix`);
+		expect(plan.kind).toBe("apply");
 	});
 
 	test("guards malformed custom messages in the bundled tree selector", () => {
@@ -255,8 +275,8 @@ describe("bundled dist patches", () => {
 		const plan = planPatch(patch, `prefix ${bundledTreeAnchor} suffix`);
 		expect(plan.kind).toBe("apply");
 		if (plan.kind === "apply") {
-			expect(plan.nextContent).toContain("(entry.content??[])");
-			expect(plan.nextContent).not.toContain(":entry.content.filter");
+			expect(plan.nextContent).toContain("(Y.content??[])");
+			expect(plan.nextContent).not.toContain(":Y.content.filter");
 		}
 	});
 });
