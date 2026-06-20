@@ -219,9 +219,9 @@ const BUNDLED_CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD: Patch = {
 	targetRelative: "dist/cli.js",
 	description: "Skip malformed bundled custom_message entries before they reach session history.",
 	anchor:
-		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){let X={type:"custom_message",customType:f,content:W,display:Y,details:zB0(Z),attribution:q,...this.#r()};return this.#l(X),X.id}',
+		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){let X={type:"custom_message",customType:f,content:W,display:Y,details:ai0(Z),attribution:q,...this.#r()};return this.#o(X),X.id}',
 	replacement:
-		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){if(typeof f!=="string"||f.length===0)return"";if(typeof W==="string"){if(W.length===0)return""}else if(!Array.isArray(W)||W.length===0)return"";let X={type:"custom_message",customType:f,content:W,display:Y,details:zB0(Z),attribution:q,...this.#r()};return this.#l(X),X.id}',
+		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){if(typeof f!=="string"||f.length===0)return"";if(typeof W==="string"){if(W.length===0)return""}else if(!Array.isArray(W)||W.length===0)return"";let X={type:"custom_message",customType:f,content:W,display:Y,details:ai0(Z),attribution:q,...this.#r()};return this.#o(X),X.id}',
 	appliedSignature:
 		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){if(typeof f!=="string"||f.length===0)return"";if(typeof W==="string"){if(W.length===0)return""}else if(!Array.isArray(W)||W.length===0)return"";',
 };

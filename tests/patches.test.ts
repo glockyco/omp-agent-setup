@@ -211,7 +211,7 @@ describe("bundled dist patches", () => {
 	const bundledConvertAnchor =
 		'case"custom":case"hookMessage":return{role:"developer",content:typeof f.content==="string"?[{type:"text",text:f.content}]:f.content,attribution:f.attribution,timestamp:f.timestamp};';
 	const bundledAppendAnchor =
-		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){let X={type:"custom_message",customType:f,content:W,display:Y,details:zB0(Z),attribution:q,...this.#r()};return this.#l(X),X.id}';
+		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){let X={type:"custom_message",customType:f,content:W,display:Y,details:ai0(Z),attribution:q,...this.#r()};return this.#o(X),X.id}';
 	const bundledTreeAnchor =
 		'case"custom_message":{let X=typeof Y.content==="string"?Y.content:Y.content.filter((w)=>w.type==="text").map((w)=>w.text).join("");';
 
