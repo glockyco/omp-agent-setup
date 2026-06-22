@@ -16,7 +16,7 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 | `bun run audit-lsp` | Fleet-wide LSP audit. Walks `~/Projects/*`, simulates OMP's per-directory server detection, classifies by git activity, surfaces missing-binary gaps. |
 | `bun run install-lsp` | Idempotent install of every LSP binary in the canonical channel (bun / uv / rustup / dotnet tool / brew). Source-of-truth: `scripts/install-lsp.sh`. |
 | `bun run update-{superpowers,plannotator}` | Rebase the fork's `omp-local` onto `upstream/main` and print the new SHA to record. |
-| `bun run update-impeccable` | Download the latest Impeccable universal bundle, vendor only `.pi/skills/impeccable`, and print old/new versions for diff review. |
+| `bun run update-impeccable` | Download the latest Impeccable universal bundle, vendor `.pi/skills/impeccable` (rewriting its project-local `node .pi/...` script paths to the deployed `$OMP_AGENT_DIR/skills/impeccable` location so they resolve from any project cwd), and print old/new versions for diff review. |
 | `bun run ci` | Lint + types + dead-code + audit + tests. Mirrors lefthook `pre-push` and the GitHub workflow. |
 | `bun run fix` | Biome auto-fix. |
 

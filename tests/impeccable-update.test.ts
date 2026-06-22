@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { updateImpeccableFromBundle } from "../src/impeccable-update.ts";
+import {
+	rewriteImpeccableScriptPaths,
+	updateImpeccableFromBundle,
+} from "../src/impeccable-update.ts";
+
+// biome-ignore lint/suspicious/noTemplateCurlyInString: literal bash parameter expansion the rewrite emits, not a JS template
+const DEPLOYED_PREFIX = '"${OMP_AGENT_DIR:-$HOME/.omp/agent}"/skills/impeccable';
 
 let root: string;
 let bundle: string;
@@ -67,5 +73,48 @@ describe("updateImpeccableFromBundle", () => {
 		await expect(updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle })).rejects.toThrow(
 			/version/,
 		);
+	});
+
+	test("rewrites project-local script paths in vendored docs", async () => {
+		const skillDir = join(bundle, ".pi", "skills", "impeccable");
+		await mkdir(join(skillDir, "reference"), { recursive: true });
+		await writeFile(
+			join(skillDir, "SKILL.md"),
+			"---\nname: impeccable\nversion: 3.5.0\n---\nRun `node .pi/skills/impeccable/scripts/context.mjs` once.\n",
+		);
+		await writeFile(
+			join(skillDir, "reference", "live.md"),
+			"node .pi/skills/impeccable/scripts/live-poll.mjs --stream\n",
+		);
+
+		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
+
+		const skill = await readFile(join(root, "agent", "skills", "impeccable", "SKILL.md"), "utf8");
+		const live = await readFile(
+			join(root, "agent", "skills", "impeccable", "reference", "live.md"),
+			"utf8",
+		);
+		expect(skill).not.toContain(".pi/skills/impeccable");
+		expect(skill).toContain(`node ${DEPLOYED_PREFIX}/scripts/context.mjs`);
+		expect(live).not.toContain(".pi/skills/impeccable");
+		expect(live).toContain(`${DEPLOYED_PREFIX}/scripts/live-poll.mjs`);
+	});
+});
+
+describe("rewriteImpeccableScriptPaths", () => {
+	test("rewrites every project-local script invocation", () => {
+		expect(rewriteImpeccableScriptPaths("node .pi/skills/impeccable/scripts/context.mjs")).toBe(
+			`node ${DEPLOYED_PREFIX}/scripts/context.mjs`,
+		);
+	});
+
+	test("leaves unrelated text untouched", () => {
+		const text = "Run `npx impeccable skills update`. The .pierre file is unrelated.";
+		expect(rewriteImpeccableScriptPaths(text)).toBe(text);
+	});
+
+	test("is idempotent", () => {
+		const once = rewriteImpeccableScriptPaths("node .pi/skills/impeccable/scripts/live.mjs");
+		expect(rewriteImpeccableScriptPaths(once)).toBe(once);
 	});
 });

@@ -48,7 +48,7 @@ Every run snapshots the pre-deploy state to `backups/<UTC-timestamp>/` before to
 | `bun run audit-lsp` | Fleet LSP audit across `~/Projects/*`. `--include-dormant` to widen. |
 | `bun run install-lsp` | Install all LSP binaries via the canonical channel. Idempotent. |
 | `bun run update-{superpowers,plannotator}` | Rebase fork's `omp-local` onto upstream; print new SHA. |
-| `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable`; review diff before bootstrap. |
+| `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable` (rewriting `node .pi/...` script paths to the deployed `$OMP_AGENT_DIR` location); review diff before bootstrap. |
 | `bun run ci` / `bun run fix` | All quality gates / Biome auto-fix. |
 
 ## Plugins
