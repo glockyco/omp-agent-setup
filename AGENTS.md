@@ -10,7 +10,7 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 
 | Script | What it does |
 |---|---|
-| `bun run bootstrap` | Deploy managed symlinks, merge managed config keys, reconcile plugin checkouts. Idempotent. |
+| `bun run bootstrap` | Deploy managed symlinks, merge managed config keys, reconcile plugin checkouts, re-apply OMP source patches, and re-point the `omp` bin at `pi-coding-agent/src/cli.ts` (run from source). Idempotent. |
 | `bun run verify` | Live gate. `OMP_VERIFY_SKIP_ACCEPTANCE=1` skips the model-heavy Superpowers acceptance smoke. |
 | `bun run doctor` | Read-only health report. |
 | `bun run audit-lsp` | Fleet-wide LSP audit. Walks `~/Projects/*`, simulates OMP's per-directory server detection, classifies by git activity, surfaces missing-binary gaps. |
@@ -41,7 +41,8 @@ Use Conventional Commits (`skill://commit`). Lefthook enforces lint + typecheck 
 | Bypass the manifest when changing a plugin checkout | `bun run update-<plugin>` rebases `omp-local`, then update `manifests/plugins.yml` `currentCommit`. |
 | Suppress acceptance smoke patterns to silence `verify` | Broaden them in `src/cli.ts:cmdVerify` to match what real agents emit. |
 | Land non-OMP-specific changes on a plugin's `omp-local` branch | Keep `omp-local` as a minimal adapter on `upstream/main`. The recent superpowers audit cut 380 lines of unrelated rewrites. Treat plannotator the same way. |
-| Hand-edit installed `@oh-my-pi` package sources (`pi-coding-agent`, `pi-ai`) to keep a modification across `omp update` | Add the modification to `src/patches.ts` (set `package` + anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. Each patch resolves to `node_modules/@oh-my-pi/<package>/<targetRelative>`, so siblings like `pi-ai` are addressed by name — never via `../` path escapes. |
+| Hand-edit installed `@oh-my-pi` package sources (`pi-coding-agent`, `pi-agent-core`, `pi-ai`) to keep a modification across `omp update` | Add the modification to `src/patches.ts` (set `package` + anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. Patches target **TypeScript source only** — bootstrap re-points the `omp` bin at `pi-coding-agent/src/cli.ts` so the package runs from source (Bun resolves `@oh-my-pi/*` imports to `src/`), which is what makes source patches effective at runtime. Never patch the minified `dist/cli.js`; its anchors drift on nearly every release. Each patch resolves to `node_modules/@oh-my-pi/<package>/<targetRelative>`, addressed by name — never via `../` escapes. |
+| Re-point or hand-edit `~/.bun/bin/omp` to change what `omp` runs | `bun run bootstrap` owns the bin (`src/bin-link.ts` + `-runtime.ts`): it snapshots, then re-points the symlink to `pi-coding-agent/src/cli.ts`. `omp update` resets it to `dist/cli.js` — just re-run bootstrap. |
 | Add an `lsp.json` to a user project to "fix" missing LSP coverage | The fleet is configured globally. Either install the missing binary via `scripts/install-lsp.sh` (preferred) or extend `agent/lsp.json`. Per-repo overrides only when project conventions genuinely differ. |
 
 ## LSP maintenance
@@ -56,7 +57,11 @@ Touching any one of these implies updating the audit's view of "active fleet" an
 
 ## OMP update
 
-Run `bun run bootstrap` after every `omp update` to re-apply patches; a healthy install reports `OMP patches: N skip-already-applied`. If `bootstrap` reports `skip-anchor-missing`, OMP rewrote the surrounding code — update the patch's `anchor`/`replacement` in `src/patches.ts` to match the new shape and re-run.
+Run `bun run bootstrap` after every `omp update`. It re-points the `omp` bin at `pi-coding-agent/src/cli.ts` and re-applies the source patches. A healthy install reports `OMP patches: N skip-already-applied` and `omp bin: skip-up-to-date` (or `repoint` the first run after an update reset the bin to the bundle); confirm with `bun run doctor` (`ok omp bin -> .../src/cli.ts`).
+
+Two drift signals need action:
+- `skip-anchor-missing` — OMP rewrote the patched source; update the patch's `anchor`/`replacement` in `src/patches.ts` to the new shape and re-run.
+- `omp bin not pointed at source` (plan `skip-source-unusable`) — `pi-coding-agent/src/cli.ts` is missing or non-executable (e.g. a dist-only publish). Bootstrap leaves the existing bin intact so `omp` keeps running; investigate the install before forcing a re-point.
 
 ## Env contract
 

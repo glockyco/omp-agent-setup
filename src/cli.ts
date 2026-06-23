@@ -3,11 +3,24 @@ import { lstat, readlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runBootstrap, summarizeReport, unhealthyPatchExecutions } from "./bootstrap.ts";
+import { planBinLink } from "./bin-link.ts";
+import {
+	isUsableSourceEntry,
+	probeBinState,
+	resolveBunBinPath,
+	resolveOmpSourceEntry,
+} from "./bin-link-runtime.ts";
+import {
+	isBinLinkUnhealthy,
+	runBootstrap,
+	summarizeReport,
+	unhealthyPatchExecutions,
+} from "./bootstrap.ts";
 import { updateImpeccableFromRemote } from "./impeccable-update-runtime.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
+import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { loadManifest } from "./plugins-runtime.ts";
 import {
 	checkSkillLoader,
@@ -35,7 +48,9 @@ function repoRoot(): string {
 async function cmdBootstrap(_args: string[]): Promise<number> {
 	const report = await runBootstrap({ repoRoot: repoRoot() });
 	console.log(summarizeReport(report));
-	return unhealthyPatchExecutions(report.patchExecutions).length > 0 ? 1 : 0;
+	const patchUnhealthy = unhealthyPatchExecutions(report.patchExecutions).length > 0;
+	const binUnhealthy = report.binLink !== undefined && isBinLinkUnhealthy(report.binLink);
+	return patchUnhealthy || binUnhealthy ? 1 : 0;
 }
 
 async function cmdVerify(_args: string[]): Promise<number> {
@@ -159,6 +174,20 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 			console.log(`  MISS ${label}`);
 			issues++;
 		}
+	}
+	const binPath = resolveBunBinPath();
+	const expectedBinTarget = resolveOmpSourceEntry(resolveOmpScopeRoot());
+	const binPlan = planBinLink({
+		binPath,
+		desiredTarget: expectedBinTarget,
+		current: await probeBinState(binPath),
+		sourceUsable: await isUsableSourceEntry(expectedBinTarget),
+	});
+	if (binPlan.kind === "skip-up-to-date") {
+		console.log(`  ok   omp bin -> ${expectedBinTarget}`);
+	} else {
+		console.log(`  WARN omp bin: ${binPlan.kind} (expected source entry ${expectedBinTarget})`);
+		issues++;
 	}
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");
 	const manifest = await loadManifest(manifestPath, home);

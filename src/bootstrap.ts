@@ -7,6 +7,12 @@ import {
 	type SnapshotPlan,
 	timestampedBackupDirName,
 } from "./backup.ts";
+import {
+	type BinLinkExecution,
+	executeBinLink,
+	resolveBunBinPath,
+	resolveOmpSourceEntry,
+} from "./bin-link-runtime.ts";
 import { MANAGED_CONFIG, mergeManagedConfig } from "./config.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { OMP_PATCHES } from "./patches.ts";
@@ -43,6 +49,10 @@ export interface BootstrapOptions {
 	manifestPath?: string;
 	/** Optional date for timestamped backup dir; defaults to `new Date()`. */
 	now?: Date;
+	/** Skip re-pointing the omp bin at the package source (tests). */
+	skipBinLink?: boolean;
+	/** Override the managed omp bin path for tests; defaults to `$BUN_INSTALL/bin/omp`. */
+	binPath?: string;
 }
 
 export interface BootstrapReport {
@@ -53,6 +63,7 @@ export interface BootstrapReport {
 	configChanged: boolean;
 	pluginSteps: CheckoutStep[];
 	patchExecutions: PatchExecution[];
+	binLink?: BinLinkExecution;
 }
 
 /**
@@ -70,6 +81,9 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	);
 
 	const ompScopeRoot = options.ompScopeRoot ?? resolveOmpScopeRoot(process.env, home);
+	const binPath = options.binPath ?? resolveBunBinPath(process.env, home);
+	const ompSourceEntry = resolveOmpSourceEntry(ompScopeRoot);
+	const binToSnapshot = options.skipBinLink ? [] : [binPath];
 	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompScopeRoot);
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
@@ -80,6 +94,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
 		...patchTargets,
+		...binToSnapshot,
 	];
 	await mkdir(agentDir, { recursive: true });
 	await mkdir(extensionsDir, { recursive: true });
@@ -142,6 +157,8 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		? []
 		: await applyPatches(OMP_PATCHES, ompScopeRoot);
 
+	const binLink = options.skipBinLink ? undefined : await executeBinLink(binPath, ompSourceEntry);
+
 	return {
 		backupDir,
 		snapshot,
@@ -150,6 +167,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		configChanged,
 		pluginSteps,
 		patchExecutions,
+		binLink,
 	};
 }
 
@@ -187,6 +205,14 @@ export function summarizeReport(report: BootstrapReport): string {
 			);
 		}
 	}
+	if (report.binLink) {
+		lines.push(`omp bin: ${describeBinLink(report.binLink)}`);
+		if (isBinLinkUnhealthy(report.binLink)) {
+			lines.push(
+				`⚠ omp bin not pointed at source (${report.binLink.plan.kind}) — see AGENTS.md "OMP update".`,
+			);
+		}
+	}
 	return lines.join("\n");
 }
 
@@ -210,4 +236,20 @@ export function unhealthyPatchExecutions(executions: readonly PatchExecution[]):
 	return executions.filter(
 		execution => execution.kind !== "apply" && execution.kind !== "skip-already-applied",
 	);
+}
+
+function describeBinLink(execution: BinLinkExecution): string {
+	const plan = execution.plan;
+	if (plan.kind === "blocked") return `blocked (${plan.reason})`;
+	return `${plan.kind} -> ${plan.target}`;
+}
+
+/**
+ * True when the bin re-point needs human attention: the source entry was
+ * missing (a dist-only install would make the source patches inert) or a
+ * directory blocks the bin path. `create`/`repoint`/`skip-up-to-date` are
+ * healthy.
+ */
+export function isBinLinkUnhealthy(execution: BinLinkExecution): boolean {
+	return execution.plan.kind === "skip-source-unusable" || execution.plan.kind === "blocked";
 }

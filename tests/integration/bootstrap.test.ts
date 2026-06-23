@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
+import {
+	chmod,
+	mkdir,
+	mkdtemp,
+	readFile,
+	readlink,
+	rm,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { runBootstrap, summarizeReport } from "../../src/bootstrap.ts";
 import { MANAGED_CONFIG, readTopLevel } from "../../src/config.ts";
 
@@ -45,6 +54,8 @@ function bootstrapSandbox(overrides: Partial<Parameters<typeof runBootstrap>[0]>
 		home: tempHome,
 		// nonexistent sandbox dir so they resolve skip-target-missing, never apply.
 		ompScopeRoot: join(tempHome, ".bun-sandbox", "node_modules", "@oh-my-pi"),
+		// Never touch the real ~/.bun/bin/omp from the generic sandbox.
+		skipBinLink: true,
 		...overrides,
 	});
 }
@@ -157,5 +168,55 @@ describe("runBootstrap (integration)", () => {
 		expect(report.patchExecutions.length).toBeGreaterThan(0);
 		expect(report.patchExecutions.every(e => e.kind === "skip-target-missing")).toBe(true);
 		expect(summarizeReport(report)).toContain("OMP patch drift");
+	});
+});
+
+describe("runBootstrap omp bin re-point", () => {
+	test("re-points the bun bin from the bundle to the source entry, snapshotting first", async () => {
+		const scopeRoot = join(tempHome, "scope", "@oh-my-pi");
+		const sourceEntry = join(scopeRoot, "pi-coding-agent", "src", "cli.ts");
+		await mkdir(dirname(sourceEntry), { recursive: true });
+		await writeFile(sourceEntry, "#!/usr/bin/env bun\n");
+		await chmod(sourceEntry, 0o755);
+		const binPath = join(tempHome, ".bun", "bin", "omp");
+		await mkdir(dirname(binPath), { recursive: true });
+		await symlink("../install/@oh-my-pi/pi-coding-agent/dist/cli.js", binPath);
+
+		const report = await bootstrapSandbox({
+			ompScopeRoot: scopeRoot,
+			binPath,
+			skipBinLink: false,
+			skipPatches: true,
+			skipPlugins: true,
+		});
+
+		expect(report.binLink?.plan.kind).toBe("repoint");
+		await expect(readlink(binPath)).resolves.toBe(sourceEntry);
+		expect(summarizeReport(report)).toContain("omp bin: repoint");
+
+		// The original bundle bin was snapshotted before mutation.
+		const manifest = JSON.parse(
+			await readFile(join(report.backupDir, "manifest.json"), "utf8"),
+		) as Array<{ source: string }>;
+		expect(manifest.some(entry => entry.source === binPath)).toBe(true);
+	});
+
+	test("leaves the bin untouched and reports unhealthy when the source entry is missing", async () => {
+		const scopeRoot = join(tempHome, "empty-scope", "@oh-my-pi");
+		const binPath = join(tempHome, ".bun", "bin", "omp");
+		await mkdir(dirname(binPath), { recursive: true });
+		await symlink("../install/@oh-my-pi/pi-coding-agent/dist/cli.js", binPath);
+
+		const report = await bootstrapSandbox({
+			ompScopeRoot: scopeRoot,
+			binPath,
+			skipBinLink: false,
+			skipPatches: true,
+			skipPlugins: true,
+		});
+
+		expect(report.binLink?.plan.kind).toBe("skip-source-unusable");
+		await expect(readlink(binPath)).resolves.toBe("../install/@oh-my-pi/pi-coding-agent/dist/cli.js");
+		expect(summarizeReport(report)).toContain("omp bin not pointed at source");
 	});
 });

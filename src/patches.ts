@@ -5,12 +5,18 @@
  * (`pi-coding-agent`, `pi-agent-core`, `pi-ai`, …) are addressed explicitly instead of via
  * relative path escapes.
  *
- * Why this module exists: OMP ships TypeScript sources verbatim (`bun run`
- * loads `src/*.ts` directly), and the package gets blown away on every
- * `omp update`. When we want a custom modification on top of OMP that
- * survives updates, we re-apply that modification idempotently at every
- * `bun run bootstrap`. That keeps `~/.omp/agent` self-healing without us
- * holding the diff in our heads.
+ * Why this module exists: these patches edit `@oh-my-pi` TypeScript sources,
+ * and the packages get blown away on every `omp update`. When we want a custom
+ * modification on top of OMP that survives updates, we re-apply it idempotently
+ * at every `bun run bootstrap`. That keeps `~/.omp/agent` self-healing without
+ * us holding the diff in our heads.
+ *
+ * These patches are only effective at runtime because `bun run bootstrap` also
+ * re-points the `omp` bin at the package's `src/cli.ts` entry (see
+ * {@link ./bin-link.ts}); Bun resolves `@oh-my-pi/*` imports to source, so the
+ * whole graph loads patched `.ts` rather than the minified `dist/cli.js`. We
+ * deliberately patch source only — minified-bundle anchors drifted on nearly
+ * every release.
  *
  * Each patch is a literal-block replacement:
  * - `anchor`: the exact OLD block (whitespace-sensitive). Must appear once.
@@ -210,23 +216,6 @@ const CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD: Patch = {
 };
 
 /**
- * Same persistence guard as {@link CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD}, but
- * against the bundled CLI entrypoint that `~/.bun/bin/omp` executes.
- */
-const BUNDLED_CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD: Patch = {
-	id: "bundled-custom-message-entry-content-guard",
-	package: "pi-coding-agent",
-	targetRelative: "dist/cli.js",
-	description: "Skip malformed bundled custom_message entries before they reach session history.",
-	anchor:
-		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){let X={type:"custom_message",customType:f,content:W,display:Y,details:ai0(Z),attribution:q,...this.#r()};return this.#o(X),X.id}',
-	replacement:
-		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){if(typeof f!=="string"||f.length===0)return"";if(typeof W==="string"){if(W.length===0)return""}else if(!Array.isArray(W)||W.length===0)return"";let X={type:"custom_message",customType:f,content:W,display:Y,details:ai0(Z),attribution:q,...this.#r()};return this.#o(X),X.id}',
-	appliedSignature:
-		'appendCustomMessageEntry(f,W,Y,Z,q="agent"){if(typeof f!=="string"||f.length===0)return"";if(typeof W==="string"){if(W.length===0)return""}else if(!Array.isArray(W)||W.length===0)return"";',
-};
-
-/**
  * Tolerate a `custom_message` session entry whose `content` field is missing
  * when rendering the tree-selector overlay (`/tree`, history scrubbing).
  *
@@ -262,48 +251,11 @@ export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 };
 
 /**
- * Same runtime guard as {@link CONVERT_TO_LLM_CONTENT_GUARD}, but against the
- * bundled CLI entrypoint that `~/.bun/bin/omp` executes in current OMP builds.
- */
-const BUNDLED_CONVERT_TO_LLM_CONTENT_GUARD: Patch = {
-	id: "bundled-convert-to-llm-content-guard",
-	package: "pi-coding-agent",
-	targetRelative: "dist/cli.js",
-	description: "Drop malformed custom/hookMessage entries in the bundled CLI converter.",
-	anchor:
-		'case"custom":case"hookMessage":return{role:"developer",content:typeof f.content==="string"?[{type:"text",text:f.content}]:f.content,attribution:f.attribution,timestamp:f.timestamp};',
-	replacement:
-		'case"custom":case"hookMessage":{let W=f.content;if(typeof W==="string"){if(W.length===0)return;return{role:"developer",content:[{type:"text",text:W}],attribution:f.attribution,timestamp:f.timestamp}}if(!Array.isArray(W)||W.length===0)return;return{role:"developer",content:W,attribution:f.attribution,timestamp:f.timestamp}}',
-	appliedSignature:
-		'case"custom":case"hookMessage":{let W=f.content;if(typeof W==="string"){if(W.length===0)return;return{role:"developer",content:[{type:"text",text:W}]',
-};
-
-/**
- * Same runtime guard as {@link TREE_SELECTOR_CUSTOM_MESSAGE_GUARD}, but against
- * the bundled CLI entrypoint that owns the interactive TUI renderer.
- */
-const BUNDLED_TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
-	id: "bundled-tree-selector-custom-message-guard",
-	package: "pi-coding-agent",
-	targetRelative: "dist/cli.js",
-	description:
-		"Render bundled tree-selector custom_message entries without crashing when `content` is missing.",
-	anchor:
-		'case"custom_message":{let X=typeof Y.content==="string"?Y.content:Y.content.filter((w)=>w.type==="text").map((w)=>w.text).join("");',
-	replacement:
-		'case"custom_message":{let X=typeof Y.content==="string"?Y.content:(Y.content??[]).filter((w)=>w.type==="text").map((w)=>w.text).join("");',
-	appliedSignature: "(Y.content??[])",
-};
-
-/**
  * Ordered list of patches the bootstrap step applies, in declaration order.
  * Order matters: later patches see the file as left by earlier patches.
  */
 export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD,
-	BUNDLED_CONVERT_TO_LLM_CONTENT_GUARD,
-	BUNDLED_CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
-	BUNDLED_TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
 ];
