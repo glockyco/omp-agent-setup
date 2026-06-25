@@ -54,16 +54,16 @@ typo/link fixes.
 Runs from any repo, CWD-scoped onto `./docs/plans/`; no-ops when that directory is absent.
 
 - `omp-plans status [--active|--stale|--complete|--archive] [--json] [--fleet]` — what is active, stale, or done, including git-derived freshness; `--fleet` sweeps `~/Projects`.
-- `omp-plans index` — regenerate the stable navigation file `docs/plans/INDEX.md` (the only command that writes).
+- `omp-plans index` — regenerate the stable navigation file `docs/plans/INDEX.md`.
 - `omp-plans check` — validate front-matter, filename format, `parent`/`superseded_by` link integrity, and that `INDEX.md` matches generated navigation (non-zero exit; wire into pre-commit/CI).
-
+- `omp-plans complete <slug>` — mark one active doc `implemented`, set `archived:` to today, move it to `docs/plans/archive/`, regenerate `INDEX.md`, and run `check`.
 Run `omp-plans --help` for exact flags. Retention thresholds (`stale_days`,
 `archive_delete_days`) default in the tool and may be overridden per repo in
-`docs/plans/plans.toml`. The tool only reports; it never deletes or moves docs.
+`docs/plans/plans.toml`. The tool only moves docs when explicitly asked with `complete <slug>`.
 
 ## Workflow
 
 1. Read `docs/plans/INDEX.md` first; `omp-plans status --active` for current state across sessions.
 2. Resume from the plan's unchecked tasks (`git log -- <doc>` for past context).
 3. Implement; check boxes in the same commit; adapt the plan if it drifts.
-4. On completion: `omp-plans check`, set `status: implemented`, move to `archive/`, then `omp-plans index`.
+4. On completion: run `omp-plans complete <slug>` for the implemented plan/spec before the final response. If completing manually, set `status: implemented`, set `archived: YYYY-MM-DD`, move the file to `archive/`, rerun `omp-plans index`, and rerun `omp-plans check`.

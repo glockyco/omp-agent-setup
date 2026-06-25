@@ -85,6 +85,36 @@ test("check and status no-op cleanly in a planless repo", () => {
 	expect(run(root, ["status"]).code).toBe(0);
 });
 
+test("complete archives an implemented planning doc and refreshes the index", async () => {
+	const repo = setupRepo();
+
+	expect(run(repo, ["index"]).code).toBe(0);
+	const { code, out } = run(repo, ["complete", "2026-01-01-x"]);
+
+	expect(code).toBe(0);
+	expect(out).toContain("archived docs/plans/archive/2026-01-01-x.md");
+	expect(existsSync(join(repo, "docs", "plans", "2026-01-01-x.md"))).toBe(false);
+	const archivePath = join(repo, "docs", "plans", "archive", "2026-01-01-x.md");
+	expect(existsSync(archivePath)).toBe(true);
+	const archived = await Bun.file(archivePath).text();
+	expect(archived).toContain("status: implemented");
+	expect(archived).toContain("archived: ");
+	expect(run(repo, ["check"]).code).toBe(0);
+	expect(run(repo, ["status", "--active"]).out).not.toContain("2026-01-01-x");
+});
+
+test("complete fails without mutating when the slug is missing", async () => {
+	const repo = setupRepo();
+	const planPath = join(repo, "docs", "plans", "2026-01-01-x.md");
+	const before = await Bun.file(planPath).text();
+
+	const { code, out } = run(repo, ["complete", "missing"]);
+
+	expect(code).toBe(1);
+	expect(out).toContain("no active planning doc found for slug: missing");
+	expect(await Bun.file(planPath).text()).toBe(before);
+});
+
 test("--help exits 0", () => {
 	expect(run(setupRepo(), ["--help"]).code).toBe(0);
 });

@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// CLI entry for `omp-plans`: index | check | status, CWD-scoped onto
-// ./docs/plans/. Only `index` mutates (writes INDEX.md). No-ops cleanly when
-// docs/plans/ is absent. Deployed as a managed PATH bin by bootstrap.
+// CLI entry for `omp-plans`: index | check | status | complete, CWD-scoped
+// onto ./docs/plans/. `index` writes INDEX.md; `complete` archives one doc and
+// rewrites INDEX.md. No-ops cleanly when docs/plans/ is absent.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { discoverRepos } from "./lsp-audit-runtime.ts";
@@ -67,6 +67,53 @@ function cmdCheck(repoRoot: string, now: Date): number {
 	return 0;
 }
 
+function markImplemented(content: string, archivedDate: string): string | null {
+	if (!content.startsWith("---\n")) return null;
+	const end = content.indexOf("\n---", 4);
+	if (end === -1) return null;
+	const frontMatter = content.slice(4, end);
+	const body = content.slice(end);
+	if (!/^status:\s*active\s*$/m.test(frontMatter)) return null;
+	let nextFrontMatter = frontMatter.replace(/^status:.*$/m, "status: implemented");
+	if (/^archived:.*$/m.test(nextFrontMatter)) {
+		nextFrontMatter = nextFrontMatter.replace(/^archived:.*$/m, `archived: ${archivedDate}`);
+	} else {
+		nextFrontMatter = `${nextFrontMatter}\narchived: ${archivedDate}`;
+	}
+	return `---\n${nextFrontMatter}${body}`;
+}
+
+function cmdComplete(repoRoot: string, now: Date, slug: string | undefined): number {
+	if (!slug) {
+		console.error("usage: omp-plans complete <slug>");
+		return 1;
+	}
+	const plansDir = join(repoRoot, "docs", "plans");
+	const sourcePath = join(plansDir, `${slug}.md`);
+	let content = "";
+	try {
+		content = readFileSync(sourcePath, "utf8");
+	} catch {
+		console.error(`no active planning doc found for slug: ${slug}`);
+		return 1;
+	}
+	const archivedDate = now.toISOString().slice(0, 10);
+	const updated = markImplemented(content, archivedDate);
+	if (updated === null) {
+		console.error(`no active planning doc found for slug: ${slug}`);
+		return 1;
+	}
+	writeFileSync(sourcePath, updated);
+	const archiveDir = join(plansDir, "archive");
+	mkdirSync(archiveDir, { recursive: true });
+	const archivePath = join(archiveDir, `${slug}.md`);
+	renameSync(sourcePath, archivePath);
+	console.log(`archived docs/plans/archive/${slug}.md`);
+	const indexCode = cmdIndex(repoRoot, now);
+	if (indexCode !== 0) return indexCode;
+	return cmdCheck(repoRoot, now);
+}
+
 function cmdStatus(
 	repoRoot: string,
 	now: Date,
@@ -98,7 +145,7 @@ function cmdStatus(
 }
 
 const USAGE =
-	"usage: omp-plans <index|check|status> [--active|--stale|--complete|--archive] [--json] [--fleet]";
+	"usage: omp-plans <index|check|status|complete> [slug] [--active|--stale|--complete|--archive] [--json] [--fleet]";
 
 function main(argv: readonly string[]): number {
 	const sub = argv[0];
@@ -113,6 +160,8 @@ function main(argv: readonly string[]): number {
 			return cmdCheck(repoRoot, now);
 		case "status":
 			return cmdStatus(repoRoot, now, filter, flags.has("--json"), flags.has("--fleet"));
+		case "complete":
+			return cmdComplete(repoRoot, now, argv[1]);
 		default:
 			if (sub && sub !== "--help" && sub !== "-h") {
 				console.error(USAGE);

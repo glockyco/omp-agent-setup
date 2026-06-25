@@ -12,7 +12,12 @@ Methodology is [Superpowers](https://github.com/glockyco/superpowers/tree/omp-lo
 
 ## Planning files
 
-Planning artifacts live in `docs/plans/` in every repo (planless repos are fine until the first plan). Before resuming multi-session work, run `omp-plans status`; `omp-plans index`/`check` maintain `docs/plans/INDEX.md` navigation and validate front-matter. Full convention: `skill://planning-files`.
+Planning artifacts live in `docs/plans/` in every repo (planless repos are fine
+until the first plan). Before resuming multi-session work, run `omp-plans
+status`; `omp-plans index`/`check` maintain `docs/plans/INDEX.md` navigation
+and validate front-matter. When work covered by a plan/spec is complete, run
+`omp-plans complete <slug>` before the final response so implemented docs leave
+the active list. Full convention: `skill://planning-files`.
 
 ## Design assistance
 
