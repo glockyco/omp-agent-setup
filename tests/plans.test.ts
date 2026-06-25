@@ -2,8 +2,11 @@ import { expect, test } from "bun:test";
 import {
 	classifyDoc,
 	countTasks,
+	DEFAULT_THRESHOLDS,
 	type DocRow,
 	parseDoc,
+	parseThresholds,
+	pickLastTouched,
 	renderIndex,
 	renderStatus,
 	validateDoc,
@@ -194,4 +197,22 @@ test("renderStatus table includes status, ratio, slug, and flags", () => {
 	expect(out).toContain("1/2");
 	expect(out).toContain("p1");
 	expect(out).toContain("[stale]");
+});
+
+test("pickLastTouched skips [docs-skip] commits", () => {
+	const log = ["2026-06-20T00:00:00Z\x1ftypo [docs-skip]", "2026-06-10T00:00:00Z\x1freal work"].join(
+		"\n",
+	);
+	expect(pickLastTouched(log)?.toISOString().slice(0, 10)).toBe("2026-06-10");
+});
+
+test("pickLastTouched returns null on an empty log", () => {
+	expect(pickLastTouched("")).toBeNull();
+});
+
+test("parseThresholds overrides defaults from toml, else keeps base", () => {
+	expect(parseThresholds("stale_days = 30\narchive_delete_days = 90\n", DEFAULT_THRESHOLDS)).toEqual(
+		{ staleDays: 30, archiveDeleteDays: 90 },
+	);
+	expect(parseThresholds("", DEFAULT_THRESHOLDS)).toEqual(DEFAULT_THRESHOLDS);
 });

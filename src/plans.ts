@@ -244,3 +244,29 @@ export function renderStatus(rows: readonly DocRow[], opts: { json?: boolean } =
 	});
 	return `${lines.join("\n")}\n`;
 }
+
+/**
+ * Pick the most recent "real" commit date from a `git log` rendered as
+ * `%cI\x1f%s` lines, skipping commits whose subject contains `[docs-skip]`
+ * (metadata-only touches that should not reset freshness).
+ */
+export function pickLastTouched(gitLog: string): Date | null {
+	for (const line of gitLog.split("\n")) {
+		if (!line.trim()) continue;
+		const [iso, subject = ""] = line.split("\x1f");
+		if (subject.includes("[docs-skip]")) continue;
+		const date = new Date(iso ?? "");
+		if (!Number.isNaN(date.getTime())) return date;
+	}
+	return null;
+}
+
+/** Merge top-level `stale_days`/`archive_delete_days` from `plans.toml` over a base. */
+export function parseThresholds(toml: string, base: Thresholds): Thresholds {
+	const stale = toml.match(/^\s*stale_days\s*=\s*(\d+)/m);
+	const archive = toml.match(/^\s*archive_delete_days\s*=\s*(\d+)/m);
+	return {
+		staleDays: stale?.[1] ? Number.parseInt(stale[1], 10) : base.staleDays,
+		archiveDeleteDays: archive?.[1] ? Number.parseInt(archive[1], 10) : base.archiveDeleteDays,
+	};
+}
