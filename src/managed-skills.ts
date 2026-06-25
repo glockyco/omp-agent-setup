@@ -3,4 +3,5 @@ export const LOCAL_MANAGED_SKILLS = [
 	"writing-project-readmes",
 	"writing-agent-instructions",
 	"impeccable",
+	"planning-files",
 ] as const;
