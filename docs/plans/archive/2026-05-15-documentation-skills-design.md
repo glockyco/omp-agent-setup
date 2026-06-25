@@ -1,3 +1,13 @@
+---
+title: Documentation and Skill Authoring Skills Design
+type: spec
+status: implemented
+created: 2026-05-15
+parent:
+superseded_by:
+archived: 2026-06-25
+---
+
 # Documentation and Skill Authoring Skills Design
 
 ## Purpose

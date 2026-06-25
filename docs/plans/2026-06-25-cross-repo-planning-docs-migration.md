@@ -28,7 +28,7 @@ parent: 2026-06-23-planning-file-conventions-design
 - Create: `/Users/joaichberger/Projects/omp-agent-setup/docs/plans/2026-06-25-cross-repo-planning-docs-migration.md`
 - Modify: `/Users/joaichberger/Projects/omp-agent-setup/docs/plans/INDEX.md`
 
-- [ ] **Step 1 — Regenerate the index.**
+- [x] **Step 1 — Regenerate the index.**
 
 Run:
 
@@ -39,7 +39,7 @@ omp-plans index
 
 Expected: `docs/plans/INDEX.md` lists `2026-06-25-cross-repo-planning-docs-migration` under `active`.
 
-- [ ] **Step 2 — Validate the repo planning set.**
+- [x] **Step 2 — Validate the repo planning set.**
 
 Run:
 
@@ -50,7 +50,7 @@ omp-plans check
 
 Expected: `ok (...)` with no stale-index error.
 
-- [ ] **Step 3 — Commit the rollout plan and index.**
+- [x] **Step 3 — Commit the rollout plan and index.**
 
 Run:
 
@@ -77,7 +77,7 @@ Expected: a commit containing only this plan and the regenerated index.
   - `docs/superpowers/specs/2026-05-26-hindsight-codex-local-integration-design.md`
 - Modify: `docs/plans/INDEX.md`
 
-- [ ] **Step 1 — Move and classify the setup docs.**
+- [x] **Step 1 — Move and classify the setup docs.**
 
 Use these target paths and front-matter values:
 
@@ -93,7 +93,7 @@ Use these target paths and front-matter values:
 
 Each moved file gets front matter with its table values, `created:` from the filename date, and `archived: 2026-06-25`.
 
-- [ ] **Step 2 — Regenerate and validate.**
+- [x] **Step 2 — Regenerate and validate.**
 
 Run:
 
@@ -105,7 +105,7 @@ omp-plans check
 
 Expected: validation succeeds and no `docs/superpowers/**` planning docs remain.
 
-- [ ] **Step 3 — Commit the setup migration.**
+- [x] **Step 3 — Commit the setup migration.**
 
 Run:
 
