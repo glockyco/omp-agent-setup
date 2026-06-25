@@ -49,7 +49,9 @@ async function cmdBootstrap(_args: string[]): Promise<number> {
 	const report = await runBootstrap({ repoRoot: repoRoot() });
 	console.log(summarizeReport(report));
 	const patchUnhealthy = unhealthyPatchExecutions(report.patchExecutions).length > 0;
-	const binUnhealthy = report.binLink !== undefined && isBinLinkUnhealthy(report.binLink);
+	const binUnhealthy =
+		(report.binLink !== undefined && isBinLinkUnhealthy(report.binLink)) ||
+		(report.plansBinLink !== undefined && isBinLinkUnhealthy(report.plansBinLink));
 	return patchUnhealthy || binUnhealthy ? 1 : 0;
 }
 
@@ -111,6 +113,19 @@ async function cmdVerify(_args: string[]): Promise<number> {
 			console.error(`  ${finding.timestamp} ${finding.level}: ${finding.message}`);
 		}
 		console.error("FAIL: new extension errors in OMP log");
+		failures++;
+	}
+
+	console.log("\n==> omp-plans CLI smoke");
+	const plansSmoke = Bun.spawnSync({
+		cmd: ["bun", join(repoRoot(), "src", "plans-cli.ts"), "--help"],
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	if (plansSmoke.exitCode === 0) {
+		console.log("  ok   omp-plans --help");
+	} else {
+		console.error("FAIL: omp-plans --help exited nonzero");
 		failures++;
 	}
 
@@ -187,6 +202,20 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 		console.log(`  ok   omp bin -> ${expectedBinTarget}`);
 	} else {
 		console.log(`  WARN omp bin: ${binPlan.kind} (expected source entry ${expectedBinTarget})`);
+		issues++;
+	}
+	const plansBinPath = join(dirname(binPath), "omp-plans");
+	const plansSource = join(repoRoot(), "src", "plans-cli.ts");
+	const plansPlan = planBinLink({
+		binPath: plansBinPath,
+		desiredTarget: plansSource,
+		current: await probeBinState(plansBinPath),
+		sourceUsable: await isUsableSourceEntry(plansSource),
+	});
+	if (plansPlan.kind === "skip-up-to-date") {
+		console.log(`  ok   omp-plans bin -> ${plansSource}`);
+	} else {
+		console.log(`  WARN omp-plans bin: ${plansPlan.kind}`);
 		issues++;
 	}
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");

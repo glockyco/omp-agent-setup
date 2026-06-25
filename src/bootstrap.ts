@@ -64,6 +64,7 @@ export interface BootstrapReport {
 	pluginSteps: CheckoutStep[];
 	patchExecutions: PatchExecution[];
 	binLink?: BinLinkExecution;
+	plansBinLink?: BinLinkExecution;
 }
 
 /**
@@ -83,7 +84,9 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const ompScopeRoot = options.ompScopeRoot ?? resolveOmpScopeRoot(process.env, home);
 	const binPath = options.binPath ?? resolveBunBinPath(process.env, home);
 	const ompSourceEntry = resolveOmpSourceEntry(ompScopeRoot);
-	const binToSnapshot = options.skipBinLink ? [] : [binPath];
+	const plansBinPath = join(dirname(binPath), "omp-plans");
+	const plansSourceEntry = join(options.repoRoot, "src", "plans-cli.ts");
+	const binToSnapshot = options.skipBinLink ? [] : [binPath, plansBinPath];
 	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompScopeRoot);
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
@@ -158,6 +161,9 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		: await applyPatches(OMP_PATCHES, ompScopeRoot);
 
 	const binLink = options.skipBinLink ? undefined : await executeBinLink(binPath, ompSourceEntry);
+	const plansBinLink = options.skipBinLink
+		? undefined
+		: await executeBinLink(plansBinPath, plansSourceEntry);
 
 	return {
 		backupDir,
@@ -168,6 +174,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		pluginSteps,
 		patchExecutions,
 		binLink,
+		plansBinLink,
 	};
 }
 
@@ -211,6 +218,12 @@ export function summarizeReport(report: BootstrapReport): string {
 			lines.push(
 				`⚠ omp bin not pointed at source (${report.binLink.plan.kind}) — see AGENTS.md "OMP update".`,
 			);
+		}
+	}
+	if (report.plansBinLink) {
+		lines.push(`omp-plans bin: ${describeBinLink(report.plansBinLink)}`);
+		if (isBinLinkUnhealthy(report.plansBinLink)) {
+			lines.push(`⚠ omp-plans bin not linked (${report.plansBinLink.plan.kind}).`);
 		}
 	}
 	return lines.join("\n");
