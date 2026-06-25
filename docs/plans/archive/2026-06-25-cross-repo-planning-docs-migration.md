@@ -1,9 +1,10 @@
 ---
 title: Cross-Repo Planning Docs Migration
 type: plan
-status: active
+status: implemented
 created: 2026-06-25
 parent: 2026-06-23-planning-file-conventions-design
+archived: 2026-06-25
 ---
 
 # Cross-Repo Planning Docs Migration — Implementation Plan
@@ -131,7 +132,7 @@ Expected: one commit that moves all setup planning artifacts into `docs/plans/ar
   - `/Users/joaichberger/Projects/test-generalization-dev/.claude/plans/virtual-beaming-shore.md`
 - Create: `/Users/joaichberger/Projects/test-generalization-dev/docs/plans/INDEX.md`
 
-- [ ] **Step 1 — Move the instruction-normalization docs to archive.**
+- [x] **Step 1 — Move the instruction-normalization docs to archive.**
 
 Use these target paths and front-matter values:
 
@@ -145,7 +146,7 @@ Use these target paths and front-matter values:
 
 Each archived file gets `created: 2026-06-24` and `archived: 2026-06-25`.
 
-- [ ] **Step 2 — Move the replication-package plan to active docs.**
+- [x] **Step 2 — Move the replication-package plan to active docs.**
 
 Move:
 
@@ -173,7 +174,7 @@ parent:
 
 This file remains active because it describes evaluator-facing replication-package work and has not been verified as shipped in the instruction-normalization commits.
 
-- [ ] **Step 3 — Regenerate and validate.**
+- [x] **Step 3 — Regenerate and validate.**
 
 Run:
 
@@ -185,7 +186,7 @@ omp-plans check
 
 Expected: `docs/plans/INDEX.md` exists, validation succeeds, and no planning files remain under `docs/superpowers/**` or `.claude/plans/**`.
 
-- [ ] **Step 4 — Commit the dev migration.**
+- [x] **Step 4 — Commit the dev migration.**
 
 Run:
 
@@ -207,7 +208,7 @@ Expected: a commit containing only planning-doc moves/metadata/index changes.
   - `/Users/joaichberger/Projects/phd-thesis/plans/specs/*.md`
 - Create: `/Users/joaichberger/Projects/phd-thesis/docs/plans/INDEX.md`
 
-- [ ] **Step 1 — Move the thesis docs according to this table.**
+- [x] **Step 1 — Move the thesis docs according to this table.**
 
 | Source | Target | type | status | parent | superseded_by |
 |---|---|---|---|---|---|
@@ -233,11 +234,11 @@ Expected: a commit containing only planning-doc moves/metadata/index changes.
 
 Every archived file gets `archived: 2026-06-25`. Active/draft files leave `archived:` blank or omit it.
 
-- [ ] **Step 2 — Add front matter to every moved thesis document.**
+- [x] **Step 2 — Add front matter to every moved thesis document.**
 
 Use each row's exact `title` from the first heading, `type`, `status`, `parent`, and `superseded_by`; `created:` is the date prefix in the filename. The existing body starts after the front matter and remains otherwise unchanged except for path references that must point from `plans/...` to `docs/plans/...`.
 
-- [ ] **Step 3 — Regenerate and validate.**
+- [x] **Step 3 — Regenerate and validate.**
 
 Run:
 
@@ -249,7 +250,7 @@ omp-plans check
 
 Expected: validation succeeds, `docs/plans/INDEX.md` exists, and no planning files remain under `plans/` or `plans/specs/`.
 
-- [ ] **Step 4 — Commit the thesis migration.**
+- [x] **Step 4 — Commit the thesis migration.**
 
 Run:
 
@@ -268,7 +269,7 @@ Expected: a commit containing only planning-doc moves/metadata/index changes. Ex
 **Files:**
 - No file changes expected in `/Users/joaichberger/Projects/test-generalization-paper` unless new planning artifacts are discovered.
 
-- [ ] **Step 1 — Confirm no planning docs exist.**
+- [x] **Step 1 — Confirm no planning docs exist.**
 
 Run:
 
@@ -279,7 +280,7 @@ find docs plans .claude -path '*/plans/*' -o -path '*/specs/*' 2>/dev/null | sor
 
 Expected: no planning artifacts. If artifacts appear, migrate them under the inclusion rule in this plan.
 
-- [ ] **Step 2 — Confirm `omp-plans` no-ops.**
+- [x] **Step 2 — Confirm `omp-plans` no-ops.**
 
 Run:
 
@@ -297,7 +298,7 @@ Expected: no output because the repo has no `docs/plans/` directory.
 **Files:**
 - Modify only `docs/plans/INDEX.md` files if `omp-plans index` reports drift.
 
-- [ ] **Step 1 — Run fleet status.**
+- [x] **Step 1 — Run fleet status.**
 
 Run:
 
@@ -308,7 +309,7 @@ omp-plans status --fleet
 
 Expected: `omp-agent-setup`, `Erenshor`, `test-generalization-dev`, and `phd-thesis` appear with sane active/implemented/archive status; `test-generalization-paper` remains absent or empty because it has no planning docs.
 
-- [ ] **Step 2 — Run per-repo checks.**
+- [x] **Step 2 — Run per-repo checks.**
 
 Run:
 
@@ -325,7 +326,7 @@ done
 
 Expected: every repo reports `ok (...)`.
 
-- [ ] **Step 3 — Search for legacy planning locations.**
+- [x] **Step 3 — Search for legacy planning locations.**
 
 Run:
 
@@ -346,7 +347,7 @@ done
 
 Expected: no legacy planning files remain in the migrated repos.
 
-- [ ] **Step 4 — Commit any final index updates.**
+- [x] **Step 4 — Commit any final index updates.**
 
 If a repo has only `INDEX.md` drift after validation, commit that drift in the repo that owns it with:
 
