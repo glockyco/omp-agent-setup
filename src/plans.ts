@@ -203,7 +203,7 @@ function isoDate(date: Date | null): string {
 	return date ? date.toISOString().slice(0, 10) : "—";
 }
 
-/** Render `INDEX.md`: active/draft grouped by status; archive excluded (linked). */
+/** Render `INDEX.md`: active/draft grouped by status; archive excluded (linked); git freshness excluded. */
 export function renderIndex(rows: readonly DocRow[]): string {
 	const visible = sortRows(rows.filter(row => !row.archived));
 	const archivedCount = rows.length - visible.length;
@@ -220,9 +220,7 @@ export function renderIndex(rows: readonly DocRow[]): string {
 		const ratio = row.tasks.total === 0 ? "—" : `${row.tasks.done}/${row.tasks.total}`;
 		const tasks = row.frontMatter.type === "plan" ? ` (${ratio})` : "";
 		const title = row.frontMatter.title ?? row.slug;
-		lines.push(
-			`- **${title}** [${row.frontMatter.type ?? "?"}] \`${row.slug}\`${tasks} — ${isoDate(row.lastTouched)}${parent}`,
-		);
+		lines.push(`- **${title}** [${row.frontMatter.type ?? "?"}] \`${row.slug}\`${tasks}${parent}`);
 	}
 	if (archivedCount > 0)
 		lines.push("", `_${archivedCount} archived — see \`docs/plans/archive/\`._`);

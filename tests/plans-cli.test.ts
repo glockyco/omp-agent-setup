@@ -47,6 +47,25 @@ test("index writes INDEX.md", () => {
 	expect(existsSync(join(repo, "docs", "plans", "INDEX.md"))).toBe(true);
 });
 
+test("check accepts an index generated before first commit of a plan", () => {
+	const root = mkdtempSync(join(tmpdir(), "plans-cli-precommit-"));
+	gitInit(root);
+	mkdirSync(join(root, "docs", "plans"), { recursive: true });
+	writeFileSync(
+		join(root, "docs", "plans", "2026-01-03-precommit.md"),
+		"---\ntitle: Precommit\ntype: plan\nstatus: active\ncreated: 2026-01-03\n---\n## Tasks\n- [ ] one\n",
+	);
+	expect(run(root, ["index"]).code).toBe(0);
+	expect(run(root, ["check"]).code).toBe(0);
+
+	Bun.spawnSync({ cmd: ["git", "add", "docs/plans"], cwd: root });
+	Bun.spawnSync({ cmd: ["git", "commit", "-qm", "add plan"], cwd: root });
+
+	const { code, out } = run(root, ["check"]);
+	expect(out).not.toContain("stale-index");
+	expect(code).toBe(0);
+});
+
 test("check fails on a dangling parent", () => {
 	const repo = setupRepo();
 	writeFileSync(

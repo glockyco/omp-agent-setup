@@ -249,7 +249,7 @@ Body: the front-matter schema; status lifecycle; naming; scoped checkbox rule; t
 
 ```markdown
 ## Planning files
-Planning artifacts live in `docs/plans/` in every repo (planless repos are fine until the first plan). Before resuming multi-session work, run `omp-plans status`; `omp-plans index`/`check` maintain `docs/plans/INDEX.md` and validate front-matter. Full convention: `skill://planning-files`.
+Planning artifacts live in `docs/plans/` in every repo (planless repos are fine until the first plan). Before resuming multi-session work, run `omp-plans status`; `omp-plans index`/`check` maintain `docs/plans/INDEX.md` navigation and validate front-matter. Full convention: `skill://planning-files`.
 ```
 
 - [x] **Step 2:** `bun run bootstrap`; confirm the deployed `~/.omp/agent/AGENTS.md` carries it.

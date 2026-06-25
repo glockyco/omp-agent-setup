@@ -63,8 +63,9 @@ archived:           # YYYY-MM-DD set when moved to archive/; immutable after
 ---
 ```
 `type` carries the spec↔plan distinction (metadata, **not folders**). Volatile
-facts are NOT stored: *last-touched* derives from git, *completion %* from
-checkboxes — storing them invites drift.
+facts are NOT stored: *last-touched* derives from git for `status` reports,
+*completion %* from checkboxes, and `INDEX.md` stays stable navigation rather than
+a freshness report — storing volatile facts invites drift.
 
 ### 3. Status lifecycle
 `draft` → being designed/reviewed · `active` → approved, in progress · `implemented` → all tasks shipped · `superseded` → replaced (`superseded_by` set; successor links back via `parent`) · `abandoned` → dropped. Update the header **in the same commit** as the change. Retired docs move to `archive/` with `archived:` set and become immutable (typo/link fixes only). **Completion** = a `plan` whose task checkboxes are all checked — a heuristic the tool flags for confirmation, never an auto-transition.
@@ -89,8 +90,8 @@ PATH bin `omp-plans` (symlinked + `doctor`/`verify`-gated like the `omp` bin) an
 reachable as an omp-agent-setup subcommand for fleet runs.
 
 CWD-scoped onto `./docs/plans/`; **only `index` mutates** (writes `INDEX.md`):
-- **`omp-plans index`** — regenerate `./docs/plans/INDEX.md` (build artifact; active/draft grouped by status; rows show title, type, slug, completion, last-touched, parent; `archive/` excluded with one trailing link).
-- **`omp-plans check`** — validate front-matter schema/values, filename format, `parent`/`superseded_by` link integrity, `INDEX.md` freshness; non-zero for hooks/CI; **no-op when `docs/plans/` absent**.
+- **`omp-plans index`** — regenerate `./docs/plans/INDEX.md` (build artifact; active/draft grouped by status; rows show title, type, slug, completion, parent; `archive/` excluded with one trailing link). Git-derived freshness is deliberately excluded so an index generated before a doc's first commit remains valid after that commit.
+- **`omp-plans check`** — validate front-matter schema/values, filename format, `parent`/`superseded_by` link integrity, and whether `INDEX.md` matches generated navigation; non-zero for hooks/CI; **no-op when `docs/plans/` absent**.
 - **`omp-plans status [--active|--stale|--complete|--archive] [--json] [--fleet]`** — read-only query. Per doc: status, type, completion (checkboxes), last-touched (git, with `[docs-skip]` commit filter), archive age. `--fleet` reuses `discoverRepos` to sweep `~/Projects` (active/warm/dormant filtering); `--json` for agent consumption.
 
 **Config:** defaults baked in (like `DEFAULT_ACTIVITY`); per-repo override at
@@ -107,7 +108,7 @@ candidates; deletion/move is always a human/agent decision.
 ## Discoverability & carrier
 How an agent learns the CLI exists and when to use it. **Layered, skill-primary, no MCP** — content placed by each surface's always-on cost and volatility.
 - **Primary: `skill://planning-files`** (global, generic). Its **trigger-rich `description`** is the always-on breadcrumb (~1 line in the system prompt every session; omp's `using-superpowers` nudge amplifies it) and must enumerate concrete situations (start/resume/finish a plan, check active/stale, validate, anything under `docs/plans/`) — a vague description is the main reason a skill fails to fire. The **body** (on-demand) carries the full convention + workflow and says to run `omp-plans` via bash; it references `omp-plans --help` for flags rather than listing them, so it can't go stale.
-- **Always-on breadcrumb: a ~3-line block in global `agent/AGENTS.md`** — earns its place by stating the `docs/plans/` convention (a real override), the single highest-value action, and the skill pointer: *"Planning artifacts live in `docs/plans/` (same in every repo; planless repos are fine until the first plan). Before resuming multi-session work, run `omp-plans status`; `omp-plans index`/`check` maintain `INDEX.md` and validate front-matter. Full convention: `skill://planning-files`."* Per-repo `AGENTS.md` carries only deltas.
+- **Always-on breadcrumb: a ~3-line block in global `agent/AGENTS.md`** — earns its place by stating the `docs/plans/` convention (a real override), the single highest-value action, and the skill pointer: *"Planning artifacts live in `docs/plans/` (same in every repo; planless repos are fine until the first plan). Before resuming multi-session work, run `omp-plans status`; `omp-plans index`/`check` maintain `INDEX.md` navigation and validate front-matter. Full convention: `skill://planning-files`."* Per-repo `AGENTS.md` carries only deltas.
 - **Flag surface: `omp-plans --help`** — volatile detail (subcommands, flags, exit codes, `plans.toml` keys) lives in code, reached on demand, never duplicated into the skill.
 - **No MCP.** `omp-plans` is local, stateless, and shell-invocable; the bash tool already runs it. An MCP server would add permanent tool-schema context to **every session and every subagent in every repo** (even when no planning happens), a per-session daemon/process lifecycle, and a second interface to keep synced with the bin that lefthook/CI need regardless — for zero capability gain (`--json` already gives structured output). Matches the `audit-lsp` precedent (plain CLI). MCP's bar — stateful / networked / authenticated / non-shell — is not met.
 - **Not `RULES.md`** — it re-attaches every turn; most turns aren't planning and planless repos exist. The opening-context `AGENTS.md` block is the correct, cheaper home.

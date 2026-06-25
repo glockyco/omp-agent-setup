@@ -30,8 +30,9 @@ archived:           # YYYY-MM-DD; set when moved to archive/
 ---
 ```
 
-Store only stable facts. Last-touched is derived from git and completion from
-checkboxes — never hand-maintain them. A slug is the filename without `.md`;
+Store only stable facts. Last-touched is derived from git for `status` reports,
+and completion from checkboxes — never hand-maintain them. `INDEX.md` is stable
+navigation, not a freshness report. A slug is the filename without `.md`;
 `parent`/`superseded_by` resolve within the same repo (cross-repo references go in prose).
 
 ## Status lifecycle
@@ -52,9 +53,9 @@ typo/link fixes.
 
 Runs from any repo, CWD-scoped onto `./docs/plans/`; no-ops when that directory is absent.
 
-- `omp-plans status [--active|--stale|--complete|--archive] [--json] [--fleet]` — what is active, stale, or done; `--fleet` sweeps `~/Projects`.
-- `omp-plans index` — regenerate `docs/plans/INDEX.md` (the only command that writes).
-- `omp-plans check` — validate front-matter, filename format, `parent`/`superseded_by` link integrity, and index freshness (non-zero exit; wire into pre-commit/CI).
+- `omp-plans status [--active|--stale|--complete|--archive] [--json] [--fleet]` — what is active, stale, or done, including git-derived freshness; `--fleet` sweeps `~/Projects`.
+- `omp-plans index` — regenerate the stable navigation file `docs/plans/INDEX.md` (the only command that writes).
+- `omp-plans check` — validate front-matter, filename format, `parent`/`superseded_by` link integrity, and that `INDEX.md` matches generated navigation (non-zero exit; wire into pre-commit/CI).
 
 Run `omp-plans --help` for exact flags. Retention thresholds (`stale_days`,
 `archive_delete_days`) default in the tool and may be overridden per repo in

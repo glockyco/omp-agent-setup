@@ -149,6 +149,7 @@ test("renderIndex groups by status, blank-separates sections, excludes archive",
 			slug: "p1",
 			frontMatter: { title: "P1", type: "plan", status: "active" },
 			tasks: { done: 1, total: 2 },
+			lastTouched: new Date("2026-06-22T00:00:00Z"),
 		}),
 		makeRow({
 			slug: "d1",
@@ -164,6 +165,7 @@ test("renderIndex groups by status, blank-separates sections, excludes archive",
 	expect(out).toContain("`p1`");
 	expect(out).toContain("(1/2)");
 	expect(out).not.toContain("`old`");
+	expect(out).not.toContain("2026-06-22");
 	expect(out).toContain("1 archived");
 	expect(out).toContain("\n\n## draft");
 	expect(out).not.toMatch(/[^\n]\n## /);
