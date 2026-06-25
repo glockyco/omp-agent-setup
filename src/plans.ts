@@ -6,12 +6,12 @@
 
 import { parse as parseYaml } from "yaml";
 
-export const DOC_TYPES = ["spec", "plan", "prd", "audit", "note"] as const;
-export const DOC_STATUSES = ["draft", "active", "implemented", "superseded", "abandoned"] as const;
-export type DocType = (typeof DOC_TYPES)[number];
-export type DocStatus = (typeof DOC_STATUSES)[number];
+const DOC_TYPES = ["spec", "plan", "prd", "audit", "note"] as const;
+const DOC_STATUSES = ["draft", "active", "implemented", "superseded", "abandoned"] as const;
+type DocType = (typeof DOC_TYPES)[number];
+type DocStatus = (typeof DOC_STATUSES)[number];
 
-export interface FrontMatter {
+interface FrontMatter {
 	title?: string;
 	type?: string;
 	status?: string;
