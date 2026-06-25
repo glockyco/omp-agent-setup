@@ -46,6 +46,7 @@ typo/link fixes.
 
 - Plans decompose into `- [ ]` / `- [x]` tasks under a `## Tasks` section or `### Task N` headings; check boxes in the same commit as the work. Checkboxes elsewhere or inside fenced code do not count toward completion.
 - When implementation diverges from the plan, adapt the plan text in the same commit so it matches reality. What changed and why goes in the commit message — there is no in-file progress log.
+- Tick boxes as you go (one commit per step or phase), not in a bulk pass at the end. Don't retro-tick an already-`implemented` or freshly-migrated plan — `status` is authoritative there, and completion only matters for `active` plans.
 
 ## Tooling — `omp-plans`
 
