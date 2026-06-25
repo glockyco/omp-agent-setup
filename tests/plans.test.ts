@@ -216,3 +216,9 @@ test("parseThresholds overrides defaults from toml, else keeps base", () => {
 	);
 	expect(parseThresholds("", DEFAULT_THRESHOLDS)).toEqual(DEFAULT_THRESHOLDS);
 });
+
+test("parseDoc captures invalid YAML; validateDoc reports bad-frontmatter (not a crash)", () => {
+	const doc = parseDoc("bad.md", "---\ntitle: PRD: oops\n---\n# x\n");
+	expect(doc.parseError).toBeTruthy();
+	expect(validateDoc(doc).map(e => e.code)).toEqual(["bad-frontmatter"]);
+});

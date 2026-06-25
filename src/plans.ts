@@ -26,6 +26,7 @@ export interface ParsedDoc {
 	frontMatter: FrontMatter;
 	body: string;
 	archived: boolean;
+	parseError?: string;
 }
 
 export interface DocError {
@@ -53,14 +54,23 @@ export function parseDoc(path: string, content: string, archived = false): Parse
 	const slug = path.replace(/^.*\//, "").replace(/\.md$/, "");
 	const match = content.match(FRONT_MATTER_RE);
 	if (!match) return { slug, frontMatter: {}, body: content, archived };
-	const parsed = parseYaml(match[1] ?? "") as FrontMatter | null;
-	return { slug, frontMatter: parsed ?? {}, body: match[2] ?? "", archived };
+	let frontMatter: FrontMatter = {};
+	let parseError: string | undefined;
+	try {
+		frontMatter = (parseYaml(match[1] ?? "") as FrontMatter | null) ?? {};
+	} catch (error) {
+		parseError = (error as Error).message.split("\n")[0] ?? "invalid front-matter";
+	}
+	return { slug, frontMatter, body: match[2] ?? "", archived, parseError };
 }
 
 /** Schema/value validation for one doc's front-matter. */
 export function validateDoc(doc: ParsedDoc): DocError[] {
 	const errors: DocError[] = [];
 	const fm = doc.frontMatter;
+	if (doc.parseError) {
+		return [{ slug: doc.slug, code: "bad-frontmatter", message: doc.parseError }];
+	}
 	const requireKey = (key: keyof FrontMatter, code: string): void => {
 		if (!fm[key]) errors.push({ slug: doc.slug, code, message: `missing ${key}` });
 	};
