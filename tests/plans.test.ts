@@ -143,12 +143,16 @@ function makeRow(over: Partial<DocRow> & { slug: string }): DocRow {
 	};
 }
 
-test("renderIndex groups by status and excludes archived docs", () => {
+test("renderIndex groups by status, blank-separates sections, excludes archive", () => {
 	const out = renderIndex([
 		makeRow({
 			slug: "p1",
 			frontMatter: { title: "P1", type: "plan", status: "active" },
 			tasks: { done: 1, total: 2 },
+		}),
+		makeRow({
+			slug: "d1",
+			frontMatter: { title: "D1", type: "spec", status: "draft" },
 		}),
 		makeRow({
 			slug: "old",
@@ -161,6 +165,8 @@ test("renderIndex groups by status and excludes archived docs", () => {
 	expect(out).toContain("(1/2)");
 	expect(out).not.toContain("`old`");
 	expect(out).toContain("1 archived");
+	expect(out).toContain("\n\n## draft");
+	expect(out).not.toMatch(/[^\n]\n## /);
 });
 
 test("renderStatus --json carries completion and flags", () => {

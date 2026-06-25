@@ -212,6 +212,7 @@ export function renderIndex(rows: readonly DocRow[]): string {
 	for (const row of visible) {
 		const status = row.frontMatter.status ?? "?";
 		if (status !== lastStatus) {
+			if (lastStatus !== "") lines.push("");
 			lines.push(`## ${status}`, "");
 			lastStatus = status;
 		}
