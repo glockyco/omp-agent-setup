@@ -4,6 +4,8 @@ type: plan
 status: implemented
 created: 2026-06-23
 parent: 2026-06-23-planning-file-conventions-design
+superseded_by:
+archived: 2026-06-25
 ---
 
 # omp-plans Tooling, Skill & Global Convention — Implementation Plan

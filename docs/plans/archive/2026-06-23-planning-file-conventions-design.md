@@ -1,9 +1,11 @@
 ---
 title: Planning-File Conventions & Tooling (cross-repo)
 type: spec
-status: active
+status: implemented
 created: 2026-06-23
 parent:
+superseded_by:
+archived: 2026-06-25
 ---
 
 # Planning-File Conventions & Tooling — Design
