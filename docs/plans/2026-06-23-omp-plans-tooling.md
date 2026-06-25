@@ -259,7 +259,7 @@ Planning artifacts live in `docs/plans/` in every repo (planless repos are fine 
 
 **Files:** Move `~/Projects/Erenshor/docs/plans/2026-06-23-planning-file-conventions-design.md` → `docs/plans/2026-06-23-planning-file-conventions-design.md` (this repo)
 
-- [x] **Step 1:** Create `docs/plans/` here if absent. **Copy** the spec from `~/Projects/Erenshor/docs/plans/2026-06-23-planning-file-conventions-design.md` into this repo's `docs/plans/` (cross-repo → copy, not `git mv`), `git add` it, and set its `status: implemented` once this plan completes. The Erenshor-side copy is removed by the Erenshor adoption plan (its Task 1).
+- [x] **Step 1:** Create `docs/plans/` here if absent. **Copy** the spec from `~/Projects/Erenshor/docs/plans/2026-06-23-planning-file-conventions-design.md` into this repo's `docs/plans/` (cross-repo → copy, not `git mv`), `git add` it; it stays `status: active` as the convention's source of truth (Plan 2 + fan-out still pending). The Erenshor-side copy is removed by the Erenshor adoption plan (its Task 1).
 - [x] **Step 2:** `omp-plans check` resolves the `parent` link from this plan to the spec. **Commit** — `docs(plans): adopt planning convention spec as the authoritative copy`
 
 ### Task 13: Generate INDEX + full gate
