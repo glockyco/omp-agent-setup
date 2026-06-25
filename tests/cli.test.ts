@@ -8,6 +8,10 @@ describe("managedAgentChecks", () => {
 		"writing-project-readmes",
 		"writing-agent-instructions",
 		"impeccable",
+		"planning-files",
+		"searching-literature",
+		"retrieving-paper-pdfs",
+		"formatting-bibtex-entries",
 	];
 
 	test("includes source-managed local skills as managed symlinks", () => {

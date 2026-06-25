@@ -4,4 +4,7 @@ export const LOCAL_MANAGED_SKILLS = [
 	"writing-agent-instructions",
 	"impeccable",
 	"planning-files",
+	"searching-literature",
+	"retrieving-paper-pdfs",
+	"formatting-bibtex-entries",
 ] as const;
