@@ -47,7 +47,7 @@ export interface Thresholds {
 
 export const DEFAULT_THRESHOLDS: Thresholds = { staleDays: 60, archiveDeleteDays: 180 };
 
-const FRONT_MATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+const FRONT_MATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
 /** Parse a doc's `slug` (basename without `.md`), YAML front-matter, and body. */
 export function parseDoc(path: string, content: string, archived = false): ParsedDoc {

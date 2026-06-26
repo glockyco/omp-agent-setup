@@ -24,6 +24,16 @@ test("parseDoc extracts front-matter and body", () => {
 	expect(doc.slug).toBe("a");
 });
 
+test("parseDoc accepts CRLF front-matter delimiters", () => {
+	const doc = parseDoc(
+		"crlf.md",
+		"---\r\ntitle: CRLF\r\ntype: plan\r\nstatus: active\r\ncreated: 2026-06-25\r\n---\r\n# CRLF\r\n",
+	);
+	expect(doc.frontMatter.title).toBe("CRLF");
+	expect(doc.frontMatter.type).toBe("plan");
+	expect(doc.body).toContain("# CRLF");
+});
+
 test("parseDoc tolerates missing front-matter", () => {
 	const doc = parseDoc("b.md", "# no fm\n");
 	expect(doc.frontMatter).toEqual({});
