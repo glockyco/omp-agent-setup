@@ -94,6 +94,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		join(agentDir, "lsp.json"),
 		join(extensionsDir, "superpowers-bootstrap.ts"),
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
+		join(agentDir, "rules", "planning-docs.md"),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
 		...patchTargets,
@@ -122,6 +123,10 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 			source: join(options.repoRoot, "agent", "skills", skillName),
 			destination: join(agentDir, "skills", skillName),
 		})),
+		{
+			source: join(options.repoRoot, "agent", "rules", "planning-docs.md"),
+			destination: join(agentDir, "rules", "planning-docs.md"),
+		},
 	]);
 	await executeLinkPlan(links);
 

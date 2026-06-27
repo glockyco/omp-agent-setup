@@ -43,6 +43,14 @@ const DEFAULT_LINE_LENGTH = 72;
 // the helper will reject types a repo legitimately adds to its commitlint config.
 const SUBJECT_PATTERN = /^[a-z]+(\([^)]+\))?!?: .+/u;
 
+/** True when any staged path lives under a `docs/plans/` directory. */
+export function stagesPlanningDocs(stagedNameOnly: string): boolean {
+	return stagedNameOnly
+		.split("\n")
+		.map(line => line.trim())
+		.some(line => line.length > 0 && /(?:^|\/)docs\/plans\//.test(line));
+}
+
 export function wrapBody(body: string, lineLength = DEFAULT_LINE_LENGTH): string {
 	return body
 		.trim()
@@ -99,6 +107,25 @@ export async function runCommitHelper({
 	const lint = await runner(["bunx", "commitlint", "--edit", messagePath]);
 	if (lint.exitCode !== 0) {
 		return { exitCode: lint.exitCode, message, messagePath, stdout: lint.stdout, stderr: lint.stderr };
+	}
+
+	const staged = await runner(["git", "diff", "--cached", "--name-only"]);
+	if (staged.exitCode === 0 && stagesPlanningDocs(staged.stdout)) {
+		let plans: CommandResult | undefined;
+		try {
+			plans = await runner(["omp-plans", "check"]);
+		} catch {
+			plans = undefined; // omp-plans unavailable → the gate is advisory, so fail open
+		}
+		if (plans && plans.exitCode !== 0) {
+			return {
+				exitCode: plans.exitCode,
+				message,
+				messagePath,
+				stdout: plans.stdout,
+				stderr: `${plans.stderr || plans.stdout || "omp-plans check failed"}\nfix docs/plans/ (e.g. \`omp-plans index\`) before committing`,
+			};
+		}
 	}
 
 	const git = await runner(

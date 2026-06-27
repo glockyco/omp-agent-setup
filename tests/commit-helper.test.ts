@@ -4,6 +4,7 @@ import {
 	type CommandRunner,
 	parseCommitInput,
 	runCommitHelper,
+	stagesPlanningDocs,
 	wrapBody,
 } from "../agent/skills/commit/commit-helper.ts";
 
@@ -168,6 +169,7 @@ describe("runCommitHelper", () => {
 		expect(writes.get("/tmp/commit-message-1.txt")).toBe(result.message);
 		expect(calls).toEqual([
 			["bunx", "commitlint", "--edit", "/tmp/commit-message-1.txt"],
+			["git", "diff", "--cached", "--name-only"],
 			["git", "commit", "-F", "/tmp/commit-message-1.txt"],
 		]);
 	});
@@ -221,5 +223,100 @@ describe("runCommitHelper", () => {
 		});
 
 		expect(calls.at(-1)).toEqual(["git", "commit", "--amend", "-F", "/tmp/message.txt"]);
+	});
+
+	test("blocks the commit when staged docs/plans fail omp-plans check", async () => {
+		const calls: string[][] = [];
+		const runner: CommandRunner = async cmd => {
+			calls.push(cmd);
+			if (cmd[0] === "git" && cmd[1] === "diff") {
+				return { exitCode: 0, stdout: "docs/plans/2026-01-01-x.md\n", stderr: "" };
+			}
+			if (cmd[0] === "omp-plans") {
+				return { exitCode: 1, stdout: "✗ INDEX.md: stale-index", stderr: "" };
+			}
+			return { exitCode: 0, stdout: "", stderr: "" };
+		};
+
+		const result = await runCommitHelper({
+			input: { action: "commit", subject: "docs(plans): add note", body: "Body." },
+			runner,
+			writeText: async () => {},
+			makeTempPath: () => "/tmp/message.txt",
+		});
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stdout).toContain("stale-index");
+		expect(calls.some(c => c[0] === "git" && c[1] === "commit")).toBe(false);
+	});
+
+	test("commits when staged docs/plans pass omp-plans check", async () => {
+		const calls: string[][] = [];
+		const runner: CommandRunner = async cmd => {
+			calls.push(cmd);
+			if (cmd[0] === "git" && cmd[1] === "diff") {
+				return { exitCode: 0, stdout: "docs/plans/2026-01-01-x.md\n", stderr: "" };
+			}
+			return { exitCode: 0, stdout: "", stderr: "" };
+		};
+
+		const result = await runCommitHelper({
+			input: { action: "commit", subject: "docs(plans): add note", body: "Body." },
+			runner,
+			writeText: async () => {},
+			makeTempPath: () => "/tmp/message.txt",
+		});
+
+		expect(result.exitCode).toBe(0);
+		expect(calls).toContainEqual(["omp-plans", "check"]);
+		expect(calls.at(-1)).toEqual(["git", "commit", "-F", "/tmp/message.txt"]);
+	});
+
+	test("commits when omp-plans is unavailable (gate fails open)", async () => {
+		const runner: CommandRunner = async cmd => {
+			if (cmd[0] === "git" && cmd[1] === "diff") {
+				return { exitCode: 0, stdout: "docs/plans/2026-01-01-x.md\n", stderr: "" };
+			}
+			if (cmd[0] === "omp-plans") throw new Error("spawn omp-plans ENOENT");
+			return { exitCode: 0, stdout: "", stderr: "" };
+		};
+
+		const result = await runCommitHelper({
+			input: { action: "commit", subject: "docs(plans): add note", body: "Body." },
+			runner,
+			writeText: async () => {},
+			makeTempPath: () => "/tmp/message.txt",
+		});
+
+		expect(result.exitCode).toBe(0);
+	});
+
+	test("skips the plans gate when no docs/plans files are staged", async () => {
+		const calls: string[][] = [];
+		const runner: CommandRunner = async cmd => {
+			calls.push(cmd);
+			if (cmd[0] === "git" && cmd[1] === "diff") {
+				return { exitCode: 0, stdout: "src/foo.ts\n", stderr: "" };
+			}
+			return { exitCode: 0, stdout: "", stderr: "" };
+		};
+
+		await runCommitHelper({
+			input: { action: "commit", subject: "feat: x", body: "Body." },
+			runner,
+			writeText: async () => {},
+			makeTempPath: () => "/tmp/message.txt",
+		});
+
+		expect(calls.some(c => c[0] === "omp-plans")).toBe(false);
+	});
+});
+
+describe("stagesPlanningDocs", () => {
+	test("detects docs/plans paths, including nested, and ignores others", () => {
+		expect(stagesPlanningDocs("docs/plans/2026-01-01-x.md")).toBe(true);
+		expect(stagesPlanningDocs("pkg/docs/plans/y.md\nsrc/a.ts")).toBe(true);
+		expect(stagesPlanningDocs("src/foo.ts\ndocs/architecture.md")).toBe(false);
+		expect(stagesPlanningDocs("")).toBe(false);
 	});
 });

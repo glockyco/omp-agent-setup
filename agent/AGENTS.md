@@ -8,7 +8,7 @@ Primary harness is [oh-my-pi](https://github.com/can1357/oh-my-pi) (`omp`) from 
 
 ## Methodology
 
-Methodology is [Superpowers](https://github.com/glockyco/superpowers/tree/omp-local) at `~/Projects/superpowers`. Plan/review UI is [Plannotator](https://github.com/glockyco/plannotator/tree/omp-local) at `~/Projects/plannotator`. Skills load via OMP's `skills.customDirectories`. The `using-superpowers` skill is injected at session start by the `superpowers-bootstrap` extension. User instructions always override Superpowers skills, and the user may opt out of Superpowers for tiny tasks.
+Methodology is [Superpowers](https://github.com/glockyco/superpowers/tree/omp-local) at `~/Projects/superpowers`. Plan/review UI is [Plannotator](https://github.com/glockyco/plannotator/tree/omp-local) at `~/Projects/plannotator`. Skills load via OMP's `skills.customDirectories`. The `using-superpowers` skill is injected at session start by the `superpowers-bootstrap` extension. User instructions always override Superpowers skills (the `using-superpowers` skill codifies this precedence: AGENTS.md > skills > base prompt). **Standing override — proportional rigor:** small, isolated, reversible changes may be implemented ad-hoc, without the `brainstorming` design-and-approval gate or a `docs/plans/` doc. Changes that span subsystems, gain callers, are long-lived, or are hard to reverse go through design → approval → plan — and an ad-hoc change escalates the moment it grows. Full threshold: `skill://planning-files` ("When a change needs a doc").
 
 ## Planning files
 

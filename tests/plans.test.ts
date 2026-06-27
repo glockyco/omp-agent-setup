@@ -63,6 +63,14 @@ test("validateDoc passes a well-formed doc", () => {
 	expect(validateDoc(ok)).toEqual([]);
 });
 
+test("validateDoc accepts the overview type", () => {
+	const ov = parseDoc(
+		"f.md",
+		"---\ntitle: F\ntype: overview\nstatus: active\ncreated: 2026-06-23\n---\n",
+	);
+	expect(validateDoc(ov)).toEqual([]);
+});
+
 test("countTasks scopes to task sections and ignores code fences", () => {
 	const body = [
 		"Intro",

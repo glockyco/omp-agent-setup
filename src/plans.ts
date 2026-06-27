@@ -6,7 +6,7 @@
 
 import { parse as parseYaml } from "yaml";
 
-const DOC_TYPES = ["spec", "plan", "prd", "audit", "note"] as const;
+const DOC_TYPES = ["overview", "spec", "plan", "audit", "note"] as const;
 const DOC_STATUSES = ["draft", "active", "implemented", "superseded", "abandoned"] as const;
 type DocType = (typeof DOC_TYPES)[number];
 type DocStatus = (typeof DOC_STATUSES)[number];
