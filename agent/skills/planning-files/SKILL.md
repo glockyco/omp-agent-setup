@@ -7,9 +7,10 @@ description: Conventions and tooling for planning docs in docs/plans/ (front-mat
 
 Every repo's plans and specs live in `docs/plans/` with a uniform front-matter
 header, a generated `INDEX.md`, and the `omp-plans` CLI for indexing, validation,
-and status. Forward-looking docs (`overview`/`spec`/`plan`/`note`) describe the
-desired state now; history lives in git, never in the body. The `audit` type is the
-one exception — it records findings at a point in time (see Document types).
+and status. Every doc describes what is true or intended now; history lives in git,
+never in the body. An `audit` additionally carries a date — it records a finding or
+decision as of when — but it is kept current too: refresh a stale audit to the new
+truth, or archive it, rather than leaving wrong findings active (see Document types).
 
 ## Location
 
@@ -47,7 +48,7 @@ sprawl.
 | `overview` | "where do I start?" | project north-star: goal, strategy sequence, map of children, current focus | evidence / tasks / provenance (→ audit / plan / spec) |
 | `spec` | "what are we building & why?" | design + acceptance for one change, before building | ordered build steps (→ plan); findings (→ audit) |
 | `plan` | "what's the ordered work; am I done?" | the checkbox-tracked task sequence for one deliverable | strategy (→ overview); findings (→ audit) |
-| `audit` | "what did we find / decide, as of when?" | one investigation's point-in-time evidence or decision (ADR-style) | forward-looking tasks (→ plan) |
+| `audit` | "what's true / what we decided, as of when?" | one investigation's findings or decision (ADR-style), kept current — refreshed or archived once stale | forward-looking tasks (→ plan) |
 | `note` | a short-lived scratch / backlog / pointer | one small, ephemeral concern | tables, phases, or provenance — graduate it to audit / spec / plan |
 
 **One concern per doc.** State it in the first line. The moment a doc needs a
@@ -110,9 +111,13 @@ Never write, in a doc body:
 When understanding changes, edit the text to the new truth and delete the old in the
 same commit; what changed and why goes in the commit message. The only sanctioned
 progress signal is checkbox state; the only sanctioned dates are the front-matter
-`created` / `archived` fields. The `audit` type is the exception — it is a
-point-in-time record, so a date in its title or body is correct — but it is still
-never edited into a changelog; supersede it with a new audit.
+`created` / `archived` fields. The `audit` type is a partial exception — a date in its
+title or body is correct, since it records a finding or decision as of when — but an
+audit is not immutable: keep it reflecting current truth, refreshing it in place
+(delete the wrong claims; git holds them) or archiving it when it no longer holds. It
+is still never edited into a changelog. Reserve supersede-with-a-new-audit (`status:
+superseded` + `superseded_by`, or archive) for dated decision or evidence records you
+want to keep as distinct comparison points.
 
 ## Tooling — `omp-plans`
 
