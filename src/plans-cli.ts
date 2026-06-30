@@ -68,11 +68,15 @@ function cmdCheck(repoRoot: string, now: Date): number {
 }
 
 function markImplemented(content: string, archivedDate: string): string | null {
-	if (!content.startsWith("---\n")) return null;
-	const end = content.indexOf("\n---", 4);
+	// Normalize to LF for parsing so CRLF working trees (autocrlf checkouts) are handled;
+	// restore the original newline style on output.
+	const crlf = content.includes("\r\n");
+	const lf = crlf ? content.replace(/\r\n/g, "\n") : content;
+	if (!lf.startsWith("---\n")) return null;
+	const end = lf.indexOf("\n---", 4);
 	if (end === -1) return null;
-	const frontMatter = content.slice(4, end);
-	const body = content.slice(end);
+	const frontMatter = lf.slice(4, end);
+	const body = lf.slice(end);
 	if (!/^status:\s*active\s*$/m.test(frontMatter)) return null;
 	let nextFrontMatter = frontMatter.replace(/^status:.*$/m, "status: implemented");
 	if (/^archived:.*$/m.test(nextFrontMatter)) {
@@ -80,7 +84,8 @@ function markImplemented(content: string, archivedDate: string): string | null {
 	} else {
 		nextFrontMatter = `${nextFrontMatter}\narchived: ${archivedDate}`;
 	}
-	return `---\n${nextFrontMatter}${body}`;
+	const result = `---\n${nextFrontMatter}${body}`;
+	return crlf ? result.replace(/\n/g, "\r\n") : result;
 }
 
 function cmdComplete(repoRoot: string, now: Date, slug: string | undefined): number {

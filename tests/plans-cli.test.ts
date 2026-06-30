@@ -118,3 +118,28 @@ test("complete fails without mutating when the slug is missing", async () => {
 test("--help exits 0", () => {
 	expect(run(setupRepo(), ["--help"]).code).toBe(0);
 });
+
+test("complete archives a CRLF planning doc and preserves line endings", async () => {
+	const root = mkdtempSync(join(tmpdir(), "plans-cli-crlf-"));
+	gitInit(root);
+	mkdirSync(join(root, "docs", "plans"), { recursive: true });
+	writeFileSync(
+		join(root, "docs", "plans", "2026-01-04-crlf.md"),
+		"---\r\ntitle: CRLF\r\ntype: plan\r\nstatus: active\r\ncreated: 2026-01-04\r\n---\r\n## Tasks\r\n- [ ] one\r\n",
+	);
+	Bun.spawnSync({ cmd: ["git", "add", "-A"], cwd: root });
+	Bun.spawnSync({ cmd: ["git", "commit", "-qm", "init"], cwd: root });
+
+	expect(run(root, ["index"]).code).toBe(0);
+	const { code, out } = run(root, ["complete", "2026-01-04-crlf"]);
+
+	expect(code).toBe(0);
+	expect(out).toContain("archived docs/plans/archive/2026-01-04-crlf.md");
+	const archivePath = join(root, "docs", "plans", "archive", "2026-01-04-crlf.md");
+	expect(existsSync(archivePath)).toBe(true);
+	const archived = await Bun.file(archivePath).text();
+	expect(archived).toContain("status: implemented");
+	expect(archived).toContain("archived: ");
+	// Line endings preserved: every LF is part of a CRLF pair.
+	expect(/[^\r]\n/.test(archived)).toBe(false);
+});
