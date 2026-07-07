@@ -1,17 +1,11 @@
+import { isDeepStrictEqual } from "node:util";
 import { type Document, parseDocument } from "yaml";
 
 /**
  * The top-level OMP config keys this repository owns. Anything else in the
  * user's `~/.omp/agent/config.yml` is preserved verbatim across merges.
  */
-export const MANAGED_KEYS = [
-	"extensions",
-	"skills",
-	"ask",
-	"compaction",
-	"contextPromotion",
-	"memory",
-] as const;
+export const MANAGED_KEYS = ["extensions", "skills", "ask", "contextPromotion"] as const;
 
 export type ManagedKey = (typeof MANAGED_KEYS)[number];
 
@@ -34,6 +28,12 @@ export const MANAGED_CONFIG: Record<ManagedKey, unknown> = {
 	ask: {
 		timeout: 0,
 	},
+	contextPromotion: {
+		enabled: false,
+	},
+};
+
+const FORMER_MANAGED_CONFIG: Record<string, unknown> = {
 	compaction: {
 		strategy: "handoff",
 		thresholdPercent: 80,
@@ -43,9 +43,6 @@ export const MANAGED_CONFIG: Record<ManagedKey, unknown> = {
 		idleThresholdTokens: 100000,
 		idleTimeoutSeconds: 1800,
 		enabled: true,
-	},
-	contextPromotion: {
-		enabled: false,
 	},
 	memory: {
 		backend: "off",
@@ -61,10 +58,11 @@ export const MANAGED_CONFIG: Record<ManagedKey, unknown> = {
  *   does not change unnecessarily.
  * - Missing managed keys are appended in declaration order at the end of the
  *   top-level mapping.
+ * - Former managed keys are removed only when they still match the old
+ *   repo-owned value, so bootstrap clears stale overrides without deleting
+ *   user-customized settings.
  * - Non-managed keys (`modelRoles`, `steeringMode`, `edit`, etc.) are never
  *   modified or reordered.
- * - Applying the merge twice in a row to its own output is a no-op for the
- *   managed keys (idempotent).
  *
  * Comment preservation: the `yaml` package preserves comments associated with
  * untouched nodes but may drop or relocate comments inside fully replaced
@@ -78,6 +76,14 @@ export function mergeManagedConfig(
 	const doc: Document.Parsed = parseDocument(existingYaml);
 	if (doc.contents === null || doc.contents === undefined) {
 		doc.contents = doc.createNode({}) as Document.Parsed["contents"];
+	}
+	for (const [key, oldManagedValue] of Object.entries(FORMER_MANAGED_CONFIG)) {
+		if (Object.hasOwn(managed, key)) continue;
+		const current = doc.get(key);
+		if (current === undefined) continue;
+		if (isDeepStrictEqual(toPlainValue(current), oldManagedValue)) {
+			doc.delete(key);
+		}
 	}
 	for (const key of Object.keys(managed)) {
 		doc.set(key, managed[key]);
@@ -93,6 +99,10 @@ export function readTopLevel(yaml: string, key: string): unknown {
 	const doc = parseDocument(yaml);
 	const value = doc.get(key);
 	if (value === undefined) return undefined;
+	return toPlainValue(value);
+}
+
+function toPlainValue(value: unknown): unknown {
 	if (value === null) return null;
 	if (typeof value === "object" && value !== null && "toJSON" in value) {
 		return (value as { toJSON: () => unknown }).toJSON();

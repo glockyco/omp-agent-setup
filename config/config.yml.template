@@ -27,19 +27,8 @@ todo:
 edit:
   mode: hashline
 defaultThinkingLevel: high
-compaction:
-  strategy: handoff
-  thresholdPercent: 80
-  thresholdTokens: -1
-  handoffSaveToDisk: true
-  idleEnabled: false
-  idleThresholdTokens: 100000
-  idleTimeoutSeconds: 1800
-  enabled: true
 hideThinkingBlock: false
 display:
   showTokenUsage: true
 contextPromotion:
   enabled: false
-memory:
-  backend: "off"

@@ -140,6 +140,34 @@ describe("runBootstrap (integration)", () => {
 		expect(readTopLevel(written, "skills")).toEqual(MANAGED_CONFIG.skills as unknown);
 	});
 
+	test("prunes stale former managed config blocks", async () => {
+		await mkdir(agentDir, { recursive: true });
+		await writeFile(
+			join(agentDir, "config.yml"),
+			`modelRoles:
+  default: anthropic/claude-opus-4-7
+compaction:
+  strategy: handoff
+  thresholdPercent: 80
+  thresholdTokens: -1
+  handoffSaveToDisk: true
+  idleEnabled: false
+  idleThresholdTokens: 100000
+  idleTimeoutSeconds: 1800
+  enabled: true
+memory:
+  backend: "off"
+`,
+		);
+
+		await bootstrapSandbox();
+		const written = await readFile(join(agentDir, "config.yml"), "utf8");
+		expect(readTopLevel(written, "modelRoles")).toEqual({ default: "anthropic/claude-opus-4-7" });
+		expect(readTopLevel(written, "compaction")).toBeUndefined();
+		expect(readTopLevel(written, "memory")).toBeUndefined();
+		expect(readTopLevel(written, "skills")).toEqual(MANAGED_CONFIG.skills as unknown);
+	});
+
 	test("removes legacy-Pi temp-mirror symlinks from skills dir", async () => {
 		const skillsDir = join(agentDir, "skills");
 		await mkdir(skillsDir, { recursive: true });

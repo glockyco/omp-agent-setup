@@ -12,6 +12,11 @@ steeringMode: all
 edit:
   mode: hashline
 defaultThinkingLevel: high
+compaction:
+  strategy: auto
+  enabled: false
+memory:
+  backend: hindsight
 `;
 
 describe("mergeManagedConfig", () => {
@@ -33,6 +38,13 @@ describe("mergeManagedConfig", () => {
 		expect(readTopLevel(merged, "steeringMode")).toBe("all");
 		expect(readTopLevel(merged, "edit")).toEqual({ mode: "hashline" });
 		expect(readTopLevel(merged, "defaultThinkingLevel")).toBe("high");
+		expect(readTopLevel(merged, "compaction")).toEqual({
+			strategy: "auto",
+			enabled: false,
+		});
+		expect(readTopLevel(merged, "memory")).toEqual({
+			backend: "hindsight",
+		});
 	});
 
 	test("appends missing managed keys", () => {
@@ -43,13 +55,23 @@ describe("mergeManagedConfig", () => {
 				"~/Projects/plannotator/apps/pi-extension/skills",
 			],
 		});
-		expect(readTopLevel(merged, "compaction")).toMatchObject({
-			strategy: "handoff",
-			thresholdPercent: 80,
-			thresholdTokens: -1,
-			enabled: true,
-		});
-		expect(readTopLevel(merged, "memory")).toEqual({ backend: "off" });
+	});
+
+	test("prunes former managed settings when unchanged", () => {
+		const merged = mergeManagedConfig(`compaction:
+  strategy: handoff
+  thresholdPercent: 80
+  thresholdTokens: -1
+  handoffSaveToDisk: true
+  idleEnabled: false
+  idleThresholdTokens: 100000
+  idleTimeoutSeconds: 1800
+  enabled: true
+memory:
+  backend: "off"
+`);
+		expect(readTopLevel(merged, "compaction")).toBeUndefined();
+		expect(readTopLevel(merged, "memory")).toBeUndefined();
 	});
 
 	test("is idempotent when applied twice", () => {
@@ -91,6 +113,8 @@ describe("mergeManagedConfig", () => {
 		expect(readTopLevel(merged, "extensions")).toEqual(["~/only/this"]);
 		// untouched managed keys from the default set should NOT appear because
 		// caller chose a narrower override
-		expect(readTopLevel(merged, "memory")).toBeUndefined();
+		expect(readTopLevel(merged, "ask")).toBeUndefined();
+		// former managed keys are still preserved when the user customized them
+		expect(readTopLevel(merged, "memory")).toEqual({ backend: "hindsight" });
 	});
 });
