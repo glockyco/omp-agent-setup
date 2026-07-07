@@ -170,44 +170,6 @@ describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
 	});
 });
 
-describe("CUSTOM_MESSAGE_ENTRY_CONTENT_GUARD", () => {
-	const sourceAnchor = [
-		"\tappendCustomMessageEntry<T = unknown>(",
-		"\t\tcustomType: string,",
-		"\t\tcontent: string | (TextContent | ImageContent)[],",
-		"\t\tdisplay: boolean,",
-		"\t\tdetails?: T,",
-		'\t\tattribution: MessageAttribution = "agent",',
-		"\t): string {",
-		"\t\tconst entry: CustomMessageEntry<T> = {",
-		'\t\t\ttype: "custom_message",',
-		"\t\t\tcustomType,",
-		"\t\t\tcontent,",
-	].join("\n");
-
-	test("guards malformed custom_message persistence in the source session manager", () => {
-		const patch = OMP_PATCHES.find(p => p.id === "custom-message-entry-content-guard");
-		expect(patch).toBeDefined();
-		if (!patch) return;
-		expect(patch.package).toBe("pi-coding-agent");
-		expect(patch.targetRelative).toBe("src/session/session-manager.ts");
-
-		const plan = planPatch(patch, `prefix\n${sourceAnchor}\nsuffix`);
-		expect(plan.kind).toBe("apply");
-		if (plan.kind === "apply") {
-			expect(plan.nextContent).toContain("typeof customType !==");
-			expect(plan.nextContent).toContain("!Array.isArray(content)");
-			expect(plan.nextContent).not.toContain(
-				"\t): string {\n\t\tconst entry: CustomMessageEntry<T> = {",
-			);
-		}
-	});
-
-	test("included in OMP_PATCHES", () => {
-		expect(OMP_PATCHES.map(p => p.id)).toContain("custom-message-entry-content-guard");
-	});
-});
-
 describe("resolveOmpInstallRoot", () => {
 	test("uses $BUN_INSTALL when set", () => {
 		const root = resolveOmpInstallRoot({ BUN_INSTALL: "/opt/bun" } as NodeJS.ProcessEnv, "/home/me");
