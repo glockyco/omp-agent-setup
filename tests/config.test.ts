@@ -24,7 +24,7 @@ describe("mergeManagedConfig", () => {
 		const merged = mergeManagedConfig(USER_CONFIG);
 		expect(readTopLevel(merged, "extensions")).toEqual([
 			"~/Projects/plannotator/apps/pi-extension",
-			"~/.omp/agent/extensions/superpowers-bootstrap.ts",
+			"~/.omp/agent/extensions/omp-session-env.ts",
 		]);
 	});
 
@@ -50,10 +50,7 @@ describe("mergeManagedConfig", () => {
 	test("appends missing managed keys", () => {
 		const merged = mergeManagedConfig(USER_CONFIG);
 		expect(readTopLevel(merged, "skills")).toEqual({
-			customDirectories: [
-				"~/Projects/superpowers/skills",
-				"~/Projects/plannotator/apps/pi-extension/skills",
-			],
+			customDirectories: ["~/Projects/plannotator/apps/pi-extension/skills"],
 		});
 	});
 

@@ -1,12 +1,5 @@
-import { lstat, mkdir, readdir, readlink, symlink, unlink } from "node:fs/promises";
-import { dirname, isAbsolute, join } from "node:path";
-
-/**
- * Pattern that identifies broken legacy-Pi temp-mirror symlinks produced by
- * older Superpowers extension loading under OMP v15. Anything pointing inside
- * `/private/var/.../T/omp-legacy-pi-file/` is stale and must be removed.
- */
-const LEGACY_PI_TEMP_PATTERN = /\/omp-legacy-pi-file\//;
+import { lstat, mkdir, readlink, symlink, unlink } from "node:fs/promises";
+import { dirname, isAbsolute } from "node:path";
 
 export interface ManagedLink {
 	/** Absolute source path inside this repository. */
@@ -82,42 +75,6 @@ export async function executeLinkPlan(plan: LinkPlan): Promise<void> {
 			await unlink(entry.destination);
 		}
 		await symlink(entry.source, entry.destination);
-	}
-}
-
-export interface StaleSymlinkPlan {
-	entries: Array<{ path: string; target: string }>;
-}
-
-/**
- * Scan a directory of skill stub symlinks and report the ones whose targets
- * match the legacy-Pi temp-mirror pattern. The directory itself is left alone
- * if it does not exist.
- */
-export async function planStaleSymlinkRemoval(dir: string): Promise<StaleSymlinkPlan> {
-	const entries: StaleSymlinkPlan["entries"] = [];
-	let names: string[];
-	try {
-		names = await readdir(dir);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return { entries };
-		throw error;
-	}
-	for (const name of names) {
-		const candidate = join(dir, name);
-		const stat = await safeLstat(candidate);
-		if (!stat?.isSymbolicLink()) continue;
-		const target = await readlink(candidate);
-		if (LEGACY_PI_TEMP_PATTERN.test(target)) {
-			entries.push({ path: candidate, target });
-		}
-	}
-	return { entries };
-}
-
-export async function executeStaleSymlinkRemoval(plan: StaleSymlinkPlan): Promise<void> {
-	for (const entry of plan.entries) {
-		await unlink(entry.path);
 	}
 }
 

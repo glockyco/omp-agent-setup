@@ -27,19 +27,19 @@ Architecture: replace the Superpowers bootstrap extension with an OMP-owned sess
 
 ## Tasks
 
-- [ ] Split and rename the session environment extension
+- [x] Split and rename the session environment extension
   - Rename `extensions/superpowers-bootstrap.ts` to `extensions/omp-session-env.ts`.
   - Delete prompt injection, `using-superpowers` loading, Superpowers root resolution, markers, and bootstrap assembly.
   - Keep `installSessionEnvVars`, `OMP_AGENT_DIR` seeding, and `session_start` registration.
   - Rename tests from `tests/superpowers-bootstrap.test.ts` to `tests/omp-session-env.test.ts` and assert no `before_agent_start` handler is registered.
 
-- [ ] Remove Superpowers from managed runtime surfaces
+- [x] Remove Superpowers from managed runtime surfaces
   - Update `src/config.ts` and `config/config.yml.template` to use `~/.omp/agent/extensions/omp-session-env.ts` and remove `~/Projects/superpowers/skills`.
   - Update `src/bootstrap.ts` to snapshot/link `omp-session-env.ts` only.
   - Update `src/cli.ts` to remove `using-superpowers`, `brainstorming`, the Superpowers skill directory, the acceptance smoke, `update-superpowers`, and old doctor labels.
   - Update `package.json`, `knip.json`, and `manifests/plugins.yml` to remove Superpowers ownership.
 
-- [ ] Update deployment and command tests
+- [x] Update deployment and command tests
   - Adjust CLI/config/bootstrap/integration/plugin tests to expect the new extension, no Superpowers plugin, no Superpowers-required skills, and no removed script.
   - Add or adapt a test that fails if the session-env extension registers `before_agent_start`.
   - Keep plugin parsing generic; remove Superpowers-specific fixtures where Plannotator-only fixtures prove the same behavior.

@@ -1,11 +1,4 @@
 plugins:
-  superpowers:
-    path: ~/Projects/superpowers
-    upstream: https://github.com/obra/superpowers.git
-    fork: https://github.com/glockyco/superpowers.git
-    branch: omp-local
-    currentCommit: 0ead7b025c1f4b28c1db9da625c70923b76e015d
-    purpose: Superpowers skills, upstream-verbatim plus a single `references/omp-tools.md` adapter file (Oh My Pi tool-name and prefix translation)
   plannotator:
     path: ~/Projects/plannotator
     upstream: https://github.com/backnotprop/plannotator.git

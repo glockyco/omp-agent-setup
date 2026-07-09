@@ -22,24 +22,12 @@ import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { loadManifest } from "./plugins-runtime.ts";
-import {
-	checkSkillLoader,
-	findExtensionError,
-	ompAcceptanceSmoke,
-	ompDirectSmoke,
-	ompExtensionSmoke,
-	scanLog,
-} from "./verify.ts";
+import { checkSkillLoader, ompDirectSmoke, ompExtensionSmoke, scanLog } from "./verify.ts";
 import { makeRealSkillLoader, readLogFile, realRunner } from "./verify-runtime.ts";
 
 const VERIFY_MODEL = process.env.OMP_VERIFY_MODEL ?? "openai-codex/gpt-5.5";
 
-export const REQUIRED_SKILLS = [
-	"using-superpowers",
-	"brainstorming",
-	"plannotator-review",
-	...LOCAL_MANAGED_SKILLS,
-];
+export const REQUIRED_SKILLS = ["plannotator-review", ...LOCAL_MANAGED_SKILLS];
 
 function repoRoot(): string {
 	return resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -80,10 +68,7 @@ async function cmdVerify(_args: string[]): Promise<number> {
 		const home = homedir();
 		const loader = await checkSkillLoader({
 			cwd: process.cwd(),
-			customDirectories: [
-				join(home, "Projects", "superpowers", "skills"),
-				join(home, "Projects", "plannotator", "apps", "pi-extension", "skills"),
-			],
+			customDirectories: [join(home, "Projects", "plannotator", "apps", "pi-extension", "skills")],
 			requiredSkillNames: REQUIRED_SKILLS,
 			loader: makeRealSkillLoader(),
 		});
@@ -127,35 +112,6 @@ async function cmdVerify(_args: string[]): Promise<number> {
 	} else {
 		console.error("FAIL: omp-plans --help exited nonzero");
 		failures++;
-	}
-
-	const skipAcceptance = process.env.OMP_VERIFY_SKIP_ACCEPTANCE === "1";
-	if (!skipAcceptance) {
-		console.log("\n==> Superpowers acceptance smoke");
-		const acceptance = await ompAcceptanceSmoke(realRunner, {
-			model: VERIFY_MODEL,
-			prompt: "Let's make a react todo list",
-			mentionPatterns: [
-				/[Bb]rainstorm/,
-				/[Ss]uperpowers/,
-				/[Mm]ockups?/,
-				/[Dd]iagrams?/,
-				/understand.+(intent|requirements|design)/i,
-				/before (we|I) (start|code|build|implement)/i,
-			],
-		});
-		process.stdout.write(acceptance.stdout);
-		if (acceptance.failure) {
-			console.error(`FAIL: ${acceptance.failure}`);
-			failures++;
-		}
-		const errLine = findExtensionError(acceptance.stdout);
-		if (errLine) {
-			console.error(`FAIL: extension error during acceptance smoke: ${errLine}`);
-			failures++;
-		}
-	} else {
-		console.log("\n==> Superpowers acceptance smoke (skipped via OMP_VERIFY_SKIP_ACCEPTANCE=1)");
 	}
 
 	if (failures > 0) {
@@ -242,7 +198,7 @@ type ManagedAgentCheck = [path: string, label: string, expected: "symlink" | "fi
 export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 	return [
 		[join(agentDir, "AGENTS.md"), "AGENTS.md", "symlink"],
-		[join(agentDir, "extensions", "superpowers-bootstrap.ts"), "superpowers-bootstrap.ts", "symlink"],
+		[join(agentDir, "extensions", "omp-session-env.ts"), "omp-session-env.ts", "symlink"],
 		[join(agentDir, "lsp.json"), "lsp.json", "symlink"],
 		...LOCAL_MANAGED_SKILLS.map(
 			skillName =>
@@ -264,7 +220,7 @@ async function cmdUpdateImpeccable(_args: string[]): Promise<number> {
 	return 0;
 }
 
-async function cmdUpdatePlugin(name: "superpowers" | "plannotator"): Promise<number> {
+async function cmdUpdatePlugin(name: "plannotator"): Promise<number> {
 	const home = homedir();
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");
 	const manifest = await loadManifest(manifestPath, home);
@@ -396,7 +352,6 @@ const COMMANDS: Record<string, (args: string[]) => Promise<number>> = {
 	"audit-lsp": cmdAuditLsp,
 	"install-lsp": cmdInstallLsp,
 	"update-impeccable": cmdUpdateImpeccable,
-	"update-superpowers": () => cmdUpdatePlugin("superpowers"),
 	"update-plannotator": () => cmdUpdatePlugin("plannotator"),
 };
 

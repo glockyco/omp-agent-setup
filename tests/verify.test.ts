@@ -108,29 +108,7 @@ describe("ompDirectSmoke", () => {
 	});
 });
 
-import { checkSkillLoader, ompAcceptanceSmoke } from "../src/verify.ts";
-
-describe("ompAcceptanceSmoke", () => {
-	test("passes when at least one mention pattern matches", async () => {
-		const runner = stubRunner({ stdout: "Let's brainstorm before we code\n" });
-		const result = await ompAcceptanceSmoke(runner, {
-			model: "x",
-			prompt: "y",
-			mentionPatterns: [/[Bb]rainstorm/, /[Ss]uperpowers/],
-		});
-		expect(result.failure).toBeUndefined();
-	});
-
-	test("fails when no mention pattern matches", async () => {
-		const runner = stubRunner({ stdout: "irrelevant\n" });
-		const result = await ompAcceptanceSmoke(runner, {
-			model: "x",
-			prompt: "y",
-			mentionPatterns: [/[Bb]rainstorm/],
-		});
-		expect(result.failure).toContain("[Bb]rainstorm");
-	});
-});
+import { checkSkillLoader } from "../src/verify.ts";
 
 describe("checkSkillLoader", () => {
 	test("returns missing names that the loader did not surface", async () => {

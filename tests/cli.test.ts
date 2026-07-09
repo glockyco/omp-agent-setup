@@ -27,9 +27,30 @@ describe("managedAgentChecks", () => {
 		}
 	});
 
+	test("checks the OMP session environment extension", () => {
+		const agentDir = "/tmp/omp-agent";
+		const checks = managedAgentChecks(agentDir);
+
+		expect(checks).toContainEqual([
+			join(agentDir, "extensions", "omp-session-env.ts"),
+			"omp-session-env.ts",
+			"symlink",
+		]);
+		expect(checks).not.toContainEqual([
+			join(agentDir, "extensions", "superpowers-bootstrap.ts"),
+			"superpowers-bootstrap.ts",
+			"symlink",
+		]);
+	});
+
 	test("requires source-managed local skills during verification", () => {
 		for (const skillName of localSkillNames) {
 			expect(REQUIRED_SKILLS).toContain(skillName);
 		}
+	});
+
+	test("does not require Superpowers skills during verification", () => {
+		expect(REQUIRED_SKILLS).not.toContain("using-superpowers");
+		expect(REQUIRED_SKILLS).not.toContain("brainstorming");
 	});
 });

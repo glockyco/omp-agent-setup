@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readlink, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-	executeLinkPlan,
-	executeStaleSymlinkRemoval,
-	planManagedLinks,
-	planStaleSymlinkRemoval,
-} from "../src/runtime.ts";
+import { executeLinkPlan, planManagedLinks } from "../src/runtime.ts";
 
 let workdir: string;
 
@@ -98,35 +93,5 @@ describe("executeLinkPlan", () => {
 		await writeFile(dest, "real file");
 		const plan = await planManagedLinks([{ source: src, destination: dest }]);
 		await expect(executeLinkPlan(plan)).rejects.toThrow(/Refusing to replace non-symlink/);
-	});
-});
-
-describe("planStaleSymlinkRemoval", () => {
-	test("targets only legacy-Pi temp-mirror symlinks", async () => {
-		const dir = join(workdir, "skills");
-		await mkdir(dir);
-		await symlink(
-			"/private/var/folders/xx/T/omp-legacy-pi-file/skills/using-superpowers",
-			join(dir, "using-superpowers"),
-		);
-		await symlink("/Users/me/Projects/superpowers/skills/brainstorming", join(dir, "brainstorming"));
-		await writeFile(join(dir, "README.md"), "real file");
-
-		const plan = await planStaleSymlinkRemoval(dir);
-		expect(plan.entries).toHaveLength(1);
-		expect(plan.entries[0]?.path).toBe(join(dir, "using-superpowers"));
-
-		await executeStaleSymlinkRemoval(plan);
-		const second = await planStaleSymlinkRemoval(dir);
-		expect(second.entries).toHaveLength(0);
-		// non-stale link still present
-		await expect(readlink(join(dir, "brainstorming"))).resolves.toBe(
-			"/Users/me/Projects/superpowers/skills/brainstorming",
-		);
-	});
-
-	test("returns empty plan if the directory does not exist", async () => {
-		const plan = await planStaleSymlinkRemoval(join(workdir, "absent"));
-		expect(plan.entries).toEqual([]);
 	});
 });

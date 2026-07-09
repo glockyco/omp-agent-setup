@@ -35,8 +35,8 @@ beforeEach(async () => {
 		await writeFile(join(repoRoot, "agent", "skills", skillName, "SKILL.md"), `# ${skillName}\n`);
 	}
 	await writeFile(
-		join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
-		"// stub bootstrap extension\n",
+		join(repoRoot, "extensions", "omp-session-env.ts"),
+		"// stub session env extension\n",
 	);
 	await writeFile(join(repoRoot, "agent", "skills", "commit", "SKILL.md"), "# Commit skill\n");
 	// Empty manifest so we don't hit the real Git remotes.
@@ -71,8 +71,8 @@ describe("runBootstrap (integration)", () => {
 		await expect(readlink(join(agentDir, "lsp.json"))).resolves.toBe(
 			join(repoRoot, "agent", "lsp.json"),
 		);
-		await expect(readlink(join(agentDir, "extensions", "superpowers-bootstrap.ts"))).resolves.toBe(
-			join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
+		await expect(readlink(join(agentDir, "extensions", "omp-session-env.ts"))).resolves.toBe(
+			join(repoRoot, "extensions", "omp-session-env.ts"),
 		);
 		await expect(readlink(join(agentDir, "skills", "commit"))).resolves.toBe(
 			join(repoRoot, "agent", "skills", "commit"),
@@ -168,21 +168,21 @@ memory:
 		expect(readTopLevel(written, "skills")).toEqual(MANAGED_CONFIG.skills as unknown);
 	});
 
-	test("removes legacy-Pi temp-mirror symlinks from skills dir", async () => {
+	test("does not carry legacy Superpowers temp-mirror cleanup", async () => {
 		const skillsDir = join(agentDir, "skills");
+		const legacySkill = join(skillsDir, "using-superpowers");
 		await mkdir(skillsDir, { recursive: true });
 		await symlink(
 			"/private/var/folders/xx/T/omp-legacy-pi-file/skills/using-superpowers",
-			join(skillsDir, "using-superpowers"),
+			legacySkill,
 		);
-		await symlink("/tmp/real/skill", join(skillsDir, "keep-me"));
 
 		const report = await bootstrapSandbox();
 
-		expect(report.staleSymlinks.entries.map(e => e.path)).toEqual([
-			join(skillsDir, "using-superpowers"),
-		]);
-		await expect(readlink(join(skillsDir, "keep-me"))).resolves.toBe("/tmp/real/skill");
+		expect("staleSymlinks" in report).toBe(false);
+		await expect(readlink(legacySkill)).resolves.toBe(
+			"/private/var/folders/xx/T/omp-legacy-pi-file/skills/using-superpowers",
+		);
 	});
 
 	test("refuses to clobber a real file at a managed destination", async () => {

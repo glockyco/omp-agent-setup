@@ -17,13 +17,10 @@ export type ManagedKey = (typeof MANAGED_KEYS)[number];
 export const MANAGED_CONFIG: Record<ManagedKey, unknown> = {
 	extensions: [
 		"~/Projects/plannotator/apps/pi-extension",
-		"~/.omp/agent/extensions/superpowers-bootstrap.ts",
+		"~/.omp/agent/extensions/omp-session-env.ts",
 	],
 	skills: {
-		customDirectories: [
-			"~/Projects/superpowers/skills",
-			"~/Projects/plannotator/apps/pi-extension/skills",
-		],
+		customDirectories: ["~/Projects/plannotator/apps/pi-extension/skills"],
 	},
 	ask: {
 		timeout: 0,

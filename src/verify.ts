@@ -173,30 +173,3 @@ export async function checkSkillLoader(
 	const missing = options.requiredSkillNames.filter(name => !loadedNames.includes(name));
 	return { loadedNames, missing };
 }
-
-export interface AcceptanceSmokeOptions {
-	model: string;
-	prompt: string;
-	mentionPatterns: readonly RegExp[];
-	timeoutMs?: number;
-}
-
-export async function ompAcceptanceSmoke(
-	runner: Runner,
-	options: AcceptanceSmokeOptions,
-): Promise<CommandResult & { failure?: string }> {
-	const result = await runner.run(
-		"omp",
-		["-p", "--no-session", "--model", options.model, options.prompt],
-		{ timeoutMs: options.timeoutMs ?? 180_000 },
-	);
-	const matched = options.mentionPatterns.find(p => p.test(result.stdout));
-	return {
-		...result,
-		failure: matched
-			? undefined
-			: `expected output to match one of: ${options.mentionPatterns
-					.map(p => p.toString())
-					.join(", ")}`,
-	};
-}

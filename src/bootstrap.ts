@@ -25,14 +25,7 @@ import {
 import { expandHome } from "./paths.ts";
 import { type CheckoutStep, executeCheckoutSteps, planPluginCheckout } from "./plugins.ts";
 import { loadManifest, realGitProbe, realGitRunner } from "./plugins-runtime.ts";
-import {
-	executeLinkPlan,
-	executeStaleSymlinkRemoval,
-	type LinkPlan,
-	planManagedLinks,
-	planStaleSymlinkRemoval,
-	type StaleSymlinkPlan,
-} from "./runtime.ts";
+import { executeLinkPlan, type LinkPlan, planManagedLinks } from "./runtime.ts";
 
 export interface BootstrapOptions {
 	repoRoot: string;
@@ -59,7 +52,6 @@ export interface BootstrapReport {
 	backupDir: string;
 	snapshot: SnapshotPlan;
 	links: LinkPlan;
-	staleSymlinks: StaleSymlinkPlan;
 	configChanged: boolean;
 	pluginSteps: CheckoutStep[];
 	patchExecutions: PatchExecution[];
@@ -92,7 +84,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		join(agentDir, "config.yml"),
 		join(agentDir, "AGENTS.md"),
 		join(agentDir, "lsp.json"),
-		join(extensionsDir, "superpowers-bootstrap.ts"),
+		join(extensionsDir, "omp-session-env.ts"),
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
 		join(agentDir, "rules", "planning-docs.md"),
 		join(home, ".omp", "plugins", "package.json"),
@@ -116,8 +108,8 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 			destination: join(agentDir, "lsp.json"),
 		},
 		{
-			source: join(options.repoRoot, "extensions", "superpowers-bootstrap.ts"),
-			destination: join(extensionsDir, "superpowers-bootstrap.ts"),
+			source: join(options.repoRoot, "extensions", "omp-session-env.ts"),
+			destination: join(extensionsDir, "omp-session-env.ts"),
 		},
 		...LOCAL_MANAGED_SKILLS.map(skillName => ({
 			source: join(options.repoRoot, "agent", "skills", skillName),
@@ -129,9 +121,6 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		},
 	]);
 	await executeLinkPlan(links);
-
-	const staleSymlinks = await planStaleSymlinkRemoval(join(agentDir, "skills"));
-	await executeStaleSymlinkRemoval(staleSymlinks);
 
 	const configPath = join(agentDir, "config.yml");
 	let existingYaml = "";
@@ -174,7 +163,6 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		backupDir,
 		snapshot,
 		links,
-		staleSymlinks,
 		configChanged,
 		pluginSteps,
 		patchExecutions,
@@ -193,9 +181,6 @@ export function summarizeReport(report: BootstrapReport): string {
 		if (entry.kind === "skip") continue;
 		const dest = "destination" in entry ? entry.destination : "";
 		lines.push(`Symlink ${entry.kind}: ${dest}`);
-	}
-	if (report.staleSymlinks.entries.length > 0) {
-		lines.push(`Removed stale legacy-Pi symlinks: ${report.staleSymlinks.entries.length}`);
 	}
 	lines.push(`Config: ${report.configChanged ? "updated" : "unchanged"}`);
 	if (report.pluginSteps.length > 0) {
