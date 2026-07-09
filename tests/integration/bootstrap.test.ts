@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	chmod,
+	lstat,
 	mkdir,
 	mkdtemp,
 	readFile,
@@ -168,21 +169,32 @@ memory:
 		expect(readTopLevel(written, "skills")).toEqual(MANAGED_CONFIG.skills as unknown);
 	});
 
-	test("does not carry legacy Superpowers temp-mirror cleanup", async () => {
+	test("removes deployed Superpowers symlinks from previous bootstraps", async () => {
+		const extensionsDir = join(agentDir, "extensions");
 		const skillsDir = join(agentDir, "skills");
-		const legacySkill = join(skillsDir, "using-superpowers");
+		const oldExtension = join(extensionsDir, "superpowers-bootstrap.ts");
+		const usingSuperpowers = join(skillsDir, "using-superpowers");
+		const brainstorming = join(skillsDir, "brainstorming");
+		const keepMe = join(skillsDir, "keep-me");
+		await mkdir(extensionsDir, { recursive: true });
 		await mkdir(skillsDir, { recursive: true });
+		await symlink(join(repoRoot, "extensions", "superpowers-bootstrap.ts"), oldExtension);
 		await symlink(
 			"/private/var/folders/xx/T/omp-legacy-pi-file/skills/using-superpowers",
-			legacySkill,
+			usingSuperpowers,
 		);
+		await symlink("/private/var/folders/xx/T/omp-legacy-pi-file/skills/brainstorming", brainstorming);
+		await symlink("/tmp/real/skill", keepMe);
 
 		const report = await bootstrapSandbox();
 
-		expect("staleSymlinks" in report).toBe(false);
-		await expect(readlink(legacySkill)).resolves.toBe(
-			"/private/var/folders/xx/T/omp-legacy-pi-file/skills/using-superpowers",
+		expect(report.removedSymlinks.entries.map(e => e.path).sort()).toEqual(
+			[oldExtension, brainstorming, usingSuperpowers].sort(),
 		);
+		await expect(lstat(oldExtension)).rejects.toHaveProperty("code", "ENOENT");
+		await expect(lstat(usingSuperpowers)).rejects.toHaveProperty("code", "ENOENT");
+		await expect(lstat(brainstorming)).rejects.toHaveProperty("code", "ENOENT");
+		await expect(readlink(keepMe)).resolves.toBe("/tmp/real/skill");
 	});
 
 	test("refuses to clobber a real file at a managed destination", async () => {

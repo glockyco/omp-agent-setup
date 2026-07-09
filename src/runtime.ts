@@ -78,6 +78,29 @@ export async function executeLinkPlan(plan: LinkPlan): Promise<void> {
 	}
 }
 
+export interface SymlinkRemovalPlan {
+	entries: Array<{ path: string; target: string }>;
+}
+
+export async function planSymlinkRemoval(paths: readonly string[]): Promise<SymlinkRemovalPlan> {
+	const entries: SymlinkRemovalPlan["entries"] = [];
+	for (const path of paths) {
+		if (!isAbsolute(path)) {
+			throw new Error(`Removed symlink path must be absolute: ${path}`);
+		}
+		const existing = await safeLstat(path);
+		if (!existing?.isSymbolicLink()) continue;
+		entries.push({ path, target: await readlink(path) });
+	}
+	return { entries };
+}
+
+export async function executeSymlinkRemoval(plan: SymlinkRemovalPlan): Promise<void> {
+	for (const entry of plan.entries) {
+		await unlink(entry.path);
+	}
+}
+
 async function safeLstat(path: string) {
 	try {
 		return await lstat(path);

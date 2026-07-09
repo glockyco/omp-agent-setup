@@ -25,7 +25,14 @@ import {
 import { expandHome } from "./paths.ts";
 import { type CheckoutStep, executeCheckoutSteps, planPluginCheckout } from "./plugins.ts";
 import { loadManifest, realGitProbe, realGitRunner } from "./plugins-runtime.ts";
-import { executeLinkPlan, type LinkPlan, planManagedLinks } from "./runtime.ts";
+import {
+	executeLinkPlan,
+	executeSymlinkRemoval,
+	type LinkPlan,
+	planManagedLinks,
+	planSymlinkRemoval,
+	type SymlinkRemovalPlan,
+} from "./runtime.ts";
 
 export interface BootstrapOptions {
 	repoRoot: string;
@@ -52,6 +59,7 @@ export interface BootstrapReport {
 	backupDir: string;
 	snapshot: SnapshotPlan;
 	links: LinkPlan;
+	removedSymlinks: SymlinkRemovalPlan;
 	configChanged: boolean;
 	pluginSteps: CheckoutStep[];
 	patchExecutions: PatchExecution[];
@@ -80,11 +88,17 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const plansSourceEntry = join(options.repoRoot, "src", "plans-cli.ts");
 	const binToSnapshot = options.skipBinLink ? [] : [binPath, plansBinPath];
 	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompScopeRoot);
+	const removedManagedSymlinkPaths = [
+		join(extensionsDir, "superpowers-bootstrap.ts"),
+		join(agentDir, "skills", "using-superpowers"),
+		join(agentDir, "skills", "brainstorming"),
+	];
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
 		join(agentDir, "AGENTS.md"),
 		join(agentDir, "lsp.json"),
 		join(extensionsDir, "omp-session-env.ts"),
+		...removedManagedSymlinkPaths,
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
 		join(agentDir, "rules", "planning-docs.md"),
 		join(home, ".omp", "plugins", "package.json"),
@@ -97,6 +111,8 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 
 	const snapshot = await planSnapshot(sourcesToSnapshot, backupDir);
 	await executeSnapshot(snapshot);
+	const removedSymlinks = await planSymlinkRemoval(removedManagedSymlinkPaths);
+	await executeSymlinkRemoval(removedSymlinks);
 
 	const links = await planManagedLinks([
 		{
@@ -163,6 +179,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		backupDir,
 		snapshot,
 		links,
+		removedSymlinks,
 		configChanged,
 		pluginSteps,
 		patchExecutions,
@@ -181,6 +198,9 @@ export function summarizeReport(report: BootstrapReport): string {
 		if (entry.kind === "skip") continue;
 		const dest = "destination" in entry ? entry.destination : "";
 		lines.push(`Symlink ${entry.kind}: ${dest}`);
+	}
+	if (report.removedSymlinks.entries.length > 0) {
+		lines.push(`Removed retired symlinks: ${report.removedSymlinks.entries.length}`);
 	}
 	lines.push(`Config: ${report.configChanged ? "updated" : "unchanged"}`);
 	if (report.pluginSteps.length > 0) {

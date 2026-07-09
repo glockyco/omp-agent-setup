@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readlink, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { executeLinkPlan, planManagedLinks } from "../src/runtime.ts";
+import {
+	executeLinkPlan,
+	executeSymlinkRemoval,
+	planManagedLinks,
+	planSymlinkRemoval,
+} from "../src/runtime.ts";
 
 let workdir: string;
 
@@ -93,5 +98,22 @@ describe("executeLinkPlan", () => {
 		await writeFile(dest, "real file");
 		const plan = await planManagedLinks([{ source: src, destination: dest }]);
 		await expect(executeLinkPlan(plan)).rejects.toThrow(/Refusing to replace non-symlink/);
+	});
+});
+
+describe("planSymlinkRemoval", () => {
+	test("targets only existing symlinks from an explicit removal list", async () => {
+		const stale = join(workdir, "stale");
+		const missing = join(workdir, "missing");
+		const realFile = join(workdir, "real-file");
+		await symlink("/old/target", stale);
+		await writeFile(realFile, "keep");
+
+		const plan = await planSymlinkRemoval([stale, missing, realFile]);
+
+		expect(plan.entries).toEqual([{ path: stale, target: "/old/target" }]);
+		await executeSymlinkRemoval(plan);
+		await expect(lstat(stale)).rejects.toHaveProperty("code", "ENOENT");
+		await expect(lstat(realFile)).resolves.toBeDefined();
 	});
 });
