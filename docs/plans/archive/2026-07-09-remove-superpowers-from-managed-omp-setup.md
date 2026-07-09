@@ -1,11 +1,11 @@
 ---
 title: Remove Superpowers From Managed OMP Setup
 type: plan
-status: active
+status: implemented
 created: 2026-07-09
 parent:
 superseded_by:
-archived:
+archived: 2026-07-09
 ---
 
 # Remove Superpowers From Managed OMP Setup
