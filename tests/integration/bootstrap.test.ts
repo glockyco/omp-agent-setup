@@ -197,10 +197,18 @@ memory:
 		await expect(readlink(keepMe)).resolves.toBe("/tmp/real/skill");
 	});
 
-	test("refuses to clobber a real file at a managed destination", async () => {
+	test("refuses to clobber a real file before removing retired symlinks", async () => {
+		const extensionsDir = join(agentDir, "extensions");
+		const oldExtension = join(extensionsDir, "superpowers-bootstrap.ts");
 		await mkdir(agentDir, { recursive: true });
+		await mkdir(extensionsDir, { recursive: true });
 		await writeFile(join(agentDir, "AGENTS.md"), "user-authored content");
+		await symlink(join(repoRoot, "extensions", "superpowers-bootstrap.ts"), oldExtension);
+
 		await expect(bootstrapSandbox()).rejects.toThrow(/Refusing to replace non-symlink/);
+		await expect(readlink(oldExtension)).resolves.toBe(
+			join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
+		);
 	});
 
 	test("patch application stays inside the sandbox, never the real install", async () => {

@@ -111,8 +111,6 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 
 	const snapshot = await planSnapshot(sourcesToSnapshot, backupDir);
 	await executeSnapshot(snapshot);
-	const removedSymlinks = await planSymlinkRemoval(removedManagedSymlinkPaths);
-	await executeSymlinkRemoval(removedSymlinks);
 
 	const links = await planManagedLinks([
 		{
@@ -151,6 +149,9 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		await mkdir(dirname(configPath), { recursive: true });
 		await writeFile(configPath, merged);
 	}
+
+	const removedSymlinks = await planSymlinkRemoval(removedManagedSymlinkPaths);
+	await executeSymlinkRemoval(removedSymlinks);
 
 	const pluginSteps: CheckoutStep[] = [];
 	if (!options.skipPlugins) {
