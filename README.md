@@ -1,7 +1,7 @@
 # OMP Agent Setup
 
-Source-of-truth for a global [oh-my-pi](https://github.com/can1357/oh-my-pi) agent environment.
-A Bun CLI deploys, merges, reconciles, and patches everything into place.
+Source of truth for my global [oh-my-pi](https://github.com/can1357/oh-my-pi) agent environment.
+A Bun CLI deploys managed files, merges OMP config, reconciles active plugin forks, and reapplies local OMP source patches.
 
 Personal clone-to-own dotfile, not a packaged tool — paths, plugin forks, and conventions are mine.
 
@@ -21,18 +21,16 @@ gh repo clone glockyco/omp-agent-setup ~/Projects/omp-agent-setup
 cd ~/Projects/omp-agent-setup
 bun install --frozen-lockfile
 bun run bootstrap
-OMP_VERIFY_SKIP_ACCEPTANCE=1 bun run verify
+bun run verify
 ```
-
-Drop `OMP_VERIFY_SKIP_ACCEPTANCE=1` once to run the full Superpowers acceptance smoke (slow, model-heavy, costs API calls).
 
 ## What bootstrap manages
 
 | Source | Deployed at |
 |---|---|
-| `agent/AGENTS.md`, `agent/lsp.json`, `extensions/`, `agent/skills/` | `~/.omp/agent/` — symlinked |
+| `agent/AGENTS.md`, `agent/lsp.json`, `extensions/omp-session-env.ts`, `agent/skills/` | `~/.omp/agent/` — symlinked |
 | managed keys in `src/config.ts` | `~/.omp/agent/config.yml` — merged |
-| `manifests/plugins.yml` | `~/Projects/{superpowers,plannotator}` — checkout at pinned `omp-local` commit |
+| `manifests/plugins.yml` | active plugin checkouts under `~/Projects/` |
 | `src/patches.ts` | OMP source files — patched in place; re-run `bootstrap` after `omp update` |
 
 Every run snapshots the pre-deploy state to `backups/<UTC-timestamp>/` before touching anything.
@@ -43,26 +41,25 @@ Every run snapshots the pre-deploy state to `backups/<UTC-timestamp>/` before to
 | Script | What it does |
 |---|---|
 | `bun run bootstrap` | Deploy / reconcile all managed surfaces. Idempotent. |
-| `bun run verify` | Full live gate. `OMP_VERIFY_SKIP_ACCEPTANCE=1` skips the model-heavy smoke. |
+| `bun run verify` | Full live gate for OMP smoke, skill discovery, logs, and `omp-plans`. |
 | `bun run doctor` | Read-only health report. |
-| `bun run audit-lsp` | Fleet LSP audit across `~/Projects/*`. `--include-dormant` to widen. |
+| `bun run audit-lsp` | Fleet LSP audit across `~/Projects/*`. `--include-dormant` widens the scan. |
 | `bun run install-lsp` | Install all LSP binaries via the canonical channel. Idempotent. |
-| `bun run update-{superpowers,plannotator}` | Rebase fork's `omp-local` onto upstream; print new SHA. |
-| `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable` (rewriting `node .pi/...` script paths to the deployed `$OMP_AGENT_DIR` location); review diff before bootstrap. |
+| `bun run update-plannotator` | Rebase Plannotator fork's `omp-local` onto upstream; print the new SHA. |
+| `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable`; review diff before bootstrap. |
 | `bun run ci` / `bun run fix` | All quality gates / Biome auto-fix. |
 
 ## Plugins
 
 | Plugin | Upstream | Fork (`omp-local`) |
 |---|---|---|
-| Superpowers | [obra/superpowers](https://github.com/obra/superpowers) | [glockyco/superpowers](https://github.com/glockyco/superpowers/tree/omp-local) |
 | Plannotator | [backnotprop/plannotator](https://github.com/backnotprop/plannotator) | [glockyco/plannotator](https://github.com/glockyco/plannotator/tree/omp-local) |
 
-`omp-local` branches carry minimal OMP-specific adapters on top of `upstream/main`. To pull a fresh upstream: `bun run update-<plugin>` → bump `currentCommit` in `manifests/plugins.yml` → `bun run verify`. If you fork this repo, point the manifest at your own forks.
+`omp-local` carries minimal OMP-specific adapters on top of `upstream/main`. To update: `bun run update-plannotator` → push the fork branch after review → bump `currentCommit` in [`manifests/plugins.yml`](./manifests/plugins.yml) → `bun run verify`.
 
 ## LSP
 
-Three layers: binaries on `$PATH` (`scripts/install-lsp.sh`) → global overrides (`agent/lsp.json`) → per-project `./lsp.json` for genuine deviations only. `bun run audit-lsp` surfaces gaps. See [`AGENTS.md`](./AGENTS.md#lsp-maintenance) for policy.
+Three layers: binaries on `$PATH` ([`scripts/install-lsp.sh`](./scripts/install-lsp.sh)) → global overrides ([`agent/lsp.json`](./agent/lsp.json)) → per-project `./lsp.json` only for genuine deviations. `bun run audit-lsp` surfaces gaps. See [`AGENTS.md`](./AGENTS.md#lsp-maintenance) for policy.
 
 ## License
 

@@ -44,7 +44,7 @@ Architecture: replace the Superpowers bootstrap extension with an OMP-owned sess
   - Add or adapt a test that fails if the session-env extension registers `before_agent_start`.
   - Keep plugin parsing generic; remove Superpowers-specific fixtures where Plannotator-only fixtures prove the same behavior.
 
-- [ ] Rewrite managed docs and local writing skills
+- [x] Rewrite managed docs and local writing skills
   - Rewrite `agent/AGENTS.md` methodology around OMP-native workflow, `/plan`, `docs/plans/`, task subagents, Plannotator, and living OMP docs.
   - Update root `AGENTS.md` and `README.md` commands, plugin tables, boundaries, and env contract names.
   - Rewrite `agent/skills/writing-agent-instructions/SKILL.md` as OMP-local instruction-file maintenance guidance with links to AGENTS.md, OpenAI Codex AGENTS, Codex Skills, Agent Skills spec, Anthropic Skills, and OMP docs.
