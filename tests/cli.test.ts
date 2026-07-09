@@ -9,6 +9,7 @@ describe("managedAgentChecks", () => {
 		"writing-agent-instructions",
 		"impeccable",
 		"planning-files",
+		"writing-plans",
 		"searching-literature",
 		"retrieving-paper-pdfs",
 		"formatting-bibtex-entries",
