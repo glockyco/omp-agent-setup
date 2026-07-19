@@ -227,6 +227,37 @@ export const EVAL_WRITE_PROTOCOL_DELEGATION: Patch = {
 };
 
 /**
+ * Let eval JS `tool.<name>()` reach tools mounted under `xd://`. The eval
+ * bridge only resolves top-level tools, so discoverable devices such as
+ * `browser` otherwise fail as unknown even though the session advertises them.
+ * Route mounted-only names through the real write transport to preserve device
+ * argument validation, approval policy, rendering, and result metadata.
+ */
+export const EVAL_TOOL_DEVICE_DELEGATION: Patch = {
+	id: "eval-tool-device-delegation",
+	package: "pi-coding-agent",
+	targetRelative: "src/eval/js/tool-bridge.ts",
+	description: "Route eval tool proxy calls to mounted xd devices.",
+	anchor: [
+		"\tconst tool = getTool(options.session, name);",
+		"\tconst normalizedArgs = normalizeArgs(args);",
+		`\tconst toolCallId = \`js-\${name}-\${crypto.randomUUID()}\`;`,
+	].join("\n"),
+	replacement: [
+		"\tconst directTool = options.session.getToolByName?.(name);",
+		"\tconst mountedDevice = directTool ? undefined : options.session.xdevRegistry?.get(name);",
+		'\tconst tool = directTool ?? getTool(options.session, mountedDevice ? "write" : name);',
+		"\tconst routedArgs = mountedDevice",
+		`\t\t? { path: \`xd://\${name}\`, content: JSON.stringify(args ?? {}) }`,
+		"\t\t: args;",
+		"\tconst normalizedArgs = normalizeArgs(routedArgs);",
+		`\tconst toolCallId = \`js-\${name}-\${crypto.randomUUID()}\`;`,
+	].join("\n"),
+	appliedSignature:
+		"const mountedDevice = directTool ? undefined : options.session.xdevRegistry?.get(name);",
+};
+
+/**
  * Ordered list of patches the bootstrap step applies, in declaration order.
  * Order matters: later patches see the file as left by earlier patches.
  */
@@ -234,4 +265,5 @@ export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
 	EVAL_WRITE_PROTOCOL_DELEGATION,
+	EVAL_TOOL_DEVICE_DELEGATION,
 ];

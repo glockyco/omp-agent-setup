@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
 	CONVERT_TO_LLM_CONTENT_GUARD,
+	EVAL_TOOL_DEVICE_DELEGATION,
 	EVAL_WRITE_PROTOCOL_DELEGATION,
 	OMP_PATCHES,
 	type Patch,
@@ -207,6 +208,58 @@ describe("EVAL_WRITE_PROTOCOL_DELEGATION", () => {
 
 	test("included in OMP_PATCHES", () => {
 		expect(OMP_PATCHES.map(p => p.id)).toContain(EVAL_WRITE_PROTOCOL_DELEGATION.id);
+	});
+});
+
+describe("EVAL_TOOL_DEVICE_DELEGATION", () => {
+	const unpatched = [
+		"export async function callSessionTool(name: string, args: unknown, options: ToolBridgeOptions) {",
+		"\tconst tool = getTool(options.session, name);",
+		"\tconst normalizedArgs = normalizeArgs(args);",
+		`\tconst toolCallId = \`js-\${name}-\${crypto.randomUUID()}\`;`,
+		"\treturn await tool.execute(toolCallId, normalizedArgs, options.signal);",
+		"}",
+		"",
+	].join("\n");
+
+	test("routes mounted-only names through the write transport", () => {
+		const plan = planPatch(EVAL_TOOL_DEVICE_DELEGATION, unpatched);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain(EVAL_TOOL_DEVICE_DELEGATION.appliedSignature);
+			expect(plan.nextContent).toContain('getTool(options.session, mountedDevice ? "write" : name)');
+			expect(plan.nextContent).toContain(
+				`{ path: \`xd://\${name}\`, content: JSON.stringify(args ?? {}) }`,
+			);
+		}
+	});
+
+	test("prefers a direct tool when a mounted device shares its name", () => {
+		const plan = planPatch(EVAL_TOOL_DEVICE_DELEGATION, unpatched);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain(
+				"const mountedDevice = directTool ? undefined : options.session.xdevRegistry?.get(name);",
+			);
+		}
+	});
+
+	test("targets the eval tool bridge", () => {
+		expect(EVAL_TOOL_DEVICE_DELEGATION.package).toBe("pi-coding-agent");
+		expect(EVAL_TOOL_DEVICE_DELEGATION.targetRelative).toBe("src/eval/js/tool-bridge.ts");
+	});
+
+	test("re-running planner against the patched output is a no-op", () => {
+		const first = planPatch(EVAL_TOOL_DEVICE_DELEGATION, unpatched);
+		expect(first.kind).toBe("apply");
+		if (first.kind !== "apply") return;
+		expect(planPatch(EVAL_TOOL_DEVICE_DELEGATION, first.nextContent).kind).toBe(
+			"skip-already-applied",
+		);
+	});
+
+	test("included in OMP_PATCHES", () => {
+		expect(OMP_PATCHES.map(p => p.id)).toContain(EVAL_TOOL_DEVICE_DELEGATION.id);
 	});
 });
 
