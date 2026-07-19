@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
 	CONVERT_TO_LLM_CONTENT_GUARD,
+	EVAL_WRITE_PROTOCOL_DELEGATION,
 	OMP_PATCHES,
 	type Patch,
 	planPatch,
@@ -167,6 +168,45 @@ describe("TREE_SELECTOR_CUSTOM_MESSAGE_GUARD", () => {
 
 	test("included in OMP_PATCHES", () => {
 		expect(OMP_PATCHES.map(p => p.id)).toContain(TREE_SELECTOR_CUSTOM_MESSAGE_GUARD.id);
+	});
+});
+
+describe("EVAL_WRITE_PROTOCOL_DELEGATION", () => {
+	const unpatched = [
+		"\tconst read = async (path, opts, ...rest) => {",
+		'\t\treturn callHelper("read", path, options);',
+		"\t};",
+		'\tconst write = async (path, data) => callHelper("writeFile", path, data);',
+		'\tconst env = (key, value) => callHelper("env", key, value);',
+		"",
+	].join("\n");
+
+	test("delegates protocol writes through the session write tool", () => {
+		const plan = planPatch(EVAL_WRITE_PROTOCOL_DELEGATION, unpatched);
+		expect(plan.kind).toBe("apply");
+		if (plan.kind === "apply") {
+			expect(plan.nextContent).toContain(EVAL_WRITE_PROTOCOL_DELEGATION.appliedSignature);
+			expect(plan.nextContent).toContain("{ path, content: data }");
+			expect(plan.nextContent).toContain('!path.toLowerCase().startsWith("local://")');
+		}
+	});
+
+	test("targets the eval JavaScript prelude", () => {
+		expect(EVAL_WRITE_PROTOCOL_DELEGATION.package).toBe("pi-coding-agent");
+		expect(EVAL_WRITE_PROTOCOL_DELEGATION.targetRelative).toBe("src/eval/js/shared/prelude.txt");
+	});
+
+	test("re-running planner against the patched output is a no-op", () => {
+		const first = planPatch(EVAL_WRITE_PROTOCOL_DELEGATION, unpatched);
+		expect(first.kind).toBe("apply");
+		if (first.kind !== "apply") return;
+		expect(planPatch(EVAL_WRITE_PROTOCOL_DELEGATION, first.nextContent).kind).toBe(
+			"skip-already-applied",
+		);
+	});
+
+	test("included in OMP_PATCHES", () => {
+		expect(OMP_PATCHES.map(p => p.id)).toContain(EVAL_WRITE_PROTOCOL_DELEGATION.id);
 	});
 });
 

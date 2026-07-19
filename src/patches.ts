@@ -202,10 +202,36 @@ export const TREE_SELECTOR_CUSTOM_MESSAGE_GUARD: Patch = {
 };
 
 /**
+ * Route non-local protocol writes from the eval JS `write()` helper through
+ * the session's real write tool. The helper already delegates protocol reads,
+ * but its write side otherwise sends `xd://browser` to the filesystem-only
+ * resolver and fails before the mounted device can execute.
+ */
+export const EVAL_WRITE_PROTOCOL_DELEGATION: Patch = {
+	id: "eval-write-protocol-delegation",
+	package: "pi-coding-agent",
+	targetRelative: "src/eval/js/shared/prelude.txt",
+	description: "Delegate eval helper protocol writes to the session write tool.",
+	anchor: '\tconst write = async (path, data) => callHelper("writeFile", path, data);',
+	replacement: [
+		"\tconst write = async (path, data) => {",
+		'\t\tif (hasScheme(path) && !path.toLowerCase().startsWith("local://")) {',
+		'\t\t\tconst res = await globalThis.__omp_call_tool__("write", { path, content: data });',
+		'\t\t\treturn res && typeof res === "object" && "text" in res ? res.text : res;',
+		"\t\t}",
+		'\t\treturn callHelper("writeFile", path, data);',
+		"\t};",
+	].join("\n"),
+	appliedSignature:
+		'const res = await globalThis.__omp_call_tool__("write", { path, content: data });',
+};
+
+/**
  * Ordered list of patches the bootstrap step applies, in declaration order.
  * Order matters: later patches see the file as left by earlier patches.
  */
 export const OMP_PATCHES: readonly Patch[] = [
 	CONVERT_TO_LLM_CONTENT_GUARD,
 	TREE_SELECTOR_CUSTOM_MESSAGE_GUARD,
+	EVAL_WRITE_PROTOCOL_DELEGATION,
 ];
