@@ -20,6 +20,7 @@ import {
 import { updateImpeccableFromRemote } from "./impeccable-update-runtime.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
+import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { expandHome, PLANNOTATOR_SKILLS } from "./paths.ts";
@@ -257,6 +258,14 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 				] satisfies ManagedAgentCheck,
 		),
 		[join(agentDir, "config.yml"), "config.yml", "file"],
+		...LOCAL_MANAGED_RULES.map(
+			rule =>
+				[
+					join(agentDir, "rules", `${rule}.md`),
+					`rules/${rule}.md`,
+					"symlink",
+				] satisfies ManagedAgentCheck,
+		),
 	];
 }
 

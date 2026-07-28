@@ -14,6 +14,7 @@ import {
 	resolveOmpSourceEntry,
 } from "./bin-link-runtime.ts";
 import { MANAGED_CONFIG, mergeManagedConfig } from "./config.ts";
+import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { OMP_PATCHES } from "./patches.ts";
 import {
@@ -100,7 +101,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		join(extensionsDir, "omp-session-env.ts"),
 		...removedManagedSymlinkPaths,
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
-		join(agentDir, "rules", "planning-docs.md"),
+		...LOCAL_MANAGED_RULES.map(rule => join(agentDir, "rules", `${rule}.md`)),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
 		...patchTargets,
@@ -129,10 +130,10 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 			source: join(options.repoRoot, "agent", "skills", skillName),
 			destination: join(agentDir, "skills", skillName),
 		})),
-		{
-			source: join(options.repoRoot, "agent", "rules", "planning-docs.md"),
-			destination: join(agentDir, "rules", "planning-docs.md"),
-		},
+		...LOCAL_MANAGED_RULES.map(rule => ({
+			source: join(options.repoRoot, "agent", "rules", `${rule}.md`),
+			destination: join(agentDir, "rules", `${rule}.md`),
+		})),
 	]);
 	// Report every blocked destination at once. `executeLinkPlan` throws on the
 	// first one it reaches, so a home directory with four real files sitting on
