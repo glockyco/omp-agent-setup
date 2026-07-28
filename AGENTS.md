@@ -22,7 +22,17 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 
 ## Architecture
 
-Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads live in `agent/` and `extensions/`; managed local skills are the names in `src/managed-skills.ts` under `agent/skills/<name>/`.
+Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads live in `agent/` and `extensions/`.
+
+Three registries name what gets deployed. Add the payload file and the registry entry in the same change: `planManagedLinks` never checks that a source exists, so a name registered ahead of its file deploys a dangling symlink.
+
+| Registry | Payload | Deployed at |
+|---|---|---|
+| `src/managed-skills.ts` | `agent/skills/<name>/` | `~/.omp/agent/skills/<name>` — symlink |
+| `src/managed-rules.ts` | `agent/rules/<name>.md` | `~/.omp/agent/rules/<name>.md` — symlink |
+| `src/mcp.ts` (`MANAGED_MCP_SERVERS`) | the spec's `config` object | `~/.omp/agent/mcp.json` — merged |
+
+The MCP registry covers one class of server: **Streamable HTTP, unauthenticated, readiness determined by calling a zero-argument tool**. Within that class a new server is one registry entry plus at most one `interpret` function. Anything else — stdio, SSE, auth headers, non-tool readiness — needs new runtime code in `src/mcp-runtime.ts`, not just a row. Timeouts in the registry are measured, not guessed: OMP burns roughly `0.65 x timeout` during session teardown whether or not a tool was called, so re-measure before raising one.
 
 New pure logic gets unit tests before merge. Real-IO behaviour stays in `*-runtime.ts` and is injected into pure functions via parameters. See how `executeCheckoutSteps(steps, runner, probe)` takes its runtime as arguments.
 
@@ -34,7 +44,9 @@ Use Conventional Commits (`skill://commit`). Lefthook enforces lint + typecheck 
 
 | Don't | Instead |
 |---|---|
-| Edit deployed copies under `~/.omp/agent/` | Edit the source in `agent/` or `extensions/`, then `bun run bootstrap`. Managed skill sources live under `agent/skills/<name>/SKILL.md`. |
+| Edit deployed copies under `~/.omp/agent/` | Edit the source in `agent/` or `extensions/`, then `bun run bootstrap`. Managed skill sources live under `agent/skills/<name>/SKILL.md`, rules under `agent/rules/<name>.md`. |
+| Symlink `~/.omp/agent/mcp.json` into the repo the way `lsp.json` is | Keep it merged. OMP writes this file itself (`/mcp add`, `/mcp disable`, `/mcp reauth`, `$schema` injection), so a symlink turns every `/mcp disable` into permanent working-tree dirt. `lsp.json` is safe to symlink precisely because OMP never writes it. |
+| Install a background service from `bun run bootstrap` | Bootstrap stays idempotent and safe on any machine. Put the command in the spec's `launchdService.installCommand` and let `bun run doctor` surface it as the remediation. |
 | Update Impeccable by editing `agent/skills/impeccable` or the deployed symlink | Run `bun run update-impeccable`, review the vendored diff, then `bun run bootstrap`. |
 | Add relative imports outside `extensions/` to `omp-session-env.ts` | Inline the helper. The file is symlinked, so relative imports resolve against the symlink path and break the loader. |
 | Take a runtime dep on `@oh-my-pi/pi-coding-agent` | Use the ambient declaration in `types/omp.d.ts` (whitelisted in `knip.json`). |
@@ -42,6 +54,14 @@ Use Conventional Commits (`skill://commit`). Lefthook enforces lint + typecheck 
 | Hand-edit installed `@oh-my-pi` package sources (`pi-coding-agent`, `pi-agent-core`, `pi-ai`) to keep a modification across `omp update` | Add the modification to `src/patches.ts` (set `package` + anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. Patches target **TypeScript source only** — bootstrap re-points the `omp` bin at `pi-coding-agent/src/cli.ts` so the package runs from source (Bun resolves `@oh-my-pi/*` imports to `src/`), which is what makes source patches effective at runtime. Never patch the minified `dist/cli.js`; its anchors drift on nearly every release. Each patch resolves to `node_modules/@oh-my-pi/<package>/<targetRelative>`, addressed by name — never via `../` escapes. |
 | Re-point or hand-edit `~/.bun/bin/omp` to change what `omp` runs | `bun run bootstrap` owns the bin (`src/bin-link.ts` + `-runtime.ts`): it snapshots, then re-points the symlink to `pi-coding-agent/src/cli.ts`. `omp update` resets it to `dist/cli.js` — just re-run bootstrap. |
 | Add an `lsp.json` to a user project to "fix" missing LSP coverage | The fleet is configured globally. Either install the missing binary via `scripts/install-lsp.sh` (preferred) or extend `agent/lsp.json`. Per-repo overrides only when project conventions genuinely differ. |
+
+## MCP servers
+
+`bun run doctor` checks four things per managed server: the `mcp.json` entry still deep-equals the registry, the pinned binary is installed at its version, the launchd plist exists, and the daemon answers its readiness tool. Each failure prints its own remediation.
+
+A server whose backing app is not running reports `note`, not `WARN`, and does not fail doctor. That is deliberate — a health report that turns red whenever the user quits an app is one they learn to ignore. Reserve `warn`/`miss` for states the user can actually fix.
+
+No server-specific identifier belongs in `src/cli.ts`, `src/bootstrap.ts`, or `src/mcp-runtime.ts`. `grep -rn "<server>" src/cli.ts src/bootstrap.ts src/mcp-runtime.ts` returning nothing is the check that the registry is still a template.
 
 ## LSP maintenance
 

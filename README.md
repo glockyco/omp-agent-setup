@@ -28,13 +28,24 @@ bun run verify
 
 | Source | Deployed at |
 |---|---|
-| `agent/AGENTS.md`, `agent/lsp.json`, `extensions/omp-session-env.ts`, `agent/skills/` | `~/.omp/agent/` — symlinked |
+| `agent/AGENTS.md`, `agent/lsp.json`, `extensions/omp-session-env.ts`, `agent/skills/`, `agent/rules/` | `~/.omp/agent/` — symlinked |
 | managed keys in `src/config.ts` | `~/.omp/agent/config.yml` — merged |
+| managed servers in `src/mcp.ts` | `~/.omp/agent/mcp.json` — merged |
 | `manifests/plugins.yml` | active plugin checkouts under `~/Projects/` |
 | `src/patches.ts` | OMP source files — patched in place; re-run `bootstrap` after `omp update` |
 
 Every run snapshots the pre-deploy state to `backups/<UTC-timestamp>/` before touching anything.
-`bun run doctor` reports the current state without changing anything.
+`bun run doctor` reports the current state without changing anything, including whether each managed MCP server's binary, background service, and daemon are actually healthy.
+
+Bootstrap deliberately does not install background services. When a managed MCP server needs one, `doctor` prints the install command instead.
+
+## MCP servers
+
+| Server | Endpoint | Needs |
+|---|---|---|
+| `remnote` | `http://127.0.0.1:3001/mcp` | `remnote-mcp-server` on `PATH`, its launchd agent, and RemNote.app open for reads and writes |
+
+Install the RemNote daemon's background service once with `remnote-mcp-server daemon install-launchd`; `remnote-mcp-server daemon uninstall-launchd` reverses it. Operating guidance for agents lives in [`agent/rules/remnote.md`](./agent/rules/remnote.md).
 
 ## Commands
 
