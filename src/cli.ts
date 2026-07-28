@@ -22,6 +22,7 @@ import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
+import { expandHome, PLANNOTATOR_SKILLS } from "./paths.ts";
 import { loadManifest } from "./plugins-runtime.ts";
 import { checkSkillLoader, ompDirectSmoke, ompExtensionSmoke, scanLog } from "./verify.ts";
 import { makeRealSkillLoader, readLogFile, realRunner } from "./verify-runtime.ts";
@@ -70,7 +71,7 @@ async function cmdVerify(_args: string[]): Promise<number> {
 		const home = homedir();
 		const loader = await checkSkillLoader({
 			cwd: process.cwd(),
-			customDirectories: [join(home, "Projects", "plannotator", "apps", "pi-extension", "skills")],
+			customDirectories: [expandHome(PLANNOTATOR_SKILLS, home)],
 			requiredSkillNames: REQUIRED_SKILLS,
 			loader: makeRealSkillLoader(),
 		});
