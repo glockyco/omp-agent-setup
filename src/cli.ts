@@ -15,6 +15,7 @@ import {
 	runBootstrap,
 	summarizeReport,
 	unhealthyPatchExecutions,
+	unhealthyPluginSteps,
 } from "./bootstrap.ts";
 import { updateImpeccableFromRemote } from "./impeccable-update-runtime.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
@@ -40,7 +41,8 @@ async function cmdBootstrap(_args: string[]): Promise<number> {
 	const binUnhealthy =
 		(report.binLink !== undefined && isBinLinkUnhealthy(report.binLink)) ||
 		(report.plansBinLink !== undefined && isBinLinkUnhealthy(report.plansBinLink));
-	return patchUnhealthy || binUnhealthy ? 1 : 0;
+	const pluginUnhealthy = unhealthyPluginSteps(report.pluginSteps).length > 0;
+	return patchUnhealthy || binUnhealthy || pluginUnhealthy ? 1 : 0;
 }
 
 async function cmdVerify(_args: string[]): Promise<number> {

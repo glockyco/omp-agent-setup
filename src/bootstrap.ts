@@ -209,6 +209,12 @@ export function summarizeReport(report: BootstrapReport): string {
 		for (const step of report.pluginSteps) {
 			lines.push(`  - ${step.kind} ${step.plugin.name}`);
 		}
+		const unhealthy = unhealthyPluginSteps(report.pluginSteps);
+		if (unhealthy.length > 0) {
+			lines.push(
+				`⚠ Plugin branch missing: ${unhealthy.length} plugin(s) — fetch the branch or fix manifests/plugins.yml.`,
+			);
+		}
 	}
 	if (report.patchExecutions.length > 0) {
 		lines.push(`OMP patches: ${summarizePatchExecutions(report.patchExecutions)}`);
@@ -260,6 +266,18 @@ export function unhealthyPatchExecutions(executions: readonly PatchExecution[]):
 	return executions.filter(
 		execution => execution.kind !== "apply" && execution.kind !== "skip-already-applied",
 	);
+}
+
+/**
+ * Checkout steps that need human attention. `executeCheckoutSteps` treats
+ * `branch-missing` as a deliberate no-op — the manifest asks for a branch that
+ * resolves neither locally nor on origin, and guessing a substitute would be
+ * worse than leaving the checkout alone. Reporting it is therefore the only
+ * signal the user gets, so bootstrap surfaces it and exits non-zero rather than
+ * leaving a plugin silently parked on the wrong branch.
+ */
+export function unhealthyPluginSteps(steps: readonly CheckoutStep[]): CheckoutStep[] {
+	return steps.filter(step => step.kind === "branch-missing");
 }
 
 function describeBinLink(execution: BinLinkExecution): string {
