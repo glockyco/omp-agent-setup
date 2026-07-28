@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { lstat, readlink } from "node:fs/promises";
+import { lstat, readlink, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -130,20 +130,26 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 	const checks = managedAgentChecks(agentDir);
 	let issues = 0;
 	for (const [path, label, expected] of checks) {
-		try {
-			const stat = await lstat(path);
-			if (expected === "symlink" && !stat.isSymbolicLink()) {
+		const status = await classifyManagedCheck(path, expected);
+		switch (status.kind) {
+			case "ok":
+				console.log(`  ok   ${label}`);
+				break;
+			case "ok-symlink":
+				console.log(`  ok   ${label} -> ${status.target}`);
+				break;
+			case "dangling-symlink":
+				console.log(`  WARN ${label} -> ${status.target} (dangling)`);
+				issues++;
+				break;
+			case "not-symlink":
 				console.log(`  WARN: ${label} exists but is not a symlink`);
 				issues++;
-			} else if (stat.isSymbolicLink()) {
-				const target = await readlink(path);
-				console.log(`  ok   ${label} -> ${target}`);
-			} else {
-				console.log(`  ok   ${label}`);
-			}
-		} catch {
-			console.log(`  MISS ${label}`);
-			issues++;
+				break;
+			case "missing":
+				console.log(`  MISS ${label}`);
+				issues++;
+				break;
 		}
 	}
 	const binPath = resolveBunBinPath();
@@ -194,6 +200,45 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 }
 
 type ManagedAgentCheck = [path: string, label: string, expected: "symlink" | "file"];
+
+export type ManagedCheckStatus =
+	| { kind: "ok" }
+	| { kind: "ok-symlink"; target: string }
+	| { kind: "dangling-symlink"; target: string }
+	| { kind: "not-symlink" }
+	| { kind: "missing" };
+
+/**
+ * Classify one managed-agent-dir check so `cmdDoctor` only has to format the
+ * result.
+ *
+ * A symlink counts as healthy only when its target resolves. `executeLinkPlan`
+ * creates links without verifying the source exists, so a managed name that was
+ * registered before its payload landed produces a link that `lstat` reports as
+ * a perfectly good symlink while every reader of it fails with ENOENT. Probing
+ * the target with `stat` (which follows the link) is what separates the two.
+ */
+export async function classifyManagedCheck(
+	path: string,
+	expected: "symlink" | "file",
+): Promise<ManagedCheckStatus> {
+	let target: string;
+	try {
+		const entry = await lstat(path);
+		if (!entry.isSymbolicLink()) {
+			return expected === "symlink" ? { kind: "not-symlink" } : { kind: "ok" };
+		}
+		target = await readlink(path);
+	} catch {
+		return { kind: "missing" };
+	}
+	try {
+		await stat(path);
+	} catch {
+		return { kind: "dangling-symlink", target };
+	}
+	return { kind: "ok-symlink", target };
+}
 
 export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 	return [
