@@ -16,6 +16,7 @@ import {
 import { MANAGED_CONFIG, mergeManagedConfig } from "./config.ts";
 import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
+import { MANAGED_MCP_SERVERS, mergeManagedMcpConfig } from "./mcp.ts";
 import { OMP_PATCHES } from "./patches.ts";
 import {
 	applyPatches,
@@ -62,6 +63,7 @@ export interface BootstrapReport {
 	links: LinkPlan;
 	removedSymlinks: SymlinkRemovalPlan;
 	configChanged: boolean;
+	mcpConfigChanged: boolean;
 	pluginSteps: CheckoutStep[];
 	patchExecutions: PatchExecution[];
 	binLink?: BinLinkExecution;
@@ -96,6 +98,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	];
 	const sourcesToSnapshot = [
 		join(agentDir, "config.yml"),
+		join(agentDir, "mcp.json"),
 		join(agentDir, "AGENTS.md"),
 		join(agentDir, "lsp.json"),
 		join(extensionsDir, "omp-session-env.ts"),
@@ -161,6 +164,20 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		await writeFile(configPath, merged);
 	}
 
+	const mcpConfigPath = join(agentDir, "mcp.json");
+	let existingMcpJson = "";
+	try {
+		existingMcpJson = await readFile(mcpConfigPath, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+	}
+	const mergedMcp = mergeManagedMcpConfig(existingMcpJson, MANAGED_MCP_SERVERS);
+	const mcpConfigChanged = mergedMcp !== existingMcpJson;
+	if (mcpConfigChanged) {
+		await mkdir(dirname(mcpConfigPath), { recursive: true });
+		await writeFile(mcpConfigPath, mergedMcp);
+	}
+
 	const removedSymlinks = await planSymlinkRemoval(removedManagedSymlinkPaths);
 	await executeSymlinkRemoval(removedSymlinks);
 
@@ -193,6 +210,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		links,
 		removedSymlinks,
 		configChanged,
+		mcpConfigChanged,
 		pluginSteps,
 		patchExecutions,
 		binLink,
@@ -215,6 +233,7 @@ export function summarizeReport(report: BootstrapReport): string {
 		lines.push(`Removed retired symlinks: ${report.removedSymlinks.entries.length}`);
 	}
 	lines.push(`Config: ${report.configChanged ? "updated" : "unchanged"}`);
+	lines.push(`MCP config: ${report.mcpConfigChanged ? "updated" : "unchanged"}`);
 	if (report.pluginSteps.length > 0) {
 		lines.push(`Plugin steps: ${report.pluginSteps.length}`);
 		for (const step of report.pluginSteps) {

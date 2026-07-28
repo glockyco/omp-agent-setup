@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runBootstrap, summarizeReport } from "../../src/bootstrap.ts";
 import { MANAGED_CONFIG, readTopLevel } from "../../src/config.ts";
+import { managedMcpServerConfigs } from "../../src/mcp.ts";
 
 let tempHome: string;
 let agentDir: string;
@@ -97,9 +98,17 @@ describe("runBootstrap (integration)", () => {
 		const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as unknown[];
 		expect(manifest.length).toBeGreaterThan(0);
 
+		// Managed MCP servers are merged into mcp.json.
+		const mcpJson = JSON.parse(await readFile(join(agentDir, "mcp.json"), "utf8")) as {
+			mcpServers: Record<string, unknown>;
+		};
+		expect(mcpJson.mcpServers).toEqual(managedMcpServerConfigs());
+
 		// Report is summarizable.
 		expect(summarizeReport(report)).toContain("Backup directory:");
 		expect(report.configChanged).toBe(true);
+		expect(report.mcpConfigChanged).toBe(true);
+		expect(summarizeReport(report)).toContain("MCP config: updated");
 	});
 
 	test("leaves Zed settings untouched", async () => {
@@ -124,6 +133,8 @@ describe("runBootstrap (integration)", () => {
 
 		expect(configSecond).toBe(configFirst);
 		expect(second.configChanged).toBe(false);
+		expect(second.mcpConfigChanged).toBe(false);
+		expect(summarizeReport(second)).toContain("MCP config: unchanged");
 		expect(second.links.entries.every(e => e.kind === "skip")).toBe(true);
 	});
 

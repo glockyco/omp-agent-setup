@@ -60,6 +60,7 @@ function reportWith(pluginSteps: CheckoutStep[]): BootstrapReport {
 		links: { entries: [] },
 		removedSymlinks: { entries: [] },
 		configChanged: false,
+		mcpConfigChanged: false,
 		pluginSteps,
 		patchExecutions: [],
 	};
