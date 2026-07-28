@@ -128,6 +128,12 @@ async function copyDirectory(source: string, destination: string): Promise<void>
 /**
  * Generate a UTC timestamp directory name suitable for `backups/<name>` so the
  * caller can choose where each snapshot lives.
+ *
+ * Millisecond precision is load-bearing, not decoration: the name is the only
+ * thing keeping two snapshots apart, and `executeSnapshot` writes both the
+ * copied files and a `manifest.json` into whatever directory it is handed. Two
+ * bootstraps inside the same second would otherwise interleave their contents
+ * under one name and leave a manifest describing only the second run.
  */
 export function timestampedBackupDirName(date: Date = new Date()): string {
 	const pad = (n: number, w = 2) => String(n).padStart(w, "0");
@@ -139,6 +145,7 @@ export function timestampedBackupDirName(date: Date = new Date()): string {
 		`${pad(date.getUTCHours())}` +
 		`${pad(date.getUTCMinutes())}` +
 		`${pad(date.getUTCSeconds())}` +
+		`${pad(date.getUTCMilliseconds(), 3)}` +
 		`Z`
 	);
 }

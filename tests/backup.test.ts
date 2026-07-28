@@ -102,7 +102,19 @@ describe("executeSnapshot", () => {
 
 describe("timestampedBackupDirName", () => {
 	test("formats UTC timestamps deterministically", () => {
-		const name = timestampedBackupDirName(new Date(Date.UTC(2026, 4, 13, 9, 7, 5)));
-		expect(name).toBe("20260513T090705Z");
+		const name = timestampedBackupDirName(new Date(Date.UTC(2026, 4, 13, 9, 7, 5, 123)));
+		expect(name).toBe("20260513T090705123Z");
+	});
+
+	test("zero-pads sub-second precision to three digits", () => {
+		const name = timestampedBackupDirName(new Date(Date.UTC(2026, 4, 13, 9, 7, 5, 7)));
+		expect(name).toBe("20260513T090705007Z");
+	});
+
+	test("separates snapshots taken one millisecond apart", () => {
+		const base = Date.UTC(2026, 4, 13, 9, 7, 5, 400);
+		expect(timestampedBackupDirName(new Date(base))).not.toBe(
+			timestampedBackupDirName(new Date(base + 1)),
+		);
 	});
 });
