@@ -39,11 +39,13 @@ describe("managedAgentChecks", () => {
 		const agentDir = "/tmp/omp-agent";
 		const checks = managedAgentChecks(agentDir);
 
-		expect(checks).toContainEqual([
-			join(agentDir, "rules", "planning-docs.md"),
-			"rules/planning-docs.md",
-			"symlink",
-		]);
+		for (const rule of ["planning-docs", "remnote"]) {
+			expect(checks).toContainEqual([
+				join(agentDir, "rules", `${rule}.md`),
+				`rules/${rule}.md`,
+				"symlink",
+			]);
+		}
 	});
 
 	test("checks the OMP session environment extension", () => {
