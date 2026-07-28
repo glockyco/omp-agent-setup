@@ -205,10 +205,25 @@ memory:
 		await writeFile(join(agentDir, "AGENTS.md"), "user-authored content");
 		await symlink(join(repoRoot, "extensions", "superpowers-bootstrap.ts"), oldExtension);
 
-		await expect(bootstrapSandbox()).rejects.toThrow(/Refusing to replace non-symlink/);
+		await expect(bootstrapSandbox()).rejects.toThrow(/Refusing to replace 1 non-symlink destination/);
 		await expect(readlink(oldExtension)).resolves.toBe(
 			join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
 		);
+	});
+
+	test("names every blocked destination in a single error", async () => {
+		await mkdir(agentDir, { recursive: true });
+		await writeFile(join(agentDir, "AGENTS.md"), "user-authored content");
+		await writeFile(join(agentDir, "lsp.json"), "{}\n");
+
+		const error = await bootstrapSandbox().then(
+			() => null,
+			(caught: unknown) => caught as Error,
+		);
+
+		expect(error?.message).toContain("Refusing to replace 2 non-symlink destination(s)");
+		expect(error?.message).toContain(join(agentDir, "AGENTS.md"));
+		expect(error?.message).toContain(join(agentDir, "lsp.json"));
 	});
 
 	test("patch application stays inside the sandbox, never the real install", async () => {

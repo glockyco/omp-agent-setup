@@ -134,6 +134,16 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 			destination: join(agentDir, "rules", "planning-docs.md"),
 		},
 	]);
+	// Report every blocked destination at once. `executeLinkPlan` throws on the
+	// first one it reaches, so a home directory with four real files sitting on
+	// managed names costs four consecutive failed bootstraps to discover.
+	const blocked = links.entries.filter(entry => entry.kind === "blocked");
+	if (blocked.length > 0) {
+		const list = blocked.map(entry => `  - ${entry.destination}`).join("\n");
+		throw new Error(
+			`Refusing to replace ${blocked.length} non-symlink destination(s); remove or move them manually first:\n${list}`,
+		);
+	}
 	await executeLinkPlan(links);
 
 	const configPath = join(agentDir, "config.yml");
