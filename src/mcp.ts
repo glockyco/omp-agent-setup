@@ -14,7 +14,7 @@ export interface McpHealth {
 /**
  * Readiness probe. Assumes Streamable HTTP and a zero-argument readiness tool.
  */
-interface McpProbeSpec {
+export interface McpProbeSpec {
 	url: string;
 	readinessTool: string;
 	/**
@@ -24,7 +24,7 @@ interface McpProbeSpec {
 	interpret: (resultText: string) => McpHealth;
 }
 
-interface McpBinSpec {
+export interface McpBinSpec {
 	command: string;
 	versionArgs: string[];
 	expected: string;
@@ -35,7 +35,7 @@ interface McpBinSpec {
  * macOS launchd agent this server depends on. Named for the mechanism, not
  * generalized: the check is a plist existence test under `~/Library/LaunchAgents`.
  */
-interface McpLaunchdServiceSpec {
+export interface McpLaunchdServiceSpec {
 	label: string;
 	installCommand: string;
 }

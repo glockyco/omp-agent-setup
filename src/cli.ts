@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
-import { lstat, readlink, stat } from "node:fs/promises";
+import { lstat, readFile, readlink, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { planBinLink } from "./bin-link.ts";
 import {
 	isUsableSourceEntry,
@@ -22,6 +23,8 @@ import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
 import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
+import { isParsableMcpJson, MANAGED_MCP_SERVERS, type McpHealth, readMcpServer } from "./mcp.ts";
+import { checkMcpServer } from "./mcp-runtime.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { expandHome, PLANNOTATOR_SKILLS } from "./paths.ts";
 import { loadManifest } from "./plugins-runtime.ts";
@@ -195,12 +198,59 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 			issues++;
 		}
 	}
+	const mcpText = await readMcpJson(agentDir);
+	const mcpParsable = isParsableMcpJson(mcpText);
+	if (!mcpParsable) {
+		console.log("  WARN mcp.json is not valid JSON; fix or delete it, then run bun run bootstrap");
+		issues++;
+	}
+	for (const spec of MANAGED_MCP_SERVERS) {
+		// A malformed file already reported itself once; re-reporting it per server
+		// would bury the one line that says how to fix it.
+		if (mcpParsable) {
+			if (isDeepStrictEqual(readMcpServer(mcpText, spec.name), spec.config)) {
+				console.log(`  ok   mcp ${spec.name} entry`);
+			} else {
+				console.log(`  WARN mcp ${spec.name} entry drifted; run bun run bootstrap`);
+				issues++;
+			}
+		}
+		const report = await checkMcpServer(spec, home);
+		for (const health of [report.bin, report.launchdService, report.probe]) {
+			if (!health) continue;
+			console.log(`  ${statusTag(health.level)} mcp ${spec.name}: ${health.message}`);
+			if (health.level === "warn" || health.level === "miss") issues++;
+		}
+	}
 	if (issues > 0) {
 		console.error(`\nDoctor found ${issues} issue(s).`);
 		return 1;
 	}
 	console.log("\nDoctor: healthy.");
 	return 0;
+}
+
+async function readMcpJson(agentDir: string): Promise<string> {
+	try {
+		return await readFile(join(agentDir, "mcp.json"), "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return "";
+		throw error;
+	}
+}
+
+/** Four-character status column, matching the existing `ok  `/`MISS`/`WARN` rows. */
+function statusTag(level: McpHealth["level"]): string {
+	switch (level) {
+		case "ok":
+			return "ok  ";
+		case "note":
+			return "note";
+		case "warn":
+			return "WARN";
+		case "miss":
+			return "MISS";
+	}
 }
 
 type ManagedAgentCheck = [path: string, label: string, expected: "symlink" | "file"];
@@ -258,6 +308,7 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 				] satisfies ManagedAgentCheck,
 		),
 		[join(agentDir, "config.yml"), "config.yml", "file"],
+		[join(agentDir, "mcp.json"), "mcp.json", "file"],
 		...LOCAL_MANAGED_RULES.map(
 			rule =>
 				[

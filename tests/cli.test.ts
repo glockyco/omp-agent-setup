@@ -28,6 +28,13 @@ describe("managedAgentChecks", () => {
 		}
 	});
 
+	test("checks mcp.json as a merged file, not a symlink", () => {
+		const agentDir = "/tmp/omp-agent";
+		const checks = managedAgentChecks(agentDir);
+
+		expect(checks).toContainEqual([join(agentDir, "mcp.json"), "mcp.json", "file"]);
+	});
+
 	test("includes source-managed rules as managed symlinks", () => {
 		const agentDir = "/tmp/omp-agent";
 		const checks = managedAgentChecks(agentDir);
