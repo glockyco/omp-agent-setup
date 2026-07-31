@@ -1,11 +1,11 @@
 ---
 title: Command Surface Redesign Spec
 type: spec
-status: active
+status: implemented
 created: 2026-07-31
 parent: 2026-07-31-setup-maintenance-overview
 superseded_by:
-archived:
+archived: 2026-07-31
 ---
 
 This change adds one safe OMP update workflow while improving diagnosis and audit evidence without growing the public maintenance surface.

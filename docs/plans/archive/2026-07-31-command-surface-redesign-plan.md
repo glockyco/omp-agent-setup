@@ -1,11 +1,11 @@
 ---
 title: Command Surface Redesign Plan
 type: plan
-status: active
+status: implemented
 created: 2026-07-31
 parent: 2026-07-31-command-surface-redesign-spec
 superseded_by:
-archived:
+archived: 2026-07-31
 ---
 
 This plan implements the contracts in [Command Surface Redesign Spec](./2026-07-31-command-surface-redesign-spec.md).
@@ -75,20 +75,20 @@ This plan implements the contracts in [Command Surface Redesign Spec](./2026-07-
 
 ### Task 5: Complete live verification
 
-- [ ] Run the repository quality gate.
+- [x] Run the repository quality gate.
   Verification: `bun run ci`.
   Expected: lint, types, dead-code, audit, and coverage tests pass.
-- [ ] Run the real safe updater.
+- [x] Run the real safe updater.
   Verification: `bun run update-omp`.
   Expected: before version, all four stage headings, healthy doctor, successful verify, and after version appear in exact order.
-- [ ] Re-run the live LSP audit and search living source and docs for stale package-wrapper and normal-path raw-update guidance.
+- [x] Re-run the live LSP audit and search living source and docs for stale package-wrapper and normal-path raw-update guidance.
   Verification: `bun run audit-lsp` plus scoped searches excluding `docs/plans/archive/`.
   Expected: resolved paths remain visible, `bun run plans` is absent, and raw `omp update` appears only in recovery or expert context.
 
 ### Task 6: Complete planning artifacts
 
-- [ ] Mark the implemented spec and plan complete, archive them, refresh the overview current focus, and regenerate the index.
+- [x] Mark the implemented spec and plan complete, archive them, refresh the overview current focus, and regenerate the index.
   Verification: `omp-plans complete 2026-07-31-command-surface-redesign-plan`, `omp-plans complete 2026-07-31-command-surface-redesign-spec`, `omp-plans index`, and `omp-plans check`.
   Expected: the overview remains active, implemented docs are archived, and planning links validate.
-- [ ] Verify the repository worktree is clean and commit planning completion.
+- [x] Verify the repository worktree is clean and commit planning completion.
   Commit: `docs: complete setup maintenance plan`.

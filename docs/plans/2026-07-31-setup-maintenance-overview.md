@@ -24,9 +24,9 @@ Maintain a small, explicit command surface that safely deploys and updates OMP, 
 
 ## Children
 
-- [Command Surface Redesign Spec](./2026-07-31-command-surface-redesign-spec.md): command, doctor, hook-audit, and LSP output contracts.
-- [Command Surface Redesign Plan](./2026-07-31-command-surface-redesign-plan.md): ordered implementation and verification tasks.
+- [Command Surface Redesign Spec](./archive/2026-07-31-command-surface-redesign-spec.md): implemented command, doctor, hook-audit, and LSP output contracts.
+- [Command Surface Redesign Plan](./archive/2026-07-31-command-surface-redesign-plan.md): completed implementation and verification tasks.
 
 ## Current focus
 
-Implement the command-surface redesign while preserving the seven public maintenance scripts and their distinct ownership boundaries.
+Collect Impeccable audit-pilot evidence until each selected UI repository reaches three real editing sessions and 20 `PostToolUse` records, with review no earlier than 14 days.
