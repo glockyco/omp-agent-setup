@@ -99,6 +99,25 @@ const CONCEPT_SEED_FS_IMPORT: VendorFix = {
 	appliedSignature: "import { realpathSync } from 'node:fs';",
 };
 
+const IMPECCABLE_OMP_HOOK_DETECTION: VendorFix = {
+	id: "omp-hook-detection",
+	targetRelative: "scripts/context.mjs",
+	description: "Recognize the managed OMP design hook without a provider manifest.",
+	anchor: [
+		"  const activeRoot = path.resolve(ctx.projectRoot || process.cwd());",
+		"  if (!hookEnabledAt(activeRoot)) return 'none';",
+		"  const manifests = HOOK_MANIFESTS_BY_PROVIDER[IMPECCABLE_PROVIDER_ID] || [];",
+	].join("\n"),
+	replacement: [
+		"  const activeRoot = path.resolve(ctx.projectRoot || process.cwd());",
+		"  if (!hookEnabledAt(activeRoot)) return 'none';",
+		"  // OMP wires hook-lib.mjs through a global extension rather than a project manifest.",
+		"  if (truthyEnv(process.env.IMPECCABLE_OMP_HOOK)) return 'stop';",
+		"  const manifests = HOOK_MANIFESTS_BY_PROVIDER[IMPECCABLE_PROVIDER_ID] || [];",
+	].join("\n"),
+	appliedSignature: "if (truthyEnv(process.env.IMPECCABLE_OMP_HOOK)) return 'stop';",
+};
+
 const CONCEPT_SEED_MAIN_GUARD: VendorFix = {
 	id: "concept-seed-main-guard",
 	targetRelative: "scripts/concept-seed.mjs",
@@ -133,6 +152,7 @@ const CONCEPT_SEED_MAIN_GUARD: VendorFix = {
  * every fix so a re-vendor cannot quietly drop one.
  */
 export const IMPECCABLE_VENDOR_FIXES: readonly VendorFix[] = [
+	IMPECCABLE_OMP_HOOK_DETECTION,
 	CONCEPT_SEED_FS_IMPORT,
 	CONCEPT_SEED_MAIN_GUARD,
 ];

@@ -298,6 +298,7 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 	return [
 		[join(agentDir, "AGENTS.md"), "AGENTS.md", "symlink"],
 		[join(agentDir, "extensions", "omp-session-env.ts"), "omp-session-env.ts", "symlink"],
+		[join(agentDir, "extensions", "impeccable-hook.ts"), "impeccable-hook.ts", "symlink"],
 		[join(agentDir, "lsp.json"), "lsp.json", "symlink"],
 		...LOCAL_MANAGED_SKILLS.map(
 			skillName =>

@@ -16,7 +16,11 @@ export type ManagedKey = (typeof MANAGED_KEYS)[number];
  * merge logic and tests import it directly.
  */
 export const MANAGED_CONFIG: Record<ManagedKey, unknown> = {
-	extensions: [PLANNOTATOR_EXTENSION, "~/.omp/agent/extensions/omp-session-env.ts"],
+	extensions: [
+		PLANNOTATOR_EXTENSION,
+		"~/.omp/agent/extensions/omp-session-env.ts",
+		"~/.omp/agent/extensions/impeccable-hook.ts",
+	],
 	skills: {
 		customDirectories: [PLANNOTATOR_SKILLS],
 	},

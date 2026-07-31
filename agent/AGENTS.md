@@ -23,7 +23,7 @@ the active list. Full convention: `skill://planning-files`.
 
 ## Design assistance
 
-Impeccable is available globally for frontend/design work. Use project `PRODUCT.md`/`DESIGN.md` when present. Don't impose visual redesigns on non-UI tasks.
+Impeccable is available globally for frontend/design work. Its managed OMP extension runs the immediate detector after direct UI file edits and a deduplicated deep pass when the agent settles; respect its findings as review input, not automatic defects. Use project `PRODUCT.md`/`DESIGN.md` when present. Don't impose visual redesigns on non-UI tasks.
 
 ## Writing style
 
@@ -31,6 +31,6 @@ Avoid semicolons in prose. Split the thought into separate sentences, or use a c
 
 ## Conventions and recovery
 
-Files under `~/.omp/agent/` (`AGENTS.md`, `extensions/omp-session-env.ts`, `lsp.json`, `skills/<name>/`, managed keys in `config.yml`) are owned by `glockyco/omp-agent-setup`. Managed skill names live in `src/managed-skills.ts`. Don't edit deployed copies directly. Change the source in `~/Projects/omp-agent-setup/` and run `bun run bootstrap` (`bun run doctor` for a health check, `bun run verify` for the full gate). Commit guidance lives in `skill://commit`. Documentation guidance lives in `skill://writing-project-readmes` and `skill://writing-agent-instructions`. Don't add repo-local plugin or skill copies unless a repo needs a genuine override.
+Files under `~/.omp/agent/` (`AGENTS.md`, managed `extensions/*.ts`, `lsp.json`, `skills/<name>/`, managed keys in `config.yml`) are owned by `glockyco/omp-agent-setup`. Managed skill names live in `src/managed-skills.ts`. Don't edit deployed copies directly. Change the source in `~/Projects/omp-agent-setup/` and run `bun run bootstrap` (`bun run doctor` for a health check, `bun run verify` for the full gate). Commit guidance lives in `skill://commit`. Documentation guidance lives in `skill://writing-project-readmes` and `skill://writing-agent-instructions`. Don't add repo-local plugin or skill copies unless a repo needs a genuine override.
 
 If Plannotator seems inactive, verify `~/Projects/plannotator/apps/pi-extension/` is built and that `bun run doctor` sees the managed extension/config surfaces.

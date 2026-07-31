@@ -112,6 +112,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		join(agentDir, "AGENTS.md"),
 		join(agentDir, "lsp.json"),
 		join(extensionsDir, "omp-session-env.ts"),
+		join(extensionsDir, "impeccable-hook.ts"),
 		...removedManagedSymlinkPaths,
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
 		...LOCAL_MANAGED_RULES.map(rule => join(agentDir, "rules", `${rule}.md`)),
@@ -144,6 +145,10 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		{
 			source: join(options.repoRoot, "extensions", "omp-session-env.ts"),
 			destination: join(extensionsDir, "omp-session-env.ts"),
+		},
+		{
+			source: join(options.repoRoot, "extensions", "impeccable-hook.ts"),
+			destination: join(extensionsDir, "impeccable-hook.ts"),
 		},
 		...LOCAL_MANAGED_SKILLS.map(skillName => ({
 			source: join(options.repoRoot, "agent", "skills", skillName),
