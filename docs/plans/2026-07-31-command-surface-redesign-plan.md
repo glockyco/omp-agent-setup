@@ -44,10 +44,10 @@ This plan implements the contracts in [Command Surface Redesign Spec](./2026-07-
 
 ### Task 2: Share Impeccable doctor invariants
 
-- [ ] Add the stable read-only inspector, make the updater aggregate its findings, and render every finding in doctor with the exact healthy and remediation lines.
+- [x] Add the stable read-only inspector, make the updater aggregate its findings, and render every finding in doctor with the exact healthy and remediation lines.
   Verification: `bun test tests/impeccable-update.test.ts tests/doctor-links.test.ts`.
   Expected: healthy, provider, Markdown, filesystem, unapplied-fix, and ambiguous-anchor fixtures pass.
-- [ ] Verify the live deployed tree and commit.
+- [x] Verify the live deployed tree and commit.
   Verification: `bun run doctor`.
   Expected: doctor prints `ok   impeccable content (Pi provider, clean Markdown, <N> vendor fixes)` without mutation.
   Commit: `feat(doctor): verify Impeccable content invariants`.

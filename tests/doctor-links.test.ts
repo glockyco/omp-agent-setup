@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { classifyManagedCheck } from "../src/cli.ts";
+import { classifyManagedCheck, renderImpeccableDoctorLines } from "../src/cli.ts";
 
 let workdir: string;
 
@@ -12,6 +12,27 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	await rm(workdir, { recursive: true, force: true });
+});
+
+describe("renderImpeccableDoctorLines", () => {
+	test("renders the exact healthy summary", () => {
+		expect(renderImpeccableDoctorLines([], 3)).toEqual([
+			"  ok   impeccable content (Pi provider, clean Markdown, 3 vendor fixes)",
+		]);
+	});
+
+	test("renders every issue followed by one remediation", () => {
+		expect(
+			renderImpeccableDoctorLines([
+				{ kind: "provider", path: "provider.mjs", message: "wrong provider" },
+				{ kind: "vendor-fix", path: "context.mjs", message: "fix drift", fixId: "hook" },
+			]),
+		).toEqual([
+			"  WARN impeccable content: wrong provider",
+			"  WARN impeccable content: fix drift",
+			"       remediation: run bun run update-impeccable; if anchor drift remains, update IMPECCABLE_VENDOR_FIXES",
+		]);
+	});
 });
 
 describe("classifyManagedCheck", () => {

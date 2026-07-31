@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
 	applyVendorFixes,
 	assertPiImpeccableVariant,
 	IMPECCABLE_VENDOR_FIXES,
+	inspectPiImpeccableVariant,
 	rewriteImpeccableScriptPaths,
 	updateImpeccableFromBundle,
+	type VendorFix,
 } from "../src/impeccable-update.ts";
 import { planPatch } from "../src/patches.ts";
 
@@ -27,6 +29,15 @@ afterEach(async () => {
 	await rm(bundle, { recursive: true, force: true });
 });
 
+async function writeVendorFixTargets(skillDir: string) {
+	const byTarget = Map.groupBy(IMPECCABLE_VENDOR_FIXES, fix => fix.targetRelative);
+	for (const [targetRelative, fixes] of byTarget) {
+		const target = join(skillDir, targetRelative);
+		await mkdir(dirname(target), { recursive: true });
+		await writeFile(target, `${fixes.map(fix => fix.anchor).join("\n")}\n`);
+	}
+}
+
 async function writeSkill(base: string, versionLine: string) {
 	const skillDir = join(base, ".pi", "skills", "impeccable");
 	await mkdir(join(skillDir, "commands"), { recursive: true });
@@ -40,6 +51,7 @@ async function writeSkill(base: string, versionLine: string) {
 		join(skillDir, "scripts", "lib", "provider.mjs"),
 		'export const IMPECCABLE_PROVIDER_ID = "pi";\n',
 	);
+	await writeVendorFixTargets(skillDir);
 }
 
 describe("updateImpeccableFromBundle", () => {
@@ -113,6 +125,7 @@ describe("updateImpeccableFromBundle", () => {
 			join(skillDir, "scripts", "lib", "provider.mjs"),
 			'export const IMPECCABLE_PROVIDER_ID = "pi";\n',
 		);
+		await writeVendorFixTargets(skillDir);
 
 		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
 
@@ -229,6 +242,109 @@ describe("applyVendorFixes", () => {
 		);
 
 		await expect(applyVendorFixes(root, [fix])).rejects.toThrow(/matched its anchor 2 times/);
+	});
+});
+
+describe("inspectPiImpeccableVariant", () => {
+	const sampleFix = {
+		id: "sample",
+		targetRelative: "scripts/sample.mjs",
+		description: "Sample fix.",
+		anchor: "const guard = false;",
+		replacement: "const guard = true; // FIXED",
+		appliedSignature: "// FIXED",
+	} satisfies VendorFix;
+
+	async function writeProvider(value = "pi") {
+		await mkdir(join(root, "scripts", "lib"), { recursive: true });
+		await writeFile(
+			join(root, "scripts", "lib", "provider.mjs"),
+			`export const IMPECCABLE_PROVIDER_ID = "${value}";\n`,
+		);
+	}
+
+	test("accepts healthy Pi content", async () => {
+		await writeProvider();
+		await writeFile(join(root, "SKILL.md"), "# Clean\n");
+
+		expect(await inspectPiImpeccableVariant(root, [])).toEqual([]);
+	});
+
+	test("reports a missing and a wrong provider", async () => {
+		expect(await inspectPiImpeccableVariant(root, [])).toEqual([
+			{
+				kind: "filesystem",
+				path: "scripts/lib/provider.mjs",
+				message:
+					'scripts/lib/provider.mjs is missing or unreadable; expected IMPECCABLE_PROVIDER_ID = "pi".',
+			},
+		]);
+
+		await writeProvider("github");
+		expect(await inspectPiImpeccableVariant(root, [])).toEqual([
+			{
+				kind: "provider",
+				path: "scripts/lib/provider.mjs",
+				message: 'scripts/lib/provider.mjs has IMPECCABLE_PROVIDER_ID = "github"; expected "pi".',
+			},
+		]);
+	});
+
+	test("reports forbidden Markdown in stable path and marker order", async () => {
+		await writeProvider();
+		await writeFile(join(root, "z.md"), "npx impeccable and .pi/skills/impeccable\n");
+		await writeFile(join(root, "a.md"), ".github/skills/impeccable\n");
+
+		const issues = await inspectPiImpeccableVariant(root, []);
+
+		expect(issues.map(issue => [issue.path, issue.message])).toEqual([
+			["a.md", 'a.md contains forbidden ".github/skills/impeccable".'],
+			["z.md", 'z.md contains forbidden "npx impeccable".'],
+			["z.md", 'z.md contains forbidden ".pi/skills/impeccable".'],
+		]);
+	});
+
+	test("reports a missing fix target", async () => {
+		await writeProvider();
+
+		expect(await inspectPiImpeccableVariant(root, [sampleFix])).toEqual([
+			{
+				kind: "filesystem",
+				path: "scripts/sample.mjs",
+				message: "scripts/sample.mjs for vendor fix sample is missing or unreadable.",
+				fixId: "sample",
+			},
+		]);
+	});
+
+	test.each([
+		{
+			content: "const guard = false;\n",
+			message: "Vendor fix sample is not applied in scripts/sample.mjs.",
+		},
+		{
+			content: "const guard = maybe();\n",
+			message: "Vendor fix sample anchor is missing from scripts/sample.mjs.",
+		},
+		{
+			content: "const guard = false;\nconst guard = false;\n",
+			message:
+				"Vendor fix sample matched its anchor 2 times in scripts/sample.mjs; refusing to guess.",
+		},
+	])("reports every non-applied patch outcome", async ({ content, message }) => {
+		await writeProvider();
+		await writeFile(join(root, "scripts", "sample.mjs"), content);
+
+		const issues = await inspectPiImpeccableVariant(root, [sampleFix]);
+
+		expect(issues).toEqual([
+			{
+				kind: "vendor-fix",
+				path: "scripts/sample.mjs",
+				message,
+				fixId: "sample",
+			},
+		]);
 	});
 });
 

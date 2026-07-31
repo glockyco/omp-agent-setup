@@ -18,6 +18,11 @@ import {
 	unhealthyPatchExecutions,
 	unhealthyPluginSteps,
 } from "./bootstrap.ts";
+import {
+	IMPECCABLE_VENDOR_FIXES,
+	type ImpeccableVariantIssue,
+	inspectPiImpeccableVariant,
+} from "./impeccable-update.ts";
 import { updateImpeccableFromRemote } from "./impeccable-update-runtime.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
@@ -161,6 +166,9 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 				break;
 		}
 	}
+	const impeccableIssues = await inspectPiImpeccableVariant(join(agentDir, "skills", "impeccable"));
+	for (const line of renderImpeccableDoctorLines(impeccableIssues)) console.log(line);
+	issues += impeccableIssues.length;
 	const binPath = resolveBunBinPath();
 	const expectedBinTarget = resolveOmpSourceEntry(resolveOmpScopeRoot());
 	const binPlan = planBinLink({
@@ -294,6 +302,19 @@ export async function classifyManagedCheck(
 		return { kind: "dangling-symlink", target };
 	}
 	return { kind: "ok-symlink", target };
+}
+
+export function renderImpeccableDoctorLines(
+	issues: readonly ImpeccableVariantIssue[],
+	fixCount = IMPECCABLE_VENDOR_FIXES.length,
+): string[] {
+	if (issues.length === 0) {
+		return [`  ok   impeccable content (Pi provider, clean Markdown, ${fixCount} vendor fixes)`];
+	}
+	return [
+		...issues.map(issue => `  WARN impeccable content: ${issue.message}`),
+		"       remediation: run bun run update-impeccable; if anchor drift remains, update IMPECCABLE_VENDOR_FIXES",
+	];
 }
 
 export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {

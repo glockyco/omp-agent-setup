@@ -22,6 +22,13 @@ export interface VendorFixOutcome {
 	kind: "apply" | "skip-already-applied" | "skip-anchor-missing" | "skip-target-missing";
 }
 
+export interface ImpeccableVariantIssue {
+	kind: "provider" | "markdown" | "vendor-fix" | "filesystem";
+	path: string;
+	message: string;
+	fixId?: string;
+}
+
 export interface UpdateImpeccableResult {
 	oldVersion: string | null;
 	newVersion: string;
@@ -265,38 +272,125 @@ const FORBIDDEN_PI_VARIANT_MARKERS = [
  * Markdown because hook-admin.mjs intentionally carries every provider's
  * manifest paths.
  */
-export async function assertPiImpeccableVariant(skillDir: string): Promise<void> {
+export async function inspectPiImpeccableVariant(
+	skillDir: string,
+	fixes: readonly VendorFix[] = IMPECCABLE_VENDOR_FIXES,
+): Promise<ImpeccableVariantIssue[]> {
+	const issues: ImpeccableVariantIssue[] = [];
 	const providerRelative = "scripts/lib/provider.mjs";
-	const providerPath = join(skillDir, providerRelative);
-	let providerText: string;
+	let providerText: string | undefined;
 	try {
-		providerText = await readFile(providerPath, "utf8");
+		providerText = await readFile(join(skillDir, providerRelative), "utf8");
 	} catch {
-		throw new Error(
-			`Vendored Impeccable variant assertion failed for ${providerRelative}: file is missing; expected IMPECCABLE_PROVIDER_ID = "pi".`,
-		);
+		issues.push({
+			kind: "filesystem",
+			path: providerRelative,
+			message: `${providerRelative} is missing or unreadable; expected IMPECCABLE_PROVIDER_ID = "pi".`,
+		});
 	}
-	const providerMatch = /IMPECCABLE_PROVIDER_ID\s*=\s*["']([^"']+)["']/.exec(providerText);
-	if (providerMatch?.[1] !== "pi") {
-		const found = providerMatch ? JSON.stringify(providerMatch[1]) : "no declaration";
-		throw new Error(
-			`Vendored Impeccable variant assertion failed for ${providerRelative}: found IMPECCABLE_PROVIDER_ID = ${found}; expected "pi".`,
-		);
-	}
-
-	const entries = await readdir(skillDir, { recursive: true, withFileTypes: true });
-	for (const entry of entries) {
-		if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
-		const filePath = join(entry.parentPath, entry.name);
-		const content = await readFile(filePath, "utf8");
-		const marker = FORBIDDEN_PI_VARIANT_MARKERS.find(candidate => content.includes(candidate));
-		if (marker) {
-			const relativePath = filePath.slice(skillDir.length + 1);
-			throw new Error(
-				`Vendored Impeccable variant assertion failed for ${relativePath}: found forbidden ${JSON.stringify(marker)}.`,
-			);
+	if (providerText !== undefined) {
+		const providerMatch = /IMPECCABLE_PROVIDER_ID\s*=\s*["']([^"']+)["']/.exec(providerText);
+		if (providerMatch?.[1] !== "pi") {
+			const found = providerMatch ? JSON.stringify(providerMatch[1]) : "no declaration";
+			issues.push({
+				kind: "provider",
+				path: providerRelative,
+				message: `${providerRelative} has IMPECCABLE_PROVIDER_ID = ${found}; expected "pi".`,
+			});
 		}
 	}
+
+	let markdownPaths: Array<{ absolute: string; relative: string }> = [];
+	try {
+		const entries = await readdir(skillDir, { recursive: true, withFileTypes: true });
+		markdownPaths = entries
+			.filter(entry => entry.isFile() && entry.name.endsWith(".md"))
+			.map(entry => ({
+				absolute: join(entry.parentPath, entry.name),
+				relative: join(entry.parentPath, entry.name).slice(skillDir.length + 1),
+			}))
+			.sort((left, right) => left.relative.localeCompare(right.relative));
+	} catch {
+		issues.push({
+			kind: "filesystem",
+			path: ".",
+			message: `Impeccable skill tree is missing or unreadable at ${skillDir}.`,
+		});
+	}
+	for (const markdownPath of markdownPaths) {
+		let content: string;
+		try {
+			content = await readFile(markdownPath.absolute, "utf8");
+		} catch {
+			issues.push({
+				kind: "filesystem",
+				path: markdownPath.relative,
+				message: `${markdownPath.relative} is unreadable.`,
+			});
+			continue;
+		}
+		for (const marker of FORBIDDEN_PI_VARIANT_MARKERS) {
+			if (!content.includes(marker)) continue;
+			issues.push({
+				kind: "markdown",
+				path: markdownPath.relative,
+				message: `${markdownPath.relative} contains forbidden ${JSON.stringify(marker)}.`,
+			});
+		}
+	}
+
+	for (const fix of fixes) {
+		let content: string;
+		try {
+			content = await readFile(join(skillDir, fix.targetRelative), "utf8");
+		} catch {
+			issues.push({
+				kind: "filesystem",
+				path: fix.targetRelative,
+				message: `${fix.targetRelative} for vendor fix ${fix.id} is missing or unreadable.`,
+				fixId: fix.id,
+			});
+			continue;
+		}
+		const plan = planPatch(fix, content);
+		switch (plan.kind) {
+			case "skip-already-applied":
+				break;
+			case "apply":
+				issues.push({
+					kind: "vendor-fix",
+					path: fix.targetRelative,
+					message: `Vendor fix ${fix.id} is not applied in ${fix.targetRelative}.`,
+					fixId: fix.id,
+				});
+				break;
+			case "skip-anchor-missing":
+				issues.push({
+					kind: "vendor-fix",
+					path: fix.targetRelative,
+					message: `Vendor fix ${fix.id} anchor is missing from ${fix.targetRelative}.`,
+					fixId: fix.id,
+				});
+				break;
+			case "error-anchor-ambiguous":
+				issues.push({
+					kind: "vendor-fix",
+					path: fix.targetRelative,
+					message: `Vendor fix ${fix.id} matched its anchor ${plan.matchCount} times in ${fix.targetRelative}; refusing to guess.`,
+					fixId: fix.id,
+				});
+				break;
+		}
+	}
+	return issues;
+}
+
+export async function assertPiImpeccableVariant(skillDir: string): Promise<void> {
+	const issues = await inspectPiImpeccableVariant(skillDir);
+	if (issues.length === 0) return;
+	throw new Error(
+		`Vendored Impeccable variant assertion failed:\n${issues.map(issue => `- ${issue.message}`).join("\n")}`,
+	);
 }
 
 async function readExistingVersion(skillPath: string): Promise<string | null> {
