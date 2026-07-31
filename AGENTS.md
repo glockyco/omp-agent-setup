@@ -16,7 +16,7 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 | `bun run audit-lsp` | Fleet-wide LSP audit. Walks `~/Projects/*`, simulates OMP's per-directory server detection, classifies by git activity, surfaces missing-binary gaps. |
 | `bun run install-lsp` | Idempotent install of every LSP binary in the canonical channel (bun / uv / rustup / dotnet tool / brew). Source-of-truth: `scripts/install-lsp.sh`. |
 | `bun run update-plannotator` | Rebase the Plannotator fork's `omp-local` onto `upstream/main` and print the new SHA to record. |
-| `bun run update-impeccable` | Download the latest Impeccable universal bundle, vendor `.pi/skills/impeccable` (rewriting its project-local `node .pi/...` script paths to the deployed `$OMP_AGENT_DIR/skills/impeccable` location so they resolve from any project cwd), and print old/new versions for diff review. |
+| `bun run update-impeccable` | Download the latest Impeccable universal bundle, vendor `.pi/skills/impeccable` (rewriting its project-local `node .pi/...` script paths to the deployed `$OMP_AGENT_DIR/skills/impeccable` location so they resolve from any project cwd), re-applying the vendor fixes in `src/impeccable-update.ts`), and print old/new versions plus per-fix status for diff review. |
 | `bun run ci` | Lint + types + dead-code + audit + tests. Mirrors lefthook `pre-push` and the GitHub workflow. |
 | `bun run fix` | Biome auto-fix. |
 
@@ -47,7 +47,7 @@ Use Conventional Commits (`skill://commit`). Lefthook enforces lint + typecheck 
 | Edit deployed copies under `~/.omp/agent/` | Edit the source in `agent/` or `extensions/`, then `bun run bootstrap`. Managed skill sources live under `agent/skills/<name>/SKILL.md`, rules under `agent/rules/<name>.md`. |
 | Symlink `~/.omp/agent/mcp.json` into the repo the way `lsp.json` is | Keep it merged. OMP writes this file itself (`/mcp add`, `/mcp disable`, `/mcp reauth`, `$schema` injection), so a symlink turns every `/mcp disable` into permanent working-tree dirt. `lsp.json` is safe to symlink precisely because OMP never writes it. |
 | Install a background service from `bun run bootstrap` | Bootstrap stays idempotent and safe on any machine. Put the command in the spec's `launchdService.installCommand` and let `bun run doctor` surface it as the remediation. |
-| Update Impeccable by editing `agent/skills/impeccable` or the deployed symlink | Run `bun run update-impeccable`, review the vendored diff, then `bun run bootstrap`. |
+| Update Impeccable by editing `agent/skills/impeccable` or the deployed symlink | Run `bun run update-impeccable`, review the vendored diff, then `bun run bootstrap`. A change we need to survive the next re-vendor goes in `IMPECCABLE_VENDOR_FIXES` (`src/impeccable-update.ts`), which reuses `planPatch` from `src/patches.ts`; a fix reporting anything but `apply` means upstream moved the anchor, and `tests/impeccable-update.test.ts` fails if the vendored tree stops carrying one. |
 | Add relative imports outside `extensions/` to `omp-session-env.ts` | Inline the helper. The file is symlinked, so relative imports resolve against the symlink path and break the loader. |
 | Take a runtime dep on `@oh-my-pi/pi-coding-agent` | Use the ambient declaration in `types/omp.d.ts` (whitelisted in `knip.json`). |
 | Bypass the manifest when changing Plannotator checkout state | `bun run update-plannotator` rebases `omp-local`, then update `manifests/plugins.yml` `currentCommit`. |

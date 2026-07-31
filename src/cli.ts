@@ -324,6 +324,18 @@ async function cmdUpdateImpeccable(_args: string[]): Promise<number> {
 	const result = await updateImpeccableFromRemote({ repoRoot: repoRoot() });
 	const oldVersion = result.oldVersion ?? "none";
 	console.log(`Impeccable skill updated: ${oldVersion} -> ${result.newVersion}`);
+	for (const fix of result.fixes) {
+		console.log(`  vendor fix ${fix.id}: ${fix.kind}`);
+	}
+	// Anything other than a clean apply means upstream moved the code the fix
+	// targets: either they fixed it themselves (drop our entry) or they rewrote
+	// the block and the fix is now absent while the bug may not be.
+	const stale = result.fixes.filter(fix => fix.kind !== "apply");
+	if (stale.length > 0) {
+		console.log(
+			`Re-check src/impeccable-update.ts: ${stale.map(fix => fix.id).join(", ")} did not apply cleanly.`,
+		);
+	}
 	console.log("Review the git diff, then run 'bun run bootstrap' and 'bun run verify'.");
 	return 0;
 }

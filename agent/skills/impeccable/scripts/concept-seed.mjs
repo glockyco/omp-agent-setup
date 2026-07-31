@@ -73,6 +73,7 @@
  */
 
 import crypto from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -497,7 +498,21 @@ ${buildIndex} of your own grounded list; seed key ${key}.
 `;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Deployed installs reach this script through a symlinked skill directory, where
+// Node resolves import.meta.url to the real file but process.argv[1] keeps the
+// symlink path. Comparing canonical paths prevents a silent exit-0 no-op, the
+// same guard context.mjs and critique-storage.mjs already use.
+function invokedAsScript() {
+  const arg = process.argv[1];
+  if (!arg) return false;
+  try {
+    return realpathSync(arg) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return resolve(arg) === fileURLToPath(import.meta.url);
+  }
+}
+
+if (invokedAsScript()) {
   const args = process.argv.slice(2);
   const fromIdx = args.indexOf('--from');
   const scopeIdx = args.indexOf('--scope');

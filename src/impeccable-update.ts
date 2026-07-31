@@ -1,14 +1,32 @@
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { planPatch, type SourceEdit } from "./patches.ts";
 
 export interface UpdateImpeccableOptions {
 	repoRoot: string;
 	bundleRoot: string;
 }
 
+/**
+ * A source edit re-applied to the vendored skill on every re-vendor, addressed
+ * by path inside `agent/skills/impeccable/`.
+ */
+export interface VendorFix extends SourceEdit {
+	/** Path inside the vendored skill directory, POSIX style. */
+	targetRelative: string;
+}
+
+/** What happened to one {@link VendorFix} during a re-vendor. */
+export interface VendorFixOutcome {
+	id: string;
+	kind: "apply" | "skip-already-applied" | "skip-anchor-missing" | "skip-target-missing";
+}
+
 export interface UpdateImpeccableResult {
 	oldVersion: string | null;
 	newVersion: string;
+	/** One entry per {@link IMPECCABLE_VENDOR_FIXES} entry, in declaration order. */
+	fixes: VendorFixOutcome[];
 }
 
 const PI_IMPECCABLE_RELATIVE = [".pi", "skills", "impeccable"] as const;
@@ -45,8 +63,104 @@ export async function updateImpeccableFromBundle(
 	await rm(destinationDir, { recursive: true, force: true });
 	await cp(sourceDir, destinationDir, { recursive: true });
 	await rewriteVendoredScriptPaths(destinationDir);
+	const fixes = await applyVendorFixes(destinationDir);
 
-	return { oldVersion, newVersion };
+	return { oldVersion, newVersion, fixes };
+}
+
+/**
+ * Make `concept-seed.mjs` detect direct invocation through a symlinked skill
+ * directory. We deploy the vendored skill as a symlink
+ * (`~/.omp/agent/skills/impeccable` -> this repo), and Node resolves
+ * `import.meta.url` to the real file while `process.argv[1]` keeps the symlink
+ * path the agent typed. Upstream's plain `resolve()` compare therefore never
+ * matches for us: the CLI block is skipped, the script writes nothing and exits
+ * 0, and a design roll silently produces no seed. Upstream already guards this
+ * exact hazard with realpath compares in `context.mjs`, `context-signals.mjs`,
+ * `doctor.mjs`, `surface-brief.mjs`, and `critique-storage.mjs` — this fix
+ * brings the outlier in line rather than inventing a new idiom.
+ *
+ * Two edits because the script imports no `node:fs` binding of its own.
+ */
+const CONCEPT_SEED_FS_IMPORT: VendorFix = {
+	id: "concept-seed-fs-import",
+	targetRelative: "scripts/concept-seed.mjs",
+	description: "Import realpathSync for the concept-seed main-module guard.",
+	anchor: [
+		"import crypto from 'node:crypto';",
+		"import { dirname, join, resolve } from 'node:path';",
+	].join("\n"),
+	replacement: [
+		"import crypto from 'node:crypto';",
+		"import { realpathSync } from 'node:fs';",
+		"import { dirname, join, resolve } from 'node:path';",
+	].join("\n"),
+	appliedSignature: "import { realpathSync } from 'node:fs';",
+};
+
+const CONCEPT_SEED_MAIN_GUARD: VendorFix = {
+	id: "concept-seed-main-guard",
+	targetRelative: "scripts/concept-seed.mjs",
+	description: "Detect direct invocation of concept-seed.mjs through a symlinked skill dir.",
+	anchor: "if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {",
+	replacement: [
+		"// Deployed installs reach this script through a symlinked skill directory, where",
+		"// Node resolves import.meta.url to the real file but process.argv[1] keeps the",
+		"// symlink path. Comparing canonical paths prevents a silent exit-0 no-op, the",
+		"// same guard context.mjs and critique-storage.mjs already use.",
+		"function invokedAsScript() {",
+		"  const arg = process.argv[1];",
+		"  if (!arg) return false;",
+		"  try {",
+		"    return realpathSync(arg) === realpathSync(fileURLToPath(import.meta.url));",
+		"  } catch {",
+		"    return resolve(arg) === fileURLToPath(import.meta.url);",
+		"  }",
+		"}",
+		"",
+		"if (invokedAsScript()) {",
+	].join("\n"),
+	appliedSignature: "function invokedAsScript() {",
+};
+
+/**
+ * Fixes re-applied to the vendored skill after every re-vendor, in declaration
+ * order (later fixes see the file as left by earlier ones). Drop an entry the
+ * moment upstream fixes the same thing: `bun run update-impeccable` reports
+ * `skip-already-applied` or `skip-anchor-missing` when that happens, and
+ * `tests/impeccable-update.test.ts` asserts the vendored tree still carries
+ * every fix so a re-vendor cannot quietly drop one.
+ */
+export const IMPECCABLE_VENDOR_FIXES: readonly VendorFix[] = [
+	CONCEPT_SEED_FS_IMPORT,
+	CONCEPT_SEED_MAIN_GUARD,
+];
+
+/** Re-apply {@link IMPECCABLE_VENDOR_FIXES} to a vendored skill directory. */
+export async function applyVendorFixes(
+	skillDir: string,
+	fixes: readonly VendorFix[] = IMPECCABLE_VENDOR_FIXES,
+): Promise<VendorFixOutcome[]> {
+	const outcomes: VendorFixOutcome[] = [];
+	for (const fix of fixes) {
+		const filePath = join(skillDir, fix.targetRelative);
+		let current: string;
+		try {
+			current = await readFile(filePath, "utf8");
+		} catch {
+			outcomes.push({ id: fix.id, kind: "skip-target-missing" });
+			continue;
+		}
+		const plan = planPatch(fix, current);
+		if (plan.kind === "error-anchor-ambiguous") {
+			throw new Error(
+				`Vendor fix ${fix.id} matched its anchor ${plan.matchCount} times in ${fix.targetRelative}; refusing to guess.`,
+			);
+		}
+		if (plan.kind === "apply") await writeFile(filePath, plan.nextContent);
+		outcomes.push({ id: fix.id, kind: plan.kind });
+	}
+	return outcomes;
 }
 
 /**
