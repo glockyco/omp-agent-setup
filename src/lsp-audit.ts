@@ -228,7 +228,7 @@ export function renderReport(
 				: "no commits";
 			lines.push(`  ${repo.label.padEnd(36)} ${age}`);
 			for (const dir of repo.directories) {
-				const active = dir.activeServers.map(s => s.name).join(", ");
+				const active = dir.activeServers.map(s => `${s.name} -> ${s.resolved}`).join(", ");
 				const unresolved = dir.unresolvedServers.map(s => s.name).join(", ");
 				if (!active && !unresolved) continue;
 				const prefix = `      ${dir.relPath}`.padEnd(40);

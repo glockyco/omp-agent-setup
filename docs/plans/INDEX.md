@@ -2,7 +2,7 @@
 
 ## active
 
-- **Command Surface Redesign Plan** [plan] `2026-07-31-command-surface-redesign-plan` (8/15) ← 2026-07-31-command-surface-redesign-spec
+- **Command Surface Redesign Plan** [plan] `2026-07-31-command-surface-redesign-plan` (10/15) ← 2026-07-31-command-surface-redesign-spec
 - **Command Surface Redesign Spec** [spec] `2026-07-31-command-surface-redesign-spec` ← 2026-07-31-setup-maintenance-overview
 - **Setup Maintenance Overview** [overview] `2026-07-31-setup-maintenance-overview`
 

@@ -65,10 +65,10 @@ This plan implements the contracts in [Command Surface Redesign Spec](./2026-07-
 
 ### Task 4: Show resolved LSP server paths
 
-- [ ] Render healthy servers as comma-separated `name -> resolved` values without changing resolution or remediation logic.
+- [x] Render healthy servers as comma-separated `name -> resolved` values without changing resolution or remediation logic.
   Verification: `bun test tests/lsp-audit.test.ts`.
   Expected: fixtures include `/fixture/bin/...` and a project-local `node_modules/.bin/...` path.
-- [ ] Verify the live report and commit.
+- [x] Verify the live report and commit.
   Verification: `bun run audit-lsp`.
   Expected: active healthy entries show absolute paths and missing-binary remediation remains present.
   Commit: `feat(lsp): show resolved server paths`.

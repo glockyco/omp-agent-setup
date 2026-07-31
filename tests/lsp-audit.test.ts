@@ -282,6 +282,9 @@ describe("auditFleet", () => {
 		expect(reports[0]?.directories[0]?.activeServers[0]?.resolved).toBe(
 			"/p/local/node_modules/.bin/typescript-language-server",
 		);
+		expect(renderReport(reports, now)).toContain(
+			"typescript-language-server -> /p/local/node_modules/.bin/typescript-language-server",
+		);
 	});
 });
 
@@ -370,6 +373,7 @@ describe("renderReport", () => {
 			now,
 		);
 		const out = renderReport(reports, now);
+		expect(out).toContain("typescript-language-server -> /fixture/bin/typescript-language-server");
 		expect(out).toContain("All active repos have full binary coverage.");
 		expect(out).not.toContain("COVERAGE GAPS");
 	});
