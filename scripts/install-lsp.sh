@@ -76,6 +76,30 @@ ensure_brew() {
 	fi
 }
 
+# JetBrains' official kotlin-lsp Homebrew formula declares `depends_on :macos`.
+# Keep the channel honest on Linux: skip with a named reason instead of letting
+# Homebrew fail as though the formula were broken.
+ensure_brew_macos() {
+	local cmd="$1" formula="${2:-$1}"
+	if resolve "$cmd" >/dev/null; then
+		ALREADY+=("$cmd"); ok "$cmd already on PATH"; return 0
+	fi
+	if [[ "$(uname -s)" != "Darwin" ]]; then
+		SKIPPED+=("$cmd via brew:$formula (macOS only)")
+		warn "skipping $cmd (official Homebrew formula is macOS-only)"
+		return 0
+	fi
+	if ! resolve brew >/dev/null; then
+		SKIPPED+=("$cmd: brew not on PATH"); warn "skipping $cmd (Homebrew missing)"; return 0
+	fi
+	note "installing $formula via brew"
+	if brew install "$formula" >/dev/null 2>&1; then
+		INSTALLED+=("$cmd via brew:$formula"); ok "$cmd installed"
+	else
+		FAILED+=("$cmd via brew:$formula"); fail "$cmd failed to install"
+	fi
+}
+
 ensure_rust_analyzer() {
 	# `command -v rust-analyzer` is not enough: rustup writes a proxy stub at
 	# ~/.cargo/bin/rust-analyzer even when the component is not installed for
@@ -163,6 +187,10 @@ main() {
 	ensure_brew taplo taplo
 	ensure_brew marksman marksman
 	ensure_brew texlab texlab
+	ensure_brew jdtls jdtls
+	ensure_brew metals metals
+	ensure_brew lua-language-server lua-language-server
+	ensure_brew_macos kotlin-lsp JetBrains/utils/kotlin-lsp
 
 	printf '\nSummary\n'
 	printf '  installed:  %d\n' "${#INSTALLED[@]}"

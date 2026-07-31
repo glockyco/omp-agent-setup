@@ -1,3 +1,5 @@
+import { LSP_INSTALL_CHANNELS } from "./lsp-channels.ts";
+
 // Pure audit logic for LSP coverage across a fleet of repositories. The
 // real-IO adapters that supply filesystem reads, $PATH resolution, and git
 // activity live in `lsp-audit-runtime.ts`. The split mirrors the rest of the
@@ -204,7 +206,11 @@ export function auditFleet(
  * and snapshot tests. Sections are grouped by activity bucket so the user sees
  * what they're actively working on first.
  */
-export function renderReport(reports: readonly RepoReport[], now: Date): string {
+export function renderReport(
+	reports: readonly RepoReport[],
+	now: Date,
+	platform: NodeJS.Platform = process.platform,
+): string {
 	const buckets: Record<ActivityBucket, RepoReport[]> = { active: [], warm: [], dormant: [] };
 	for (const r of reports) buckets[r.activity].push(r);
 
@@ -236,25 +242,41 @@ export function renderReport(reports: readonly RepoReport[], now: Date): string 
 	// Coverage gaps: any active repo with an unresolved server in any sub-dir.
 	// 'Unresolved' means the root markers matched but the binary did not resolve,
 	// which is OMP's true definition of a coverage gap.
-	const gaps = new Map<string, string[]>();
+	const gaps = new Map<string, { command: string; locations: string[] }>();
 	for (const repo of buckets.active) {
 		for (const dir of repo.directories) {
 			for (const s of dir.unresolvedServers) {
-				const list = gaps.get(s.name) ?? [];
-				list.push(`${repo.label}${dir.relPath === "/" ? "" : `:${dir.relPath}`}`);
-				gaps.set(s.name, list);
+				const gap = gaps.get(s.name) ?? { command: s.command, locations: [] };
+				gap.locations.push(`${repo.label}${dir.relPath === "/" ? "" : `:${dir.relPath}`}`);
+				gaps.set(s.name, gap);
 			}
 		}
 	}
 	if (gaps.size > 0) {
 		lines.push("COVERAGE GAPS (active repos with missing binaries)");
-		for (const [server, locations] of [...gaps.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+		for (const [server, gap] of [...gaps.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+			const { command, locations } = gap;
 			lines.push(`  ${server.padEnd(30)} ${locations.length} location(s)`);
 			for (const loc of locations.slice(0, 5)) lines.push(`      ${loc}`);
 			if (locations.length > 5) lines.push(`      … and ${locations.length - 5} more`);
+			const channel = LSP_INSTALL_CHANNELS[command];
+			if (channel === "brew-macos" && platform !== "darwin") {
+				lines.push(
+					`      remediation: ${command}'s official Homebrew formula is macOS-only; ` +
+						`manually put ${command} on PATH on ${platform}, or disable it in agent/lsp.json ` +
+						"if it is not in the active fleet",
+				);
+			} else if (channel) {
+				lines.push("      remediation: run 'bun run install-lsp'");
+			} else {
+				lines.push(
+					`      remediation: 'bun run install-lsp' cannot install ${command}; ` +
+						"add a channel entry in scripts/install-lsp.sh, or disable it in agent/lsp.json " +
+						"if it is not in the active fleet",
+				);
+			}
 		}
 		lines.push("");
-		lines.push("Run 'bun run install-lsp' to fill the gaps.");
 	} else if (buckets.active.length > 0) {
 		lines.push("All active repos have full binary coverage.");
 	}
