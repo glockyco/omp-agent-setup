@@ -149,3 +149,100 @@ export function timestampedBackupDirName(date: Date = new Date()): string {
 		`Z`
 	);
 }
+
+/**
+ * Keep twenty snapshots: at the observed bootstrap cadence this preserves
+ * months of recovery history without letting the gitignored directory grow
+ * without bound.
+ */
+export const BACKUP_RETENTION_LIMIT = 20;
+
+/** Deterministic retention decision, kept separate from filesystem mutation. */
+export interface BackupRetentionPlan {
+	toDelete: string[];
+	toKeep: string[];
+}
+
+const TIMESTAMPED_BACKUP_NAME = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})?Z$/;
+
+type TimestampedName = { name: string; timestamp: number };
+
+function parseTimestampedBackupName(name: string): TimestampedName | null {
+	const match = TIMESTAMPED_BACKUP_NAME.exec(name);
+	if (!match) return null;
+	const [, year, month, day, hour, minute, second, millisecond = "0"] = match;
+	const date = new Date(0);
+	date.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
+	date.setUTCHours(Number(hour), Number(minute), Number(second), Number(millisecond));
+	if (
+		date.getUTCFullYear() !== Number(year) ||
+		date.getUTCMonth() !== Number(month) - 1 ||
+		date.getUTCDate() !== Number(day) ||
+		date.getUTCHours() !== Number(hour) ||
+		date.getUTCMinutes() !== Number(minute) ||
+		date.getUTCSeconds() !== Number(second) ||
+		date.getUTCMilliseconds() !== Number(millisecond)
+	) {
+		return null;
+	}
+	return { name, timestamp: date.getTime() };
+}
+
+function compareNewestFirst(a: TimestampedName, b: TimestampedName): number {
+	if (a.timestamp !== b.timestamp) return b.timestamp - a.timestamp;
+	return a.name < b.name ? 1 : a.name > b.name ? -1 : 0;
+}
+
+/**
+ * Plan retention without consulting filesystem metadata. Plain UTC timestamp
+ * names are ordered by their decoded timestamp (newest first); ties use a
+ * code-point name comparison. Tagged and unknown-shaped names are always kept.
+ * The current run is always kept, even when it consumes a slot beyond the
+ * requested limit, so a just-written recovery point cannot be pruned.
+ */
+export function planBackupRetention(
+	snapshotNames: readonly string[],
+	retentionLimit: number,
+	currentSnapshotName: string,
+): BackupRetentionPlan {
+	if (!Number.isInteger(retentionLimit) || retentionLimit < 0) {
+		throw new RangeError(
+			`Backup retention limit must be a non-negative integer, got ${retentionLimit}`,
+		);
+	}
+
+	const uniqueNames = [...new Set(snapshotNames)];
+	const timestamped = uniqueNames
+		.map(name => parseTimestampedBackupName(name))
+		.filter((entry): entry is TimestampedName => entry !== null)
+		.sort(compareNewestFirst);
+	const currentIsPresent = uniqueNames.includes(currentSnapshotName);
+	const currentTimestamp = currentIsPresent ? parseTimestampedBackupName(currentSnapshotName) : null;
+	const keepNames = new Set<string>();
+	if (currentIsPresent) keepNames.add(currentSnapshotName);
+	const timestampedLimit = currentTimestamp ? Math.max(retentionLimit, 1) : retentionLimit;
+	let keptTimestampedCount = currentTimestamp ? 1 : 0;
+	for (const entry of timestamped) {
+		if (keepNames.has(entry.name)) continue;
+		if (keptTimestampedCount >= timestampedLimit) break;
+		keepNames.add(entry.name);
+		keptTimestampedCount++;
+	}
+
+	const toDelete = timestamped
+		.filter(entry => !keepNames.has(entry.name))
+		.sort((a, b) => a.timestamp - b.timestamp || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+		.map(entry => entry.name);
+	const toDeleteSet = new Set(toDelete);
+	const toKeep = uniqueNames
+		.filter(name => !toDeleteSet.has(name))
+		.sort((a, b) => {
+			const aTimestamp = parseTimestampedBackupName(a);
+			const bTimestamp = parseTimestampedBackupName(b);
+			if (aTimestamp && bTimestamp) return compareNewestFirst(aTimestamp, bTimestamp);
+			if (aTimestamp) return -1;
+			if (bTimestamp) return 1;
+			return a < b ? -1 : a > b ? 1 : 0;
+		});
+	return { toDelete, toKeep };
+}

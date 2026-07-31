@@ -1,12 +1,19 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import {
+	BACKUP_RETENTION_LIMIT,
 	executeSnapshot,
 	planSnapshot,
 	type SnapshotPlan,
 	timestampedBackupDirName,
 } from "./backup.ts";
+import {
+	type BackupRetentionIo,
+	type BackupRetentionResult,
+	pruneBackups,
+	realBackupRetentionIo,
+} from "./backup-runtime.ts";
 import {
 	type BinLinkExecution,
 	executeBinLink,
@@ -55,11 +62,14 @@ export interface BootstrapOptions {
 	skipBinLink?: boolean;
 	/** Override the managed omp bin path for tests; defaults to `$BUN_INSTALL/bin/omp`. */
 	binPath?: string;
+	/** Override backup retention filesystem operations for tests. */
+	backupRetentionIo?: BackupRetentionIo;
 }
 
 export interface BootstrapReport {
 	backupDir: string;
 	snapshot: SnapshotPlan;
+	backupRetention?: BackupRetentionResult;
 	links: LinkPlan;
 	removedSymlinks: SymlinkRemovalPlan;
 	configChanged: boolean;
@@ -115,6 +125,12 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 
 	const snapshot = await planSnapshot(sourcesToSnapshot, backupDir);
 	await executeSnapshot(snapshot);
+	const backupRetention = await pruneBackups(
+		join(options.repoRoot, "backups"),
+		basename(backupDir),
+		BACKUP_RETENTION_LIMIT,
+		options.backupRetentionIo ?? realBackupRetentionIo,
+	);
 
 	const links = await planManagedLinks([
 		{
@@ -207,6 +223,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	return {
 		backupDir,
 		snapshot,
+		backupRetention,
 		links,
 		removedSymlinks,
 		configChanged,
@@ -224,6 +241,17 @@ export function summarizeReport(report: BootstrapReport): string {
 	const snapshotted = report.snapshot.entries.filter(e => e.kind === "copy").length;
 	const skipped = report.snapshot.entries.filter(e => e.kind === "skip").length;
 	lines.push(`Snapshot: ${snapshotted} copied, ${skipped} skipped`);
+	if (
+		report.backupRetention &&
+		(report.backupRetention.deleted.length > 0 || report.backupRetention.failures.length > 0)
+	) {
+		const { deleted, failures } = report.backupRetention;
+		const failedNames = failures.map(failure => failure.name).join(", ");
+		lines.push(
+			`Snapshot retention: ${deleted.length} deleted, ${failures.length} failed` +
+				(failedNames ? ` (${failedNames})` : ""),
+		);
+	}
 	for (const entry of report.links.entries) {
 		if (entry.kind === "skip") continue;
 		const dest = "destination" in entry ? entry.destination : "";
