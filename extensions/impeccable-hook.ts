@@ -26,6 +26,7 @@ interface ImpeccableHookLib {
 		env: NodeJS.ProcessEnv;
 		cwd: string;
 	}): Promise<HookRunResult>;
+	writeAuditLog(env: NodeJS.ProcessEnv, audit: Record<string, unknown>, cwd: string): boolean;
 }
 
 const DESIGN_TOOLS = new Set(["edit", "write"]);
@@ -121,11 +122,13 @@ export default function impeccableHook(pi: ExtensionAPI): void {
 		if (event.isError || !DESIGN_TOOLS.has(event.toolName)) return;
 		try {
 			const lib = await loadHookLib();
+			const env = hookEnv();
 			const result = await lib.runHook({
 				stdinJson: postToolUsePayload(event, ctx),
-				env: hookEnv(),
+				env,
 				cwd: ctx.cwd,
 			});
+			lib.writeAuditLog(env, result.audit, ctx.cwd);
 			const reminder = parseHookReminder(result.stdout);
 			if (!reminder) return;
 			return {
@@ -140,11 +143,13 @@ export default function impeccableHook(pi: ExtensionAPI): void {
 		if (event.willContinue) return;
 		try {
 			const lib = await loadHookLib();
+			const env = hookEnv();
 			const result = await lib.runStopHook({
 				stdinJson: stopPayload(ctx),
-				env: hookEnv(),
+				env,
 				cwd: ctx.cwd,
 			});
+			lib.writeAuditLog(env, result.audit, ctx.cwd);
 			const reminder = parseHookReminder(result.stdout);
 			if (!reminder) return;
 			pi.sendMessage(

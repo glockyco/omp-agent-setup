@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -139,6 +139,29 @@ describe("impeccable hook helpers", () => {
 });
 
 describe("impeccable hook extension", () => {
+	test("writes immediate and settled audits through the vendored library", async () => {
+		const auditPath = join(root, "audit.ndjson");
+		await mkdir(join(root, ".impeccable"), { recursive: true });
+		await writeFile(
+			join(root, ".impeccable", "config.local.json"),
+			JSON.stringify({ hook: { auditLog: auditPath } }),
+		);
+		const stylesheet = join(root, "page.css");
+		await writeFile(stylesheet, ".page { color: CanvasText; }\n");
+		const extension = captureExtension();
+		const ctx = extensionContext("audit-session");
+
+		await extension.toolResult(writeEvent(stylesheet), ctx);
+		await extension.agentEnd({ type: "agent_end", messages: [], willContinue: false }, ctx);
+
+		const records = (await readFile(auditPath, "utf8"))
+			.trim()
+			.split("\n")
+			.map(line => JSON.parse(line) as Record<string, unknown>);
+		expect(records).toHaveLength(2);
+		expect(records.map(record => record.event)).toEqual(["PostToolUse", "Stop"]);
+	});
+
 	test("appends immediate detector findings to the write result", async () => {
 		const css = join(root, "page.css");
 		await writeFile(

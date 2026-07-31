@@ -54,13 +54,13 @@ This plan implements the contracts in [Command Surface Redesign Spec](./2026-07-
 
 ### Task 3: Record Impeccable hook audits
 
-- [ ] Call the vendored audit writer for successful immediate and settled terminal detector results using one environment snapshot per event.
+- [x] Call the vendored audit writer for successful immediate and settled terminal detector results using one environment snapshot per event.
   Verification: `bun test tests/impeccable-hook.test.ts`.
   Expected: actual vendored code writes one `PostToolUse` and one `Stop` NDJSON record while existing reminder assertions remain green.
-- [ ] Create ignored project-local pilot configs, exercise one named UI file in each repository, and verify project-specific records plus unchanged tracked status.
+- [x] Create ignored project-local pilot configs, exercise one named UI file in each repository, and verify project-specific records plus unchanged tracked status.
   Verification: inspect each NDJSON log and run `git status --short` plus `git check-ignore` in both pilot repositories.
   Expected: both logs contain their project event, and local config/cache state is ignored.
-- [ ] Commit only repository extension and test changes.
+- [x] Commit only repository extension and test changes.
   Commit: `feat(extensions): record Impeccable hook audits`.
 
 ### Task 4: Show resolved LSP server paths
