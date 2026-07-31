@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	applyVendorFixes,
+	assertPiImpeccableVariant,
 	IMPECCABLE_VENDOR_FIXES,
 	rewriteImpeccableScriptPaths,
 	updateImpeccableFromBundle,
@@ -34,6 +35,11 @@ async function writeSkill(base: string, versionLine: string) {
 		`---\nname: impeccable\n${versionLine}\n---\n# Impeccable\n`,
 	);
 	await writeFile(join(skillDir, "commands", "critique.md"), "# Critique\n");
+	await mkdir(join(skillDir, "scripts", "lib"), { recursive: true });
+	await writeFile(
+		join(skillDir, "scripts", "lib", "provider.mjs"),
+		'export const IMPECCABLE_PROVIDER_ID = "pi";\n',
+	);
 }
 
 describe("updateImpeccableFromBundle", () => {
@@ -79,6 +85,18 @@ describe("updateImpeccableFromBundle", () => {
 		);
 	});
 
+	test("rejects a non-Pi provider after copying the bundle", async () => {
+		await writeSkill(bundle, "version: 3.5.0");
+		await writeFile(
+			join(bundle, ".pi", "skills", "impeccable", "scripts", "lib", "provider.mjs"),
+			'export const IMPECCABLE_PROVIDER_ID = "github";\n',
+		);
+
+		await expect(updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle })).rejects.toThrow(
+			/scripts\/lib\/provider\.mjs.*github/,
+		);
+	});
+
 	test("rewrites project-local script paths in vendored docs", async () => {
 		const skillDir = join(bundle, ".pi", "skills", "impeccable");
 		await mkdir(join(skillDir, "reference"), { recursive: true });
@@ -89,6 +107,11 @@ describe("updateImpeccableFromBundle", () => {
 		await writeFile(
 			join(skillDir, "reference", "live.md"),
 			"node .pi/skills/impeccable/scripts/live-poll.mjs --stream\n",
+		);
+		await mkdir(join(skillDir, "scripts", "lib"), { recursive: true });
+		await writeFile(
+			join(skillDir, "scripts", "lib", "provider.mjs"),
+			'export const IMPECCABLE_PROVIDER_ID = "pi";\n',
 		);
 
 		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
@@ -110,6 +133,28 @@ describe("rewriteImpeccableScriptPaths", () => {
 		expect(rewriteImpeccableScriptPaths("node .pi/skills/impeccable/scripts/context.mjs")).toBe(
 			`node ${DEPLOYED_PREFIX}/scripts/context.mjs`,
 		);
+	});
+
+	test("rewrites detect, hook-admin ignores, and managed update instructions", () => {
+		const detect = "npx impeccable detect --no-config src/App.tsx";
+		expect(rewriteImpeccableScriptPaths(detect)).toBe(
+			`node ${DEPLOYED_PREFIX}/scripts/detect.mjs --no-config src/App.tsx`,
+		);
+		const ignores =
+			"Use `npx impeccable ignores ...` for direct CLI CRUD on the same detector ignores.";
+		expect(rewriteImpeccableScriptPaths(ignores)).toBe(
+			`Use \`node ${DEPLOYED_PREFIX}/scripts/hook-admin.mjs\` with the \`ignore-rule\`, \`ignore-file\`, or \`ignore-value\` action for direct CLI CRUD on the same detector ignores.`,
+		);
+		const doctor =
+			"- **Tool version.** The installed skill is older than the published one. `context.mjs` reports that at boot as `UPDATE_AVAILABLE` and `npx impeccable update` fixes it. Not this command's job.";
+		expect(rewriteImpeccableScriptPaths(doctor)).toContain(
+			"(cd ~/Projects/omp-agent-setup && bun run update-impeccable && bun run bootstrap)",
+		);
+	});
+
+	test("drops the redundant allowed-tools npm suggestion", () => {
+		const text = "  - Bash(npx impeccable *)";
+		expect(rewriteImpeccableScriptPaths(text)).toBe("");
 	});
 
 	test("leaves unrelated text untouched", () => {
@@ -198,6 +243,22 @@ describe("vendored impeccable skill", () => {
 	)("carries the %s fix", async (_id, fix) => {
 		const content = await readFile(join(skillDir, fix.targetRelative), "utf8");
 		expect(planPatch(fix, content).kind).toBe("skip-already-applied");
+	});
+
+	test("accepts the checked-in Pi variant", async () => {
+		await assertPiImpeccableVariant(skillDir);
+	});
+
+	test("rejects a markdown npm command", async () => {
+		await mkdir(join(root, "scripts", "lib"), { recursive: true });
+		await writeFile(
+			join(root, "scripts", "lib", "provider.mjs"),
+			'export const IMPECCABLE_PROVIDER_ID = "pi";\n',
+		);
+		const doc = join(root, "variant.md");
+		await writeFile(doc, "Run `npx impeccable detect`.\n");
+
+		await expect(assertPiImpeccableVariant(root)).rejects.toThrow(/variant\.md.*npx impeccable/);
 	});
 
 	test("concept-seed.mjs writes its seed when invoked through a symlinked skill dir", async () => {

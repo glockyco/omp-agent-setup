@@ -64,6 +64,7 @@ export async function updateImpeccableFromBundle(
 	await cp(sourceDir, destinationDir, { recursive: true });
 	await rewriteVendoredScriptPaths(destinationDir);
 	const fixes = await applyVendorFixes(destinationDir);
+	await assertPiImpeccableVariant(destinationDir);
 
 	return { oldVersion, newVersion, fixes };
 }
@@ -163,19 +164,54 @@ export async function applyVendorFixes(
 	return outcomes;
 }
 
+interface ImpeccableDocRewrite {
+	from: string;
+	to: string;
+	why: string;
+}
+
+const DETECT_COMMAND = `node ${DEPLOYED_SCRIPT_PATH}/scripts/detect.mjs`;
+const HOOK_ADMIN_COMMAND = `node ${DEPLOYED_SCRIPT_PATH}/scripts/hook-admin.mjs`;
+
+const IMPECCABLE_DOC_REWRITES: readonly ImpeccableDocRewrite[] = [
+	{
+		from: PI_SCRIPT_PATH,
+		to: DEPLOYED_SCRIPT_PATH,
+		why: "The vendored skill is deployed globally, not relative to a project cwd.",
+	},
+	{
+		from: "  - Bash(npx impeccable *)",
+		to: "",
+		why: "The following Pi-native node allowance already covers the managed scripts.",
+	},
+	{
+		from: "npx impeccable detect",
+		to: DETECT_COMMAND,
+		why: "The detector is already vendored and must run from the managed deployment.",
+	},
+	{
+		from: "Use `npx impeccable ignores ...` for direct CLI CRUD on the same detector ignores.",
+		to: `Use \`${HOOK_ADMIN_COMMAND}\` with the \`ignore-rule\`, \`ignore-file\`, or \`ignore-value\` action for direct CLI CRUD on the same detector ignores.`,
+		why: "hook-admin.mjs exposes the real ignore CRUD actions; there is no `ignores` action.",
+	},
+	{
+		from:
+			"- **Tool version.** The installed skill is older than the published one. `context.mjs` reports that at boot as `UPDATE_AVAILABLE` and `npx impeccable update` fixes it. Not this command's job.",
+		to: "- **Tool version.** The installed skill is older than the published one. `context.mjs` reports that at boot as `UPDATE_AVAILABLE`. To update this managed copy, run `(cd ~/Projects/omp-agent-setup && bun run update-impeccable && bun run bootstrap)`; this command does not update it.",
+		why: "Managed Impeccable updates must come through this repository and then bootstrap the deployment.",
+	},
+];
+
 /**
- * Upstream Impeccable installs per-project via `npx impeccable`, so its
- * SKILL.md and reference docs invoke scripts as
- * `node .pi/skills/impeccable/scripts/*.mjs` — a project-relative path. We
- * vendor the skill once and deploy it globally at
- * `$OMP_AGENT_DIR/skills/impeccable`, where that relative path resolves to
- * nothing in an arbitrary project cwd. Rewrite the invocations to the deployed
- * location: a `$HOME/.omp/agent` fallback covers sessions where the bootstrap
- * extension hasn't exported OMP_AGENT_DIR, and the quoting keeps paths with
- * spaces as a single shell word. Idempotent.
+ * Rewrite vendored Impeccable documentation for the globally managed install.
+ * The table keeps the path and command migrations declarative and makes each
+ * rewrite idempotent, so re-vending an already rewritten tree is harmless.
  */
 export function rewriteImpeccableScriptPaths(text: string): string {
-	return text.replaceAll(PI_SCRIPT_PATH, DEPLOYED_SCRIPT_PATH);
+	return IMPECCABLE_DOC_REWRITES.reduce(
+		(current, rule) => current.replaceAll(rule.from, rule.to),
+		text,
+	);
 }
 
 /** Apply {@link rewriteImpeccableScriptPaths} to every vendored `.md` doc. */
@@ -193,6 +229,54 @@ async function rewriteVendoredScriptPaths(skillDir: string): Promise<void> {
 				}
 			}),
 	);
+}
+
+const FORBIDDEN_PI_VARIANT_MARKERS = [
+	"npx impeccable",
+	".pi/skills/impeccable",
+	".github/skills/impeccable",
+	".claude/skills/impeccable",
+	".cursor/skills/impeccable",
+] as const;
+
+/**
+ * Reject a vendored tree from another harness before it can be deployed.
+ * Provider source is checked directly, while path markers are restricted to
+ * Markdown because hook-admin.mjs intentionally carries every provider's
+ * manifest paths.
+ */
+export async function assertPiImpeccableVariant(skillDir: string): Promise<void> {
+	const providerRelative = "scripts/lib/provider.mjs";
+	const providerPath = join(skillDir, providerRelative);
+	let providerText: string;
+	try {
+		providerText = await readFile(providerPath, "utf8");
+	} catch {
+		throw new Error(
+			`Vendored Impeccable variant assertion failed for ${providerRelative}: file is missing; expected IMPECCABLE_PROVIDER_ID = "pi".`,
+		);
+	}
+	const providerMatch = /IMPECCABLE_PROVIDER_ID\s*=\s*["']([^"']+)["']/.exec(providerText);
+	if (providerMatch?.[1] !== "pi") {
+		const found = providerMatch ? JSON.stringify(providerMatch[1]) : "no declaration";
+		throw new Error(
+			`Vendored Impeccable variant assertion failed for ${providerRelative}: found IMPECCABLE_PROVIDER_ID = ${found}; expected "pi".`,
+		);
+	}
+
+	const entries = await readdir(skillDir, { recursive: true, withFileTypes: true });
+	for (const entry of entries) {
+		if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+		const filePath = join(entry.parentPath, entry.name);
+		const content = await readFile(filePath, "utf8");
+		const marker = FORBIDDEN_PI_VARIANT_MARKERS.find(candidate => content.includes(candidate));
+		if (marker) {
+			const relativePath = filePath.slice(skillDir.length + 1);
+			throw new Error(
+				`Vendored Impeccable variant assertion failed for ${relativePath}: found forbidden ${JSON.stringify(marker)}.`,
+			);
+		}
+	}
 }
 
 async function readExistingVersion(skillPath: string): Promise<string | null> {
