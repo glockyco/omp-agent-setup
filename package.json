@@ -10,7 +10,7 @@
     "doctor": "bun run src/cli.ts doctor",
     "audit-lsp": "bun run src/cli.ts audit-lsp",
     "install-lsp": "bun run src/cli.ts install-lsp",
-    "plans": "bun run src/plans-cli.ts",
+    "update-omp": "bun run src/cli.ts update-omp",
     "update-impeccable": "bun run src/cli.ts update-impeccable",
     "update-plannotator": "bun run src/cli.ts update-plannotator",
     "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:test",

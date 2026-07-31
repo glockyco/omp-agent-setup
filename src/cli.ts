@@ -25,6 +25,8 @@ import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { isParsableMcpJson, MANAGED_MCP_SERVERS, type McpHealth, readMcpServer } from "./mcp.ts";
 import { checkMcpServer } from "./mcp-runtime.ts";
+import { executeOmpUpdateWorkflow, parseOmpUpdateArgs } from "./omp-update.ts";
+import { readOmpVersion, runOmpUpdater } from "./omp-update-runtime.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { expandHome, PLANNOTATOR_SKILLS } from "./paths.ts";
 import { loadManifest } from "./plugins-runtime.ts";
@@ -341,6 +343,42 @@ async function cmdUpdateImpeccable(_args: string[]): Promise<number> {
 	return 0;
 }
 
+async function cmdUpdateOmp(args: string[]): Promise<number> {
+	const parsed = parseOmpUpdateArgs(args);
+	if (parsed.kind === "help") {
+		console.log("usage: bun run update-omp");
+		return 0;
+	}
+	if (parsed.kind === "error") {
+		console.error(parsed.message);
+		return 2;
+	}
+
+	const result = await executeOmpUpdateWorkflow(
+		{
+			readVersion: readOmpVersion,
+			update: runOmpUpdater,
+			bootstrap: () => cmdBootstrap([]),
+			doctor: () => cmdDoctor([]),
+			verify: () => cmdVerify([]),
+		},
+		event => {
+			if (event.kind === "version") {
+				console.log(`OMP version ${event.position}: ${event.value}`);
+				return;
+			}
+			const heading = {
+				update: "omp update",
+				bootstrap: "bootstrap after omp update",
+				doctor: "doctor after omp update",
+				verify: "verify after omp update",
+			}[event.stage];
+			console.log(`\n==> ${heading}`);
+		},
+	);
+	return result.kind === "success" ? 0 : result.exitCode;
+}
+
 async function cmdUpdatePlugin(name: "plannotator"): Promise<number> {
 	const home = homedir();
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");
@@ -473,6 +511,7 @@ const COMMANDS: Record<string, (args: string[]) => Promise<number>> = {
 	"audit-lsp": cmdAuditLsp,
 	"install-lsp": cmdInstallLsp,
 	"update-impeccable": cmdUpdateImpeccable,
+	"update-omp": cmdUpdateOmp,
 	"update-plannotator": () => cmdUpdatePlugin("plannotator"),
 };
 

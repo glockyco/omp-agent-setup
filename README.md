@@ -32,7 +32,7 @@ bun run verify
 | managed keys in `src/config.ts` | `~/.omp/agent/config.yml` — merged |
 | managed servers in `src/mcp.ts` | `~/.omp/agent/mcp.json` — merged |
 | `manifests/plugins.yml` | active plugin checkouts under `~/Projects/` |
-| `src/patches.ts` | OMP source files — patched in place; re-run `bootstrap` after `omp update` |
+| `src/patches.ts` | OMP source files — patched in place by `update-omp` or `bootstrap` recovery |
 
 Every run snapshots the pre-deploy state to `backups/<UTC-timestamp>/` before touching anything.
 `bun run doctor` reports the current state without changing anything, including whether each managed MCP server's binary, background service, and daemon are actually healthy.
@@ -47,7 +47,7 @@ Bootstrap deliberately does not install background services. When a managed MCP 
 
 Install the RemNote daemon's background service once with `remnote-mcp-server daemon install-launchd`; `remnote-mcp-server daemon uninstall-launchd` reverses it. Operating guidance for agents lives in [`agent/rules/remnote.md`](./agent/rules/remnote.md).
 
-## Commands
+## Maintenance commands
 
 | Script | What it does |
 |---|---|
@@ -56,9 +56,18 @@ Install the RemNote daemon's background service once with `remnote-mcp-server da
 | `bun run doctor` | Read-only health report. |
 | `bun run audit-lsp` | Fleet LSP audit across `~/Projects/*`. `--include-dormant` widens the scan. |
 | `bun run install-lsp` | Install all LSP binaries via the canonical channel. Idempotent. |
+| `bun run update-omp` | Update OMP, then stop on the first failed bootstrap, doctor, or verify gate. |
 | `bun run update-plannotator` | Rebase Plannotator fork's `omp-local` onto upstream; print the new SHA. |
 | `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable`; review diff before bootstrap. |
-| `bun run ci` / `bun run fix` | All quality gates / Biome auto-fix. |
+
+Use `bun run update-omp` for normal OMP updates. If the repository command cannot start, recover with `omp update`, then immediately run `bun run bootstrap`, `bun run doctor`, and `bun run verify`.
+
+## Developer commands
+
+| Script | What it does |
+|---|---|
+| `bun run ci` | Run lint, types, dead-code, dependency audit, and coverage tests. |
+| `bun run fix` | Apply Biome fixes. |
 
 ## Plugins
 

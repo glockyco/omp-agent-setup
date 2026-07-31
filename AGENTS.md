@@ -6,7 +6,11 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 
 `bun install`. Runtime pinned via `.bun-version`.
 
-## Commands
+## Planning
+
+Read [`docs/plans/INDEX.md`](./docs/plans/INDEX.md) and the repository [setup maintenance overview](./docs/plans/2026-07-31-setup-maintenance-overview.md) before resuming cross-session work.
+
+## Maintenance commands
 
 | Script | What it does |
 |---|---|
@@ -15,10 +19,17 @@ Source-of-truth for my personal global [oh-my-pi](https://github.com/can1357/oh-
 | `bun run doctor` | Read-only health report. |
 | `bun run audit-lsp` | Fleet-wide LSP audit. Walks `~/Projects/*`, simulates OMP's per-directory server detection, classifies by git activity, and surfaces each missing binary with a remediation that distinguishes `install-lsp` coverage from manual-only channels. |
 | `bun run install-lsp` | Idempotent install of every LSP binary in the canonical channel for the current platform (bun / uv / rustup / dotnet tool / brew). `src/lsp-channels.ts` names the channel map; a test keeps it in exact lockstep with `scripts/install-lsp.sh`. |
+| `bun run update-omp` | Read the installed OMP version, run `omp update`, then stop on the first failed bootstrap, doctor, or verify gate before reporting the resulting version. |
 | `bun run update-plannotator` | Rebase the Plannotator fork's `omp-local` onto `upstream/main` and print the new SHA to record. |
 | `bun run update-impeccable` | Download the latest Impeccable universal bundle, vendor `.pi/skills/impeccable` (rewriting its project-local `node .pi/...` script paths to the deployed `$OMP_AGENT_DIR/skills/impeccable` location so they resolve from any project cwd), re-applying the vendor fixes and asserting the Pi provider plus clean Markdown in `src/impeccable-update.ts`, and print old/new versions plus per-fix status for diff review. |
+
+## Developer commands
+
+| Script | What it does |
+|---|---|
 | `bun run ci` | Lint + types + dead-code + audit + tests. Mirrors lefthook `pre-push` and the GitHub workflow. |
 | `bun run fix` | Biome auto-fix. |
+| `bun run check:*` | CI composition and focused debugging units. |
 
 ## Architecture
 
@@ -54,7 +65,7 @@ Use Conventional Commits (`skill://commit`). Lefthook enforces lint + typecheck 
 | Take a runtime dep on `@oh-my-pi/pi-coding-agent` | Use the ambient declaration in `types/omp.d.ts` (whitelisted in `knip.json`). |
 | Bypass the manifest when changing Plannotator checkout state | `bun run update-plannotator` rebases `omp-local`, then update `manifests/plugins.yml` `currentCommit`. |
 | Hand-edit installed `@oh-my-pi` package sources (`pi-coding-agent`, `pi-agent-core`, `pi-ai`) to keep a modification across `omp update` | Add the modification to `src/patches.ts` (set `package` + anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. Patches target **TypeScript source only** — bootstrap re-points the `omp` bin at `pi-coding-agent/src/cli.ts` so the package runs from source (Bun resolves `@oh-my-pi/*` imports to `src/`), which is what makes source patches effective at runtime. Never patch the minified `dist/cli.js`; its anchors drift on nearly every release. Each patch resolves to `node_modules/@oh-my-pi/<package>/<targetRelative>`, addressed by name — never via `../` escapes. |
-| Re-point or hand-edit `~/.bun/bin/omp` to change what `omp` runs | `bun run bootstrap` owns the bin (`src/bin-link.ts` + `-runtime.ts`): it snapshots, then re-points the symlink to `pi-coding-agent/src/cli.ts`. `omp update` resets it to `dist/cli.js` — just re-run bootstrap. |
+| Re-point or hand-edit `~/.bun/bin/omp` to change what `omp` runs | `bun run update-omp` owns the normal update-and-repair sequence. `bun run bootstrap` is the recovery path that snapshots, then re-points the symlink to `pi-coding-agent/src/cli.ts`. |
 | Add an `lsp.json` to a user project to "fix" missing LSP coverage | The fleet is configured globally. Either install the missing binary via `scripts/install-lsp.sh` (preferred) or extend `agent/lsp.json`. Per-repo overrides only when project conventions genuinely differ. |
 
 ## MCP servers
@@ -77,7 +88,9 @@ Touching any one of these implies updating the audit's view of "active fleet" an
 
 ## OMP update
 
-Run `bun run bootstrap` after every `omp update`. The `omp-session-env` extension warns at the next session start if the bin still points at the unpatched bundle. Bootstrap re-points the `omp` bin at `pi-coding-agent/src/cli.ts` and re-applies the source patches. A healthy install reports `OMP patches: N skip-already-applied` and `omp bin: skip-up-to-date` (or `repoint` the first run after an update reset the bin to the bundle); confirm with `bun run doctor` (`ok omp bin -> .../src/cli.ts`).
+Use `bun run update-omp`. It records the installed version, runs the upstream updater, then stops on the first failed bootstrap, doctor, or verify gate before recording the resulting version. Bootstrap re-points the `omp` bin at `pi-coding-agent/src/cli.ts` and re-applies source patches after the updater resets the global link.
+
+Recovery only: if the repository command cannot start, run `omp update`, then immediately run `bun run bootstrap`, `bun run doctor`, and `bun run verify`. The `omp-session-env` extension warns at the next session start if the bin still points at the unpatched bundle. A healthy repair reports `OMP patches: N skip-already-applied` and `omp bin: skip-up-to-date` or `repoint`, plus `ok omp bin -> .../src/cli.ts` from doctor.
 
 Two drift signals need action:
 - `skip-anchor-missing` — OMP rewrote the patched source; update the patch's `anchor`/`replacement` in `src/patches.ts` to the new shape and re-run.
