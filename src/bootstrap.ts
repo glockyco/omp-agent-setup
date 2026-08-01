@@ -24,6 +24,7 @@ import { MANAGED_CONFIG, mergeManagedConfig } from "./config.ts";
 import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { MANAGED_MCP_SERVERS, mergeManagedMcpConfig } from "./mcp.ts";
+import { LOCAL_OPTIONAL_SKILLS } from "./optional-skills.ts";
 import { OMP_PATCHES } from "./patches.ts";
 import {
 	applyPatches,
@@ -78,6 +79,7 @@ export interface BootstrapReport {
 	patchExecutions: PatchExecution[];
 	binLink?: BinLinkExecution;
 	plansBinLink?: BinLinkExecution;
+	skillBinLink?: BinLinkExecution;
 }
 
 /**
@@ -88,6 +90,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const home = options.home ?? homedir();
 	const agentDir = options.agentDir ?? join(home, ".omp", "agent");
 	const extensionsDir = join(agentDir, "extensions");
+	const optionalSkillsDir = join(agentDir, "optional-skills");
 	const backupDir = join(
 		options.repoRoot,
 		"backups",
@@ -99,7 +102,9 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const ompSourceEntry = resolveOmpSourceEntry(ompScopeRoot);
 	const plansBinPath = join(dirname(binPath), "omp-plans");
 	const plansSourceEntry = join(options.repoRoot, "src", "plans-cli.ts");
-	const binToSnapshot = options.skipBinLink ? [] : [binPath, plansBinPath];
+	const skillBinPath = join(dirname(binPath), "omp-skill");
+	const skillSourceEntry = join(options.repoRoot, "src", "skill-cli.ts");
+	const binToSnapshot = options.skipBinLink ? [] : [binPath, plansBinPath, skillBinPath];
 	const patchTargets = options.skipPatches ? [] : patchTargetPaths(OMP_PATCHES, ompScopeRoot);
 	const removedManagedSymlinkPaths = [
 		join(extensionsDir, "superpowers-bootstrap.ts"),
@@ -116,6 +121,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		...removedManagedSymlinkPaths,
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
 		...LOCAL_MANAGED_RULES.map(rule => join(agentDir, "rules", `${rule}.md`)),
+		...LOCAL_OPTIONAL_SKILLS.map(skill => join(optionalSkillsDir, skill.name)),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
 		...patchTargets,
@@ -157,6 +163,10 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		...LOCAL_MANAGED_RULES.map(rule => ({
 			source: join(options.repoRoot, "agent", "rules", `${rule}.md`),
 			destination: join(agentDir, "rules", `${rule}.md`),
+		})),
+		...LOCAL_OPTIONAL_SKILLS.map(skill => ({
+			source: join(options.repoRoot, "agent", "optional-skills", skill.name),
+			destination: join(optionalSkillsDir, skill.name),
 		})),
 	]);
 	// Report every blocked destination at once. `executeLinkPlan` throws on the
@@ -224,6 +234,9 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const plansBinLink = options.skipBinLink
 		? undefined
 		: await executeBinLink(plansBinPath, plansSourceEntry);
+	const skillBinLink = options.skipBinLink
+		? undefined
+		: await executeBinLink(skillBinPath, skillSourceEntry);
 
 	return {
 		backupDir,
@@ -237,6 +250,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		patchExecutions,
 		binLink,
 		plansBinLink,
+		skillBinLink,
 	};
 }
 
@@ -304,6 +318,12 @@ export function summarizeReport(report: BootstrapReport): string {
 		lines.push(`omp-plans bin: ${describeBinLink(report.plansBinLink)}`);
 		if (isBinLinkUnhealthy(report.plansBinLink)) {
 			lines.push(`⚠ omp-plans bin not linked (${report.plansBinLink.plan.kind}).`);
+		}
+	}
+	if (report.skillBinLink) {
+		lines.push(`omp-skill bin: ${describeBinLink(report.skillBinLink)}`);
+		if (isBinLinkUnhealthy(report.skillBinLink)) {
+			lines.push(`⚠ omp-skill bin not linked (${report.skillBinLink.plan.kind}).`);
 		}
 	}
 	return lines.join("\n");

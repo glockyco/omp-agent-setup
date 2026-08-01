@@ -3,6 +3,7 @@ import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { managedAgentChecks, REQUIRED_SKILLS } from "../src/cli.ts";
+import { LOCAL_OPTIONAL_SKILLS } from "../src/optional-skills.ts";
 
 describe("update-omp command", () => {
 	async function runUpdateCommand(args: string[]) {
@@ -122,5 +123,31 @@ describe("managedAgentChecks", () => {
 	test("does not require Superpowers skills during verification", () => {
 		expect(REQUIRED_SKILLS).not.toContain("using-superpowers");
 		expect(REQUIRED_SKILLS).not.toContain("brainstorming");
+	});
+
+	test("deploys optional skills to the directory OMP never scans", () => {
+		const agentDir = "/tmp/omp-agent";
+		const checks = managedAgentChecks(agentDir);
+
+		for (const skill of LOCAL_OPTIONAL_SKILLS) {
+			expect(checks).toContainEqual([
+				join(agentDir, "optional-skills", skill.name),
+				`optional-skills/${skill.name}`,
+				"symlink",
+			]);
+			// Deploying the same payload under `skills/` would list it in every
+			// session, which is exactly what the opt-in avoids.
+			expect(checks).not.toContainEqual([
+				join(agentDir, "skills", skill.name),
+				`skills/${skill.name}`,
+				"symlink",
+			]);
+		}
+	});
+
+	test("never requires an opt-in skill during verification", () => {
+		for (const skill of LOCAL_OPTIONAL_SKILLS) {
+			expect(REQUIRED_SKILLS).not.toContain(skill.name);
+		}
 	});
 });

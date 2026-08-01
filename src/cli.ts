@@ -32,6 +32,7 @@ import { isParsableMcpJson, MANAGED_MCP_SERVERS, type McpHealth, readMcpServer }
 import { checkMcpServer } from "./mcp-runtime.ts";
 import { executeOmpUpdateWorkflow, parseOmpUpdateArgs } from "./omp-update.ts";
 import { readOmpVersion, runOmpUpdater } from "./omp-update-runtime.ts";
+import { LOCAL_OPTIONAL_SKILLS } from "./optional-skills.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { expandHome, PLANNOTATOR_SKILLS } from "./paths.ts";
 import { loadManifest } from "./plugins-runtime.ts";
@@ -52,7 +53,8 @@ async function cmdBootstrap(_args: string[]): Promise<number> {
 	const patchUnhealthy = unhealthyPatchExecutions(report.patchExecutions).length > 0;
 	const binUnhealthy =
 		(report.binLink !== undefined && isBinLinkUnhealthy(report.binLink)) ||
-		(report.plansBinLink !== undefined && isBinLinkUnhealthy(report.plansBinLink));
+		(report.plansBinLink !== undefined && isBinLinkUnhealthy(report.plansBinLink)) ||
+		(report.skillBinLink !== undefined && isBinLinkUnhealthy(report.skillBinLink));
 	const pluginUnhealthy = unhealthyPluginSteps(report.pluginSteps).length > 0;
 	return patchUnhealthy || binUnhealthy || pluginUnhealthy ? 1 : 0;
 }
@@ -93,6 +95,17 @@ async function cmdVerify(_args: string[]): Promise<number> {
 			console.error(`FAIL: missing skills: ${loader.missing.join(", ")}`);
 			failures++;
 		}
+		// Optional skills are deployed to a directory OMP does not scan, so they
+		// must stay invisible from a repository that has not opted in. Moving a
+		// payload into `agent/skills/` or adding a scanned directory turns this red.
+		const leaked = LOCAL_OPTIONAL_SKILLS.filter(skill => loader.loadedNames.includes(skill.name));
+		for (const skill of LOCAL_OPTIONAL_SKILLS) {
+			console.log(`  ${leaked.includes(skill) ? "LEAKED" : "ok"}  ${skill.name} (opt-in, not loaded)`);
+		}
+		if (leaked.length > 0) {
+			console.error(`FAIL: opt-in skills loaded globally: ${leaked.map(s => s.name).join(", ")}`);
+			failures++;
+		}
 	} catch (error) {
 		console.error(`FAIL: skill loader error: ${(error as Error).message}`);
 		failures++;
@@ -125,6 +138,19 @@ async function cmdVerify(_args: string[]): Promise<number> {
 		console.log("  ok   omp-plans --help");
 	} else {
 		console.error("FAIL: omp-plans --help exited nonzero");
+		failures++;
+	}
+
+	console.log("\n==> omp-skill CLI smoke");
+	const skillSmoke = Bun.spawnSync({
+		cmd: ["bun", join(repoRoot(), "src", "skill-cli.ts"), "--help"],
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	if (skillSmoke.exitCode === 0) {
+		console.log("  ok   omp-skill --help");
+	} else {
+		console.error("FAIL: omp-skill --help exited nonzero");
 		failures++;
 	}
 
@@ -195,6 +221,20 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 		console.log(`  ok   omp-plans bin -> ${plansSource}`);
 	} else {
 		console.log(`  WARN omp-plans bin: ${plansPlan.kind}`);
+		issues++;
+	}
+	const skillBinPath = join(dirname(binPath), "omp-skill");
+	const skillSource = join(repoRoot(), "src", "skill-cli.ts");
+	const skillPlan = planBinLink({
+		binPath: skillBinPath,
+		desiredTarget: skillSource,
+		current: await probeBinState(skillBinPath),
+		sourceUsable: await isUsableSourceEntry(skillSource),
+	});
+	if (skillPlan.kind === "skip-up-to-date") {
+		console.log(`  ok   omp-skill bin -> ${skillSource}`);
+	} else {
+		console.log(`  WARN omp-skill bin: ${skillPlan.kind}`);
 		issues++;
 	}
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");
@@ -338,6 +378,14 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 				[
 					join(agentDir, "rules", `${rule}.md`),
 					`rules/${rule}.md`,
+					"symlink",
+				] satisfies ManagedAgentCheck,
+		),
+		...LOCAL_OPTIONAL_SKILLS.map(
+			skill =>
+				[
+					join(agentDir, "optional-skills", skill.name),
+					`optional-skills/${skill.name}`,
 					"symlink",
 				] satisfies ManagedAgentCheck,
 		),

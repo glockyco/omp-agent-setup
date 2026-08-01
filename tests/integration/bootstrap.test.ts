@@ -41,6 +41,11 @@ beforeEach(async () => {
 		"// stub session env extension\n",
 	);
 	await writeFile(join(repoRoot, "agent", "skills", "commit", "SKILL.md"), "# Commit skill\n");
+	await mkdir(join(repoRoot, "agent", "optional-skills", "simple-english"), { recursive: true });
+	await writeFile(
+		join(repoRoot, "agent", "optional-skills", "simple-english", "SKILL.md"),
+		"# Simple English skill\n",
+	);
 	// Empty manifest so we don't hit the real Git remotes.
 	await writeFile(join(repoRoot, "manifests", "plugins.yml"), "plugins: {}\n");
 });
@@ -84,6 +89,16 @@ describe("runBootstrap (integration)", () => {
 				join(repoRoot, "agent", "skills", skillName),
 			);
 		}
+
+		// Optional skills deploy to a directory OMP does not scan, so they are
+		// invisible until a repository opts in with `omp-skill enable`.
+		await expect(readlink(join(agentDir, "optional-skills", "simple-english"))).resolves.toBe(
+			join(repoRoot, "agent", "optional-skills", "simple-english"),
+		);
+		await expect(lstat(join(agentDir, "skills", "simple-english"))).rejects.toHaveProperty(
+			"code",
+			"ENOENT",
+		);
 
 		// Managed config keys are present.
 		const written = await readFile(join(agentDir, "config.yml"), "utf8");
