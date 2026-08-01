@@ -15,12 +15,13 @@ Read [`docs/plans/INDEX.md`](./docs/plans/INDEX.md) and the repository [setup ma
 | Script | What it does |
 |---|---|
 | `bun run bootstrap` | Deploy managed symlinks, merge managed config keys, reconcile plugin checkouts, re-apply OMP source patches, re-point the `omp` bin at `pi-coding-agent/src/cli.ts` (run from source), and retain the newest 20 plain timestamped snapshots (manually tagged snapshots are preserved). Idempotent. |
-| `bun run verify` | Live gate for OMP smoke, skill discovery, extension logs, and `omp-plans`. |
+| `bun run verify` | Live gate for OMP smoke, skill discovery, extension logs, `omp-plans`, and `omp-skill`. |
 | `bun run doctor` | Read-only health report. |
 | `bun run audit-lsp` | Fleet-wide LSP audit. Walks `~/Projects/*`, simulates OMP's per-directory server detection, classifies by git activity, and surfaces each missing binary with a remediation that distinguishes `install-lsp` coverage from manual-only channels. |
 | `bun run install-lsp` | Idempotent install of every LSP binary in the canonical channel for the current platform (bun / uv / rustup / dotnet tool / brew). `src/lsp-channels.ts` names the channel map; a test keeps it in exact lockstep with `scripts/install-lsp.sh`. |
 | `bun run update-omp` | Read the installed OMP version, run `omp update`, then stop on the first failed bootstrap, doctor, or verify gate before reporting the resulting version. |
 | `bun run update-plannotator` | Rebase the Plannotator fork's `omp-local` onto `upstream/main` and print the new SHA to record. |
+| `bun run update-vendored-skill <name>` | Re-vendor one `src/optional-skills.ts` entry from its upstream default branch head, then print the old and new commits to record. Rejects a tree whose `SKILL.md` frontmatter name stopped matching the directory name. |
 | `bun run update-impeccable` | Download the latest Impeccable universal bundle, vendor `.pi/skills/impeccable` (rewriting its project-local `node .pi/...` script paths to the deployed `$OMP_AGENT_DIR/skills/impeccable` location so they resolve from any project cwd), re-applying the vendor fixes and asserting the Pi provider plus clean Markdown in `src/impeccable-update.ts`, and print old/new versions plus per-fix status for diff review. |
 
 ## Developer commands
@@ -35,12 +36,13 @@ Read [`docs/plans/INDEX.md`](./docs/plans/INDEX.md) and the repository [setup ma
 
 Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads live in `agent/` and `extensions/`.
 
-Three registries name what gets deployed. Add the payload file and the registry entry in the same change: `planManagedLinks` never checks that a source exists, so a name registered ahead of its file deploys a dangling symlink.
+Four registries name what gets deployed. Add the payload file and the registry entry in the same change: `planManagedLinks` never checks that a source exists, so a name registered ahead of its file deploys a dangling symlink.
 
 | Registry | Payload | Deployed at |
 |---|---|---|
 | `src/managed-skills.ts` | `agent/skills/<name>/` | `~/.omp/agent/skills/<name>` — symlink |
 | `src/managed-rules.ts` | `agent/rules/<name>.md` | `~/.omp/agent/rules/<name>.md` — symlink |
+| `src/optional-skills.ts` | `agent/optional-skills/<name>/` | `~/.omp/agent/optional-skills/<name>` — symlink, opt-in |
 | `src/mcp.ts` (`MANAGED_MCP_SERVERS`) | the spec's `config` object | `~/.omp/agent/mcp.json` — merged |
 
 Managed extensions are explicit because there are only two: add the source under `extensions/`, then update `MANAGED_CONFIG.extensions`, the snapshot/link list in `src/bootstrap.ts`, and `managedAgentChecks` in `src/cli.ts` together. `impeccable-hook.ts` delegates OMP `tool_result` and terminal `agent_end` events to the vendored skill's immediate and deep detector passes through `$OMP_AGENT_DIR`; it never imports back into this repo through a relative path.
@@ -48,6 +50,16 @@ Managed extensions are explicit because there are only two: add the source under
 The MCP registry covers one class of server: **Streamable HTTP, unauthenticated, readiness determined by calling a zero-argument tool**. Within that class a new server is one registry entry plus at most one `interpret` function. Anything else — stdio, SSE, auth headers, non-tool readiness — needs new runtime code in `src/mcp-runtime.ts`, not just a row. Timeouts in the registry are measured, not guessed: OMP burns roughly `0.65 x timeout` during session teardown whether or not a tool was called, so re-measure before raising one.
 
 New pure logic gets unit tests before merge. Real-IO behaviour stays in `*-runtime.ts` and is injected into pure functions via parameters. See how `executeCheckoutSteps(steps, runner, probe)` takes its runtime as arguments.
+
+## Optional skills
+
+An optional skill is deployed globally but discovered nowhere. `~/.omp/agent/optional-skills/` is scanned by nothing — `~/.omp/agent/skills` (native user scan) and `~/.omp/agent/managed-skills` (auto-learn) are the only two agent-dir scans OMP performs — so the payload stays invisible in every session until a repository opts in. `omp-skill enable <name>` symlinks it to `<repo>/.omp/skills/<name>`, which OMP's native project scan finds by walking every ancestor of the session cwd, and adds `/.omp/skills/<name>` to that repo's `.git/info/exclude` so the machine-local opt-in leaves the working tree clean.
+
+The two-hop indirection is deliberate: the repo-local marker points at a fixed `$HOME` path that itself points into this repository, so editing the payload or re-vendoring reaches every enabled repo with nothing re-run per repo. Nothing records which repos opted in — `omp-skill list --fleet` walks `~/Projects/*` and reads the filesystem, the same posture as `bun run audit-lsp`.
+
+Removing or renaming a `LOCAL_OPTIONAL_SKILLS` entry is the one event that invalidates repo-local markers. Run `omp-skill list --fleet` afterwards: the leftovers surface as `broken` rows while the registry still knows the name and as `orphan` rows once it does not, each naming the exact path to remove. Orphan detection only claims symlinks pointing into the deploy root — a repository's own real `.omp/skills/<name>` directory belongs to that repository and is never reported.
+
+`bun run verify` asserts the payload is *not* loaded from this repository, which has not opted in. That check is the regression guard: moving a payload into `agent/skills/` or adding a scanned directory turns it red.
 
 ## Commits
 
@@ -67,6 +79,9 @@ Use Conventional Commits (`skill://commit`). Lefthook enforces lint + typecheck 
 | Hand-edit installed `@oh-my-pi` package sources (`pi-coding-agent`, `pi-agent-core`, `pi-ai`) to keep a modification across `omp update` | Add the modification to `src/patches.ts` (set `package` + anchor + replacement + appliedSignature) and let `bun run bootstrap` re-apply it. Patches target **TypeScript source only** — bootstrap re-points the `omp` bin at `pi-coding-agent/src/cli.ts` so the package runs from source (Bun resolves `@oh-my-pi/*` imports to `src/`), which is what makes source patches effective at runtime. Never patch the minified `dist/cli.js`; its anchors drift on nearly every release. Each patch resolves to `node_modules/@oh-my-pi/<package>/<targetRelative>`, addressed by name — never via `../` escapes. |
 | Re-point or hand-edit `~/.bun/bin/omp` to change what `omp` runs | `bun run update-omp` owns the normal update-and-repair sequence. `bun run bootstrap` is the recovery path that snapshots, then re-points the symlink to `pi-coding-agent/src/cli.ts`. |
 | Add an `lsp.json` to a user project to "fix" missing LSP coverage | The fleet is configured globally. Either install the missing binary via `scripts/install-lsp.sh` (preferred) or extend `agent/lsp.json`. Per-repo overrides only when project conventions genuinely differ. |
+| Register an opt-in payload in `src/managed-skills.ts` to make it easier to reach | That deploys it to `~/.omp/agent/skills/` and lists it in every session, which is the cost the opt-in exists to avoid. Register it in `src/optional-skills.ts` and run `omp-skill enable <name>` in the repos that want it. |
+| Hand-create `<repo>/.omp/skills/<name>` or hand-edit `.git/info/exclude` to enable a skill | `omp-skill enable`/`disable` own both halves and refuse to touch an entry they did not create. A hand-made entry reports `foreign` and blocks. |
+| Update a vendored optional skill by editing `agent/optional-skills/<name>/` | Run `bun run update-vendored-skill <name>`, record the printed commit in `src/optional-skills.ts`, review the diff, then `bun run bootstrap`. Unlike Impeccable there is no vendor-fix layer: these payloads are used verbatim, so a needed local change means the tree is no longer a clean vendor. |
 
 ## MCP servers
 
