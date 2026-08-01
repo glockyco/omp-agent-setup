@@ -1,5 +1,7 @@
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { translateClaudeAgent } from "./impeccable-agents.ts";
+import { LOCAL_MANAGED_AGENTS } from "./managed-agents.ts";
 import { planPatch, type SourceEdit } from "./patches.ts";
 
 export interface UpdateImpeccableOptions {
@@ -34,10 +36,14 @@ export interface UpdateImpeccableResult {
 	newVersion: string;
 	/** One entry per {@link IMPECCABLE_VENDOR_FIXES} entry, in declaration order. */
 	fixes: VendorFixOutcome[];
+	/** Vendored agent file names, sorted. Always {@link LOCAL_MANAGED_AGENTS}. */
+	agents: string[];
 }
 
 const PI_IMPECCABLE_RELATIVE = [".pi", "skills", "impeccable"] as const;
 const VENDORED_IMPECCABLE_RELATIVE = ["agent", "skills", "impeccable"] as const;
+const CLAUDE_AGENTS_RELATIVE = [".claude", "agents"] as const;
+const VENDORED_AGENTS_RELATIVE = ["agent", "agents"] as const;
 
 const PI_SCRIPT_PATH = ".pi/skills/impeccable";
 // biome-ignore lint/suspicious/noTemplateCurlyInString: literal bash parameter expansion emitted into shell command docs, not a JS template
@@ -72,8 +78,55 @@ export async function updateImpeccableFromBundle(
 	await rewriteVendoredScriptPaths(destinationDir);
 	const fixes = await applyVendorFixes(destinationDir);
 	await assertPiImpeccableVariant(destinationDir);
+	const agents = await vendorAgents(options);
 
-	return { oldVersion, newVersion, fixes };
+	return { oldVersion, newVersion, fixes, agents };
+}
+
+/**
+ * Vendor the Claude-variant agent definitions through the front-matter
+ * translation. Upstream ships them in no other variant, so this is the only
+ * source; a bundle without them means upstream moved the agents and the
+ * registry no longer describes reality.
+ */
+async function vendorAgents(options: UpdateImpeccableOptions): Promise<string[]> {
+	const sourceDir = join(options.bundleRoot, ...CLAUDE_AGENTS_RELATIVE);
+	const destinationDir = join(options.repoRoot, ...VENDORED_AGENTS_RELATIVE);
+
+	let entries: string[];
+	try {
+		entries = await readdir(sourceDir);
+	} catch (error) {
+		throw new Error(`Bundle does not contain Claude agent definitions at ${sourceDir}`, {
+			cause: error,
+		});
+	}
+	const fileNames = entries
+		.filter(entry => entry.startsWith("impeccable-") && entry.endsWith(".md"))
+		.sort();
+
+	const found = fileNames.map(fileName => fileName.slice(0, -".md".length));
+	const expected = [...LOCAL_MANAGED_AGENTS].sort();
+	if (found.join(",") !== expected.join(",")) {
+		throw new Error(
+			`Bundle agents do not match LOCAL_MANAGED_AGENTS: expected ${expected.join(", ")}; found ${found.join(", ") || "none"}`,
+		);
+	}
+
+	// Translate every file before clearing the destination, so a rejected tool
+	// name or effort value leaves the vendored agents as they were.
+	const translated = new Map<string, string>();
+	for (const fileName of fileNames) {
+		const source = await readFile(join(sourceDir, fileName), "utf8");
+		translated.set(fileName, translateClaudeAgent(source, fileName));
+	}
+
+	await rm(destinationDir, { recursive: true, force: true });
+	await mkdir(destinationDir, { recursive: true });
+	for (const [fileName, content] of translated) {
+		await writeFile(join(destinationDir, fileName), content);
+	}
+	return fileNames;
 }
 
 /**

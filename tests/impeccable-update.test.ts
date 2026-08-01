@@ -11,6 +11,7 @@ import {
 	updateImpeccableFromBundle,
 	type VendorFix,
 } from "../src/impeccable-update.ts";
+import { LOCAL_MANAGED_AGENTS } from "../src/managed-agents.ts";
 import { planPatch } from "../src/patches.ts";
 
 // biome-ignore lint/suspicious/noTemplateCurlyInString: literal bash parameter expansion the rewrite emits, not a JS template
@@ -38,6 +39,28 @@ async function writeVendorFixTargets(skillDir: string) {
 	}
 }
 
+async function writeAgents(base: string, names: readonly string[] = LOCAL_MANAGED_AGENTS) {
+	const agentsDir = join(base, ...[".claude", "agents"]);
+	await mkdir(agentsDir, { recursive: true });
+	for (const name of names) {
+		await writeFile(
+			join(agentsDir, `${name}.md`),
+			[
+				"---",
+				`name: ${name}`,
+				`description: Does ${name} work.`,
+				"tools: Read, Bash, Glob, Grep",
+				"model: inherit",
+				"effort: medium",
+				"maxTurns: 30",
+				"---",
+				`# ${name}`,
+				"",
+			].join("\n"),
+		);
+	}
+}
+
 async function writeSkill(base: string, versionLine: string) {
 	const skillDir = join(base, ".pi", "skills", "impeccable");
 	await mkdir(join(skillDir, "commands"), { recursive: true });
@@ -52,6 +75,7 @@ async function writeSkill(base: string, versionLine: string) {
 		'export const IMPECCABLE_PROVIDER_ID = "pi";\n',
 	);
 	await writeVendorFixTargets(skillDir);
+	await writeAgents(base);
 }
 
 describe("updateImpeccableFromBundle", () => {
@@ -126,6 +150,7 @@ describe("updateImpeccableFromBundle", () => {
 			'export const IMPECCABLE_PROVIDER_ID = "pi";\n',
 		);
 		await writeVendorFixTargets(skillDir);
+		await writeAgents(bundle);
 
 		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
 
@@ -392,5 +417,87 @@ describe("vendored impeccable skill", () => {
 
 		expect(result.stdout.toString()).toContain("NO_PRODUCT_MD");
 		expect(result.exitCode).toBe(1);
+	});
+});
+
+describe("updateImpeccableFromBundle agents", () => {
+	test("vendors every Claude agent through the translation", async () => {
+		await writeSkill(bundle, "version: 2.0.0");
+
+		const result = await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
+
+		expect(result.agents).toEqual([...LOCAL_MANAGED_AGENTS].sort().map(name => `${name}.md`));
+		const written = await readFile(
+			join(root, "agent", "agents", "impeccable-finish-reviewer.md"),
+			"utf8",
+		);
+		expect(written).toContain("tools: read, bash, glob, grep, yield");
+		expect(written).toContain("thinkingLevel: medium");
+		expect(written).not.toContain("maxTurns");
+	});
+
+	test("clears agents the bundle no longer ships", async () => {
+		await mkdir(join(root, "agent", "agents"), { recursive: true });
+		await writeFile(join(root, "agent", "agents", "impeccable-retired.md"), "stale\n");
+		await writeSkill(bundle, "version: 2.0.0");
+
+		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
+
+		await expect(
+			readFile(join(root, "agent", "agents", "impeccable-retired.md"), "utf8"),
+		).rejects.toThrow();
+	});
+
+	test("is idempotent across a re-vendor", async () => {
+		await writeSkill(bundle, "version: 2.0.0");
+		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
+		const first = await readFile(join(root, "agent", "agents", "impeccable-documenter.md"), "utf8");
+
+		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
+
+		expect(await readFile(join(root, "agent", "agents", "impeccable-documenter.md"), "utf8")).toBe(
+			first,
+		);
+	});
+
+	test("rejects a bundle with no Claude agents directory", async () => {
+		await writeSkill(bundle, "version: 2.0.0");
+		await rm(join(bundle, ".claude", "agents"), { recursive: true, force: true });
+
+		await expect(updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle })).rejects.toThrow(
+			/does not contain Claude agent definitions/,
+		);
+	});
+
+	test("rejects agents that do not match the registry, naming both sets", async () => {
+		await writeSkill(bundle, "version: 2.0.0");
+		await rm(join(bundle, ".claude", "agents", "impeccable-documenter.md"), { force: true });
+		await writeAgents(bundle, ["impeccable-newcomer"]);
+
+		const error = await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle }).then(
+			() => null,
+			(caught: unknown) => caught as Error,
+		);
+
+		expect(error?.message).toContain("impeccable-documenter");
+		expect(error?.message).toContain("impeccable-newcomer");
+	});
+
+	test("leaves the vendored agents untouched when a translation fails", async () => {
+		await writeSkill(bundle, "version: 2.0.0");
+		await updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle });
+		const before = await readFile(join(root, "agent", "agents", "impeccable-documenter.md"), "utf8");
+		const poisoned = join(bundle, ".claude", "agents", "impeccable-documenter.md");
+		await writeFile(
+			poisoned,
+			(await readFile(poisoned, "utf8")).replace("tools: Read", "tools: Telepathy"),
+		);
+
+		await expect(updateImpeccableFromBundle({ repoRoot: root, bundleRoot: bundle })).rejects.toThrow(
+			/unrecognised tool name/,
+		);
+		expect(await readFile(join(root, "agent", "agents", "impeccable-documenter.md"), "utf8")).toBe(
+			before,
+		);
 	});
 });
