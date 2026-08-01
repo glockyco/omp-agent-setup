@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { translateClaudeAgent } from "../src/impeccable-agents.ts";
+import {
+	CLAUDE_TOOL_NAMES,
+	OMP_THINKING_LEVELS,
+	translateClaudeAgent,
+} from "../src/impeccable-agents.ts";
 
 const CLAUDE_SOURCE = [
 	"---",
@@ -50,13 +54,16 @@ describe("translateClaudeAgent", () => {
 	});
 
 	test("translates every tool the bundle actually uses", () => {
+		const claude = Object.keys(CLAUDE_TOOL_NAMES);
 		const source = CLAUDE_SOURCE.replace(
 			"tools: Read, Bash, Glob, Grep",
-			"tools: Read, Write, Edit, Bash, Glob, Grep",
+			`tools: ${claude.join(", ")}`,
 		);
 
+		// Driven off the map so a new upstream tool cannot be added to the
+		// translation without this asserting it round-trips.
 		expect(translateClaudeAgent(source, FILE)).toContain(
-			"tools: read, write, edit, bash, glob, grep, yield",
+			`tools: ${[...Object.values(CLAUDE_TOOL_NAMES), "yield"].join(", ")}`,
 		);
 	});
 });
@@ -74,8 +81,15 @@ describe("translateClaudeAgent rejects", () => {
 		const source = CLAUDE_SOURCE.replace("effort: high", "effort: extreme");
 
 		expect(() => translateClaudeAgent(source, FILE)).toThrow(
-			'impeccable-finish-reviewer.md: effort "extreme" is not one of',
+			`impeccable-finish-reviewer.md: effort "extreme" is not one of ${OMP_THINKING_LEVELS.join(", ")}`,
 		);
+	});
+
+	test("nothing in OMP's own thinking vocabulary", () => {
+		for (const level of OMP_THINKING_LEVELS) {
+			const source = CLAUDE_SOURCE.replace("effort: high", `effort: ${level}`);
+			expect(translateClaudeAgent(source, FILE)).toContain(`thinkingLevel: ${level}`);
+		}
 	});
 
 	test("a file with no front-matter delimiter, naming the file", () => {

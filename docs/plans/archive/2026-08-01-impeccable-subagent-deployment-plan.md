@@ -1,11 +1,11 @@
 ---
 title: Impeccable Subagent Deployment Plan
 type: plan
-status: active
+status: implemented
 created: 2026-08-01
 parent: 2026-08-01-impeccable-subagent-deployment-spec
 superseded_by:
-archived:
+archived: 2026-08-01
 ---
 
 This plan implements the contracts in [Impeccable Subagent Deployment Spec](./2026-08-01-impeccable-subagent-deployment-spec.md).

@@ -28,7 +28,8 @@ bun run verify
 
 | Source | Deployed at |
 |---|---|
-| `agent/AGENTS.md`, `agent/lsp.json`, `extensions/omp-session-env.ts`, `agent/skills/`, `agent/rules/` | `~/.omp/agent/` — symlinked |
+| `agent/AGENTS.md`, `agent/lsp.json`, `extensions/omp-session-env.ts`, `agent/skills/`, `agent/rules/`, `agent/agents/` | `~/.omp/agent/` — symlinked |
+| `agent/optional-skills/` | `~/.omp/agent/optional-skills/` — symlinked, opt-in per repo via `omp-skill enable <name>` |
 | managed keys in `src/config.ts` | `~/.omp/agent/config.yml` — merged |
 | managed servers in `src/mcp.ts` | `~/.omp/agent/mcp.json` — merged |
 | `manifests/plugins.yml` | active plugin checkouts under `~/Projects/` |
@@ -58,7 +59,7 @@ Install the RemNote daemon's background service once with `remnote-mcp-server da
 | `bun run install-lsp` | Install all LSP binaries via the canonical channel. Idempotent. |
 | `bun run update-omp` | Update OMP, then stop on the first failed bootstrap, doctor, or verify gate. |
 | `bun run update-plannotator` | Rebase Plannotator fork's `omp-local` onto upstream; print the new SHA. |
-| `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable`; review diff before bootstrap. |
+| `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable` and the four Claude-variant subagents into `agent/agents/`; review diff before bootstrap. |
 
 Use `bun run update-omp` for normal OMP updates. If the repository command cannot start, recover with `omp update`, then immediately run `bun run bootstrap`, `bun run doctor`, and `bun run verify`.
 

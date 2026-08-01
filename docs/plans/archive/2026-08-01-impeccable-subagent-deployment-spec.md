@@ -1,11 +1,11 @@
 ---
 title: Impeccable Subagent Deployment Spec
 type: spec
-status: active
+status: implemented
 created: 2026-08-01
 parent: 2026-07-31-setup-maintenance-overview
 superseded_by:
-archived:
+archived: 2026-08-01
 ---
 
 Impeccable's four shipped subagents are unreachable under OMP because the upstream Pi variant carries no agent definitions, so this repository vendors them from the Claude variant, translates their front-matter into OMP's agent schema, and deploys them through a fourth managed registry.
@@ -66,7 +66,7 @@ The two schemas differ in every key except `name` and `description`:
 | `effort` | `high` | `thinkingLevel` | value passes through |
 | `maxTurns` | `30` | — | dropped: OMP has no per-agent turn ceiling |
 
-Tool names map one to one (`Read`→`read`, `Write`→`write`, `Edit`→`edit`, `Bash`→`bash`, `Glob`→`glob`, `Grep`→`grep`). `yield` is appended because every bundled OMP agent that declares `tools` carries it. An unrecognised Claude tool name is a hard error rather than a silent drop, so an upstream addition surfaces at vendor time instead of as a subagent that cannot do its job.
+Tool names map one to one (`Read`→`read`, `Write`→`write`, `Edit`→`edit`, `Bash`→`bash`, `Glob`→`glob`, `Grep`→`grep`). `yield` is appended because OMP appends it itself to any agent that declares an explicit tool list (`parseAgentFields` in `discovery/helpers.ts`), so emitting it keeps the vendored file identical to what the runtime loads. No bundled OMP agent declares it, for exactly that reason. An unrecognised Claude tool name is a hard error rather than a silent drop, so an upstream addition surfaces at vendor time instead of as a subagent that cannot do its job.
 
 `thinkingLevel` values are checked against OMP's vocabulary — `inherit`, `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (`ThinkingLevel` in `@oh-my-pi/pi-agent-core/src/thinking.ts`) plus the `auto` sentinel. Upstream currently uses `high` for the finish reviewer and `medium` for the other three, all valid.
 

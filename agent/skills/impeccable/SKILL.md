@@ -4,6 +4,7 @@ description: Use when the user wants to design, redesign, shape, critique, audit
 version: 4.0.4
 license: Apache 2.0
 allowed-tools:
+
   - Bash(node "${OMP_AGENT_DIR:-$HOME/.omp/agent}"/skills/impeccable/scripts/*)
 ---
 

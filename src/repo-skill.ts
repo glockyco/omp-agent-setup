@@ -34,7 +34,7 @@ export function repoSkillPath(repoRoot: string, name: string): string {
 
 /** True when the entry is our own symlink into the deployed payload. */
 function isManagedEntry(entry: RepoSkillEntry, payloadDir: string): boolean {
-	return entry !== null && entry.isSymlink && entry.target === payloadDir;
+	return entry?.isSymlink === true && entry.target === payloadDir;
 }
 
 export function planRepoSkillEnable(input: RepoSkillInput): EnablePlan {
@@ -82,7 +82,7 @@ export function classifyRepoSkill(input: {
  * `optional-skills-backup` from matching.
  */
 export function isDeployedOptionalSkill(target: string | null, deployRoot: string): boolean {
-	return target !== null && target.startsWith(`${deployRoot.replace(/\/+$/, "")}/`);
+	return target?.startsWith(`${deployRoot.replace(/\/+$/, "")}/`) === true;
 }
 
 export const EXCLUDE_HEADER = "# omp-skill: repo-local optional skills";
