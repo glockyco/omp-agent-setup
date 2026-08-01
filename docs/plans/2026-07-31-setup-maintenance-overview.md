@@ -24,6 +24,8 @@ Maintain a small, explicit command surface that safely deploys and updates OMP, 
 
 ## Children
 
+- [Impeccable Subagent Deployment Spec](./2026-08-01-impeccable-subagent-deployment-spec.md): why the four Impeccable subagents are unreachable under OMP, and the translation and registry that fix it.
+- [Impeccable Subagent Deployment Plan](./2026-08-01-impeccable-subagent-deployment-plan.md): ordered implementation and verification tasks for that spec.
 - [Command Surface Redesign Spec](./archive/2026-07-31-command-surface-redesign-spec.md): implemented command, doctor, hook-audit, and LSP output contracts.
 - [Command Surface Redesign Plan](./archive/2026-07-31-command-surface-redesign-plan.md): completed implementation and verification tasks.
 
