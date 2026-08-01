@@ -26,6 +26,7 @@ import {
 import { updateImpeccableFromRemote } from "./impeccable-update-runtime.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
+import { LOCAL_MANAGED_AGENTS } from "./managed-agents.ts";
 import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { isParsableMcpJson, MANAGED_MCP_SERVERS, type McpHealth, readMcpServer } from "./mcp.ts";
@@ -391,6 +392,10 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 					"symlink",
 				] satisfies ManagedAgentCheck,
 		),
+		...LOCAL_MANAGED_AGENTS.map(
+			agent =>
+				[join(agentDir, "agents", `${agent}.md`), `${agent}.md`, "symlink"] satisfies ManagedAgentCheck,
+		),
 	];
 }
 
@@ -398,6 +403,7 @@ async function cmdUpdateImpeccable(_args: string[]): Promise<number> {
 	const result = await updateImpeccableFromRemote({ repoRoot: repoRoot() });
 	const oldVersion = result.oldVersion ?? "none";
 	console.log(`Impeccable skill updated: ${oldVersion} -> ${result.newVersion}`);
+	console.log(`  vendored agents: ${result.agents.length}`);
 	for (const fix of result.fixes) {
 		console.log(`  vendor fix ${fix.id}: ${fix.kind}`);
 	}

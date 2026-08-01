@@ -3,6 +3,7 @@ import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { managedAgentChecks, REQUIRED_SKILLS } from "../src/cli.ts";
+import { LOCAL_MANAGED_AGENTS } from "../src/managed-agents.ts";
 import { LOCAL_OPTIONAL_SKILLS } from "../src/optional-skills.ts";
 
 describe("update-omp command", () => {
@@ -149,5 +150,19 @@ describe("managedAgentChecks", () => {
 		for (const skill of LOCAL_OPTIONAL_SKILLS) {
 			expect(REQUIRED_SKILLS).not.toContain(skill.name);
 		}
+	});
+
+	test("watches every managed Impeccable subagent as a symlink", () => {
+		const agentDir = "/tmp/omp-agent";
+		const checks = managedAgentChecks(agentDir);
+
+		for (const agent of LOCAL_MANAGED_AGENTS) {
+			expect(checks).toContainEqual([
+				join(agentDir, "agents", `${agent}.md`),
+				`${agent}.md`,
+				"symlink",
+			]);
+		}
+		expect(LOCAL_MANAGED_AGENTS).toHaveLength(4);
 	});
 });

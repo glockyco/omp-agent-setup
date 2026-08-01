@@ -21,6 +21,7 @@ import {
 	resolveOmpSourceEntry,
 } from "./bin-link-runtime.ts";
 import { MANAGED_CONFIG, mergeManagedConfig } from "./config.ts";
+import { LOCAL_MANAGED_AGENTS } from "./managed-agents.ts";
 import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { MANAGED_MCP_SERVERS, mergeManagedMcpConfig } from "./mcp.ts";
@@ -91,6 +92,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 	const agentDir = options.agentDir ?? join(home, ".omp", "agent");
 	const extensionsDir = join(agentDir, "extensions");
 	const optionalSkillsDir = join(agentDir, "optional-skills");
+	const agentsDir = join(agentDir, "agents");
 	const backupDir = join(
 		options.repoRoot,
 		"backups",
@@ -122,6 +124,7 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		...LOCAL_MANAGED_SKILLS.map(skillName => join(agentDir, "skills", skillName)),
 		...LOCAL_MANAGED_RULES.map(rule => join(agentDir, "rules", `${rule}.md`)),
 		...LOCAL_OPTIONAL_SKILLS.map(skill => join(optionalSkillsDir, skill.name)),
+		...LOCAL_MANAGED_AGENTS.map(agent => join(agentsDir, `${agent}.md`)),
 		join(home, ".omp", "plugins", "package.json"),
 		join(home, ".omp", "plugins", "omp-plugins.lock.json"),
 		...patchTargets,
@@ -167,6 +170,10 @@ export async function runBootstrap(options: BootstrapOptions): Promise<Bootstrap
 		...LOCAL_OPTIONAL_SKILLS.map(skill => ({
 			source: join(options.repoRoot, "agent", "optional-skills", skill.name),
 			destination: join(optionalSkillsDir, skill.name),
+		})),
+		...LOCAL_MANAGED_AGENTS.map(agent => ({
+			source: join(options.repoRoot, "agent", "agents", `${agent}.md`),
+			destination: join(agentsDir, `${agent}.md`),
 		})),
 	]);
 	// Report every blocked destination at once. `executeLinkPlan` throws on the

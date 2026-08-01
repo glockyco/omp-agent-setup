@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runBootstrap, summarizeReport } from "../../src/bootstrap.ts";
 import { MANAGED_CONFIG, readTopLevel } from "../../src/config.ts";
+import { LOCAL_MANAGED_AGENTS } from "../../src/managed-agents.ts";
 import { managedMcpServerConfigs } from "../../src/mcp.ts";
 
 let tempHome: string;
@@ -46,6 +47,10 @@ beforeEach(async () => {
 		join(repoRoot, "agent", "optional-skills", "simple-english", "SKILL.md"),
 		"# Simple English skill\n",
 	);
+	await mkdir(join(repoRoot, "agent", "agents"), { recursive: true });
+	for (const agent of LOCAL_MANAGED_AGENTS) {
+		await writeFile(join(repoRoot, "agent", "agents", `${agent}.md`), `---\nname: ${agent}\n---\n`);
+	}
 	// Empty manifest so we don't hit the real Git remotes.
 	await writeFile(join(repoRoot, "manifests", "plugins.yml"), "plugins: {}\n");
 });
@@ -99,6 +104,13 @@ describe("runBootstrap (integration)", () => {
 			"code",
 			"ENOENT",
 		);
+
+		// Impeccable subagents land where OMP's task-agent discovery reads them.
+		for (const agent of LOCAL_MANAGED_AGENTS) {
+			await expect(readlink(join(agentDir, "agents", `${agent}.md`))).resolves.toBe(
+				join(repoRoot, "agent", "agents", `${agent}.md`),
+			);
+		}
 
 		// Managed config keys are present.
 		const written = await readFile(join(agentDir, "config.yml"), "utf8");
