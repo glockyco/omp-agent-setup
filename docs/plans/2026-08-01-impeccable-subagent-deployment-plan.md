@@ -1,7 +1,7 @@
 ---
 title: Impeccable Subagent Deployment Plan
 type: plan
-status: draft
+status: active
 created: 2026-08-01
 parent: 2026-08-01-impeccable-subagent-deployment-spec
 superseded_by:

@@ -36,12 +36,13 @@ Read [`docs/plans/INDEX.md`](./docs/plans/INDEX.md) and the repository [setup ma
 
 Pure logic lives in `src/<name>.ts`. Real-IO adapters live in `src/<name>-runtime.ts` and the CLI glue in `src/cli.ts`. Both are excluded from coverage so the 0.8 threshold gates pure logic only. Tests in `tests/`, integration tests under `tests/integration/` use a sandboxed `HOME`. Deployed payloads live in `agent/` and `extensions/`.
 
-Four registries name what gets deployed. Add the payload file and the registry entry in the same change: `planManagedLinks` never checks that a source exists, so a name registered ahead of its file deploys a dangling symlink.
+Five registries name what gets deployed. Add the payload file and the registry entry in the same change: `planManagedLinks` never checks that a source exists, so a name registered ahead of its file deploys a dangling symlink.
 
 | Registry | Payload | Deployed at |
 |---|---|---|
 | `src/managed-skills.ts` | `agent/skills/<name>/` | `~/.omp/agent/skills/<name>` — symlink |
 | `src/managed-rules.ts` | `agent/rules/<name>.md` | `~/.omp/agent/rules/<name>.md` — symlink |
+| `src/managed-agents.ts` | `agent/agents/<name>.md` | `~/.omp/agent/agents/<name>.md` — symlink |
 | `src/optional-skills.ts` | `agent/optional-skills/<name>/` | `~/.omp/agent/optional-skills/<name>` — symlink, opt-in |
 | `src/mcp.ts` (`MANAGED_MCP_SERVERS`) | the spec's `config` object | `~/.omp/agent/mcp.json` — merged |
 

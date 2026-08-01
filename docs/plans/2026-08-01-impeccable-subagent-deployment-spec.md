@@ -1,7 +1,7 @@
 ---
 title: Impeccable Subagent Deployment Spec
 type: spec
-status: draft
+status: active
 created: 2026-08-01
 parent: 2026-07-31-setup-maintenance-overview
 superseded_by:
