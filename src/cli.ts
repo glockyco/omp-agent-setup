@@ -32,10 +32,12 @@ import { isParsableMcpJson, MANAGED_MCP_SERVERS, type McpHealth, readMcpServer }
 import { checkMcpServer } from "./mcp-runtime.ts";
 import { executeOmpUpdateWorkflow, parseOmpUpdateArgs } from "./omp-update.ts";
 import { readOmpVersion, runOmpUpdater } from "./omp-update-runtime.ts";
-import { LOCAL_OPTIONAL_SKILLS } from "./optional-skills.ts";
+import { findOptionalSkill, LOCAL_OPTIONAL_SKILLS } from "./optional-skills.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { expandHome, PLANNOTATOR_SKILLS } from "./paths.ts";
 import { loadManifest } from "./plugins-runtime.ts";
+import { parseUpdateVendoredSkillArgs } from "./vendored-skill-update.ts";
+import { updateVendoredSkill } from "./vendored-skill-update-runtime.ts";
 import { checkSkillLoader, ompDirectSmoke, ompExtensionSmoke, scanLog } from "./verify.ts";
 import { makeRealSkillLoader, readLogFile, realRunner } from "./verify-runtime.ts";
 
@@ -448,6 +450,32 @@ async function cmdUpdateOmp(args: string[]): Promise<number> {
 	return result.kind === "success" ? 0 : result.exitCode;
 }
 
+async function cmdUpdateVendoredSkill(args: string[]): Promise<number> {
+	const parsed = parseUpdateVendoredSkillArgs(args);
+	const known = LOCAL_OPTIONAL_SKILLS.map(skill => skill.name).join(", ");
+	if (parsed.kind === "help") {
+		console.log(`usage: bun run update-vendored-skill <name>\nknown: ${known}`);
+		return 0;
+	}
+	if (parsed.kind === "error") {
+		console.error(parsed.message);
+		return 2;
+	}
+	const skill = findOptionalSkill(parsed.name);
+	if (!skill) {
+		console.error(`unknown optional skill: ${parsed.name} (known: ${known})`);
+		return 2;
+	}
+	const result = await updateVendoredSkill({ repoRoot: repoRoot(), skill });
+	console.log(
+		`Vendored skill ${result.name}: ${result.oldCommit.slice(0, 8)} -> ${result.newCommit.slice(0, 8)} (${result.files.length} files)`,
+	);
+	console.log(
+		`Record commit "${result.newCommit}" in src/optional-skills.ts, review the diff, then run 'bun run bootstrap'.`,
+	);
+	return 0;
+}
+
 async function cmdUpdatePlugin(name: "plannotator"): Promise<number> {
 	const home = homedir();
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");
@@ -582,6 +610,7 @@ const COMMANDS: Record<string, (args: string[]) => Promise<number>> = {
 	"update-impeccable": cmdUpdateImpeccable,
 	"update-omp": cmdUpdateOmp,
 	"update-plannotator": () => cmdUpdatePlugin("plannotator"),
+	"update-vendored-skill": cmdUpdateVendoredSkill,
 };
 
 async function main(): Promise<number> {
