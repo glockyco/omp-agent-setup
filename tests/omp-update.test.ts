@@ -16,16 +16,15 @@ describe("parseOmpUpdateArgs", () => {
 		expect(parseOmpUpdateArgs([flag])).toEqual({ kind: "help" });
 	});
 
-	test.each([
-		{ args: ["--force"] },
-		{ args: ["--help", "extra"] },
-		{ args: ["check"] },
-	])("rejects unsupported arguments", ({ args }) => {
-		expect(parseOmpUpdateArgs(args)).toEqual({
-			kind: "error",
-			message: "usage: bun run update-omp",
-		});
-	});
+	test.each([{ args: ["--force"] }, { args: ["--help", "extra"] }, { args: ["check"] }])(
+		"rejects unsupported arguments",
+		({ args }) => {
+			expect(parseOmpUpdateArgs(args)).toEqual({
+				kind: "error",
+				message: "usage: bun run update-omp",
+			});
+		},
+	);
 });
 
 describe("executeOmpUpdateWorkflow", () => {
