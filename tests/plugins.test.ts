@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { PLANNOTATOR_ROOT } from "../src/paths.ts";
 import {
 	type CheckoutStep,
 	executeCheckoutSteps,
@@ -8,6 +12,7 @@ import {
 	parseManifest,
 	planPluginCheckout,
 } from "../src/plugins.ts";
+import { loadManifest } from "../src/plugins-runtime.ts";
 
 const HOME = "/Users/test";
 
@@ -20,6 +25,21 @@ const MANIFEST_YAML = `plugins:
     currentCommit: deadbeef
     purpose: Plannotator review UI integration
 `;
+
+describe("manifests/plugins.yml", () => {
+	test("declares the Plannotator checkout at PLANNOTATOR_ROOT", async () => {
+		// The manifest owns the checkout and `src/paths.ts` owns every path derived
+		// from it. Nothing at runtime reads one against the other, so this test is
+		// the only thing stopping a manifest edit from silently pointing bootstrap
+		// and verify at different directories.
+		const manifest = await loadManifest(
+			join(import.meta.dir, "..", "manifests", "plugins.yml"),
+			HOME,
+		);
+		const plannotator = manifest.plugins.find(p => p.name === "plannotator");
+		expect(plannotator?.path).toBe(PLANNOTATOR_ROOT);
+	});
+});
 
 describe("parseManifest", () => {
 	test("expands ~ in the path and exposes all required fields", () => {
@@ -203,10 +223,6 @@ describe("executeCheckoutSteps", () => {
 		expect(runner.calls).toEqual([]);
 	});
 });
-
-import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 
 describe("executeCheckoutSteps clone", () => {
 	test("clone creates parent dir then invokes git clone", async () => {

@@ -3,12 +3,15 @@ import { mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	BACKUP_RETENTION_LIMIT,
 	defaultProbe,
 	executeSnapshot,
 	type FsProbe,
+	planBackupRetention,
 	planSnapshot,
 	timestampedBackupDirName,
 } from "../src/backup.ts";
+import { type BackupRetentionIo, pruneBackups } from "../src/backup-runtime.ts";
 import { backupSafeName } from "../src/paths.ts";
 
 let workdir: string;
@@ -100,9 +103,97 @@ describe("executeSnapshot", () => {
 	});
 });
 
+describe("planBackupRetention", () => {
+	const oldest = "20260513T133313000Z";
+	const older = "20260514T133313000Z";
+	const newer = "20260515T133313000Z";
+	const newest = "20260516T133313000Z";
+	const names = [oldest, older, newer, newest];
+
+	test("keeps newest timestamped snapshots and deletes oldest first", () => {
+		expect(planBackupRetention(names, 2, newest)).toEqual({
+			toDelete: [oldest, older],
+			toKeep: [newest, newer],
+		});
+	});
+
+	test("does nothing at the retention limit", () => {
+		expect(planBackupRetention(names, names.length, newest)).toEqual({
+			toDelete: [],
+			toKeep: [newest, newer, older, oldest],
+		});
+	});
+
+	test("orders legacy second-precision timestamp names by encoded time", () => {
+		const legacyOldest = "20260513T133313Z";
+		const legacyOlder = "20260514T133313Z";
+		const legacyNewest = "20260515T133313Z";
+		const legacyNames = [legacyOldest, legacyOlder, legacyNewest];
+		expect(planBackupRetention(legacyNames, 1, legacyNewest)).toEqual({
+			toDelete: [legacyOldest, legacyOlder],
+			toKeep: [legacyNewest],
+		});
+	});
+
+	test("preserves tagged and unknown-shaped names", () => {
+		const tagged = "20260513T133313Z-pre-cleanup";
+		const unknown = "notes-from-a-human";
+		expect(planBackupRetention([...names, tagged, unknown], 1, newest)).toEqual({
+			toDelete: [oldest, older, newer],
+			toKeep: [newest, tagged, unknown],
+		});
+	});
+
+	test("preserves the current run even when it is older than retained snapshots", () => {
+		expect(planBackupRetention(names, 2, oldest)).toEqual({
+			toDelete: [older, newer],
+			toKeep: [newest, oldest],
+		});
+	});
+
+	test("uses the named default retention limit", () => {
+		expect(BACKUP_RETENTION_LIMIT).toBe(20);
+	});
+});
+
+describe("pruneBackups", () => {
+	test("continues after a snapshot deletion fails", async () => {
+		const oldest = "20260513T133313000Z";
+		const older = "20260514T133313000Z";
+		const newest = "20260515T133313000Z";
+		const names = [oldest, older, newest];
+		const deleted: string[] = [];
+		const io: BackupRetentionIo = {
+			async listSnapshotNames() {
+				return names;
+			},
+			async removeSnapshot(_root, name) {
+				if (name === oldest) throw new Error("busy");
+				deleted.push(name);
+			},
+		};
+		const result = await pruneBackups("/backups", newest, 1, io);
+		expect(deleted).toEqual([older]);
+		expect(result.deleted).toEqual([older]);
+		expect(result.failures.map(failure => failure.name)).toEqual([oldest]);
+	});
+});
+
 describe("timestampedBackupDirName", () => {
 	test("formats UTC timestamps deterministically", () => {
-		const name = timestampedBackupDirName(new Date(Date.UTC(2026, 4, 13, 9, 7, 5)));
-		expect(name).toBe("20260513T090705Z");
+		const name = timestampedBackupDirName(new Date(Date.UTC(2026, 4, 13, 9, 7, 5, 123)));
+		expect(name).toBe("20260513T090705123Z");
+	});
+
+	test("zero-pads sub-second precision to three digits", () => {
+		const name = timestampedBackupDirName(new Date(Date.UTC(2026, 4, 13, 9, 7, 5, 7)));
+		expect(name).toBe("20260513T090705007Z");
+	});
+
+	test("separates snapshots taken one millisecond apart", () => {
+		const base = Date.UTC(2026, 4, 13, 9, 7, 5, 400);
+		expect(timestampedBackupDirName(new Date(base))).not.toBe(
+			timestampedBackupDirName(new Date(base + 1)),
+		);
 	});
 });

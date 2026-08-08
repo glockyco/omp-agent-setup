@@ -14,6 +14,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runBootstrap, summarizeReport } from "../../src/bootstrap.ts";
 import { MANAGED_CONFIG, readTopLevel } from "../../src/config.ts";
+import { LOCAL_MANAGED_AGENTS } from "../../src/managed-agents.ts";
+import { managedMcpServerConfigs } from "../../src/mcp.ts";
 
 let tempHome: string;
 let agentDir: string;
@@ -40,6 +42,15 @@ beforeEach(async () => {
 		"// stub session env extension\n",
 	);
 	await writeFile(join(repoRoot, "agent", "skills", "commit", "SKILL.md"), "# Commit skill\n");
+	await mkdir(join(repoRoot, "agent", "optional-skills", "simple-english"), { recursive: true });
+	await writeFile(
+		join(repoRoot, "agent", "optional-skills", "simple-english", "SKILL.md"),
+		"# Simple English skill\n",
+	);
+	await mkdir(join(repoRoot, "agent", "agents"), { recursive: true });
+	for (const agent of LOCAL_MANAGED_AGENTS) {
+		await writeFile(join(repoRoot, "agent", "agents", `${agent}.md`), `---\nname: ${agent}\n---\n`);
+	}
 	// Empty manifest so we don't hit the real Git remotes.
 	await writeFile(join(repoRoot, "manifests", "plugins.yml"), "plugins: {}\n");
 });
@@ -84,6 +95,23 @@ describe("runBootstrap (integration)", () => {
 			);
 		}
 
+		// Optional skills deploy to a directory OMP does not scan, so they are
+		// invisible until a repository opts in with `omp-skill enable`.
+		await expect(readlink(join(agentDir, "optional-skills", "simple-english"))).resolves.toBe(
+			join(repoRoot, "agent", "optional-skills", "simple-english"),
+		);
+		await expect(lstat(join(agentDir, "skills", "simple-english"))).rejects.toHaveProperty(
+			"code",
+			"ENOENT",
+		);
+
+		// Impeccable subagents land where OMP's task-agent discovery reads them.
+		for (const agent of LOCAL_MANAGED_AGENTS) {
+			await expect(readlink(join(agentDir, "agents", `${agent}.md`))).resolves.toBe(
+				join(repoRoot, "agent", "agents", `${agent}.md`),
+			);
+		}
+
 		// Managed config keys are present.
 		const written = await readFile(join(agentDir, "config.yml"), "utf8");
 		for (const key of Object.keys(MANAGED_CONFIG)) {
@@ -97,9 +125,17 @@ describe("runBootstrap (integration)", () => {
 		const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as unknown[];
 		expect(manifest.length).toBeGreaterThan(0);
 
+		// Managed MCP servers are merged into mcp.json.
+		const mcpJson = JSON.parse(await readFile(join(agentDir, "mcp.json"), "utf8")) as {
+			mcpServers: Record<string, unknown>;
+		};
+		expect(mcpJson.mcpServers).toEqual(managedMcpServerConfigs());
+
 		// Report is summarizable.
 		expect(summarizeReport(report)).toContain("Backup directory:");
 		expect(report.configChanged).toBe(true);
+		expect(report.mcpConfigChanged).toBe(true);
+		expect(summarizeReport(report)).toContain("MCP config: updated");
 	});
 
 	test("leaves Zed settings untouched", async () => {
@@ -124,6 +160,8 @@ describe("runBootstrap (integration)", () => {
 
 		expect(configSecond).toBe(configFirst);
 		expect(second.configChanged).toBe(false);
+		expect(second.mcpConfigChanged).toBe(false);
+		expect(summarizeReport(second)).toContain("MCP config: unchanged");
 		expect(second.links.entries.every(e => e.kind === "skip")).toBe(true);
 	});
 
@@ -205,10 +243,25 @@ memory:
 		await writeFile(join(agentDir, "AGENTS.md"), "user-authored content");
 		await symlink(join(repoRoot, "extensions", "superpowers-bootstrap.ts"), oldExtension);
 
-		await expect(bootstrapSandbox()).rejects.toThrow(/Refusing to replace non-symlink/);
+		await expect(bootstrapSandbox()).rejects.toThrow(/Refusing to replace 1 non-symlink destination/);
 		await expect(readlink(oldExtension)).resolves.toBe(
 			join(repoRoot, "extensions", "superpowers-bootstrap.ts"),
 		);
+	});
+
+	test("names every blocked destination in a single error", async () => {
+		await mkdir(agentDir, { recursive: true });
+		await writeFile(join(agentDir, "AGENTS.md"), "user-authored content");
+		await writeFile(join(agentDir, "lsp.json"), "{}\n");
+
+		const error = await bootstrapSandbox().then(
+			() => null,
+			(caught: unknown) => caught as Error,
+		);
+
+		expect(error?.message).toContain("Refusing to replace 2 non-symlink destination(s)");
+		expect(error?.message).toContain(join(agentDir, "AGENTS.md"));
+		expect(error?.message).toContain(join(agentDir, "lsp.json"));
 	});
 
 	test("patch application stays inside the sandbox, never the real install", async () => {
