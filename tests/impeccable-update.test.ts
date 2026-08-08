@@ -379,12 +379,13 @@ describe("inspectPiImpeccableVariant", () => {
 describe("vendored impeccable skill", () => {
 	const skillDir = join(import.meta.dir, "..", "agent", "skills", "impeccable");
 
-	test.each(
-		IMPECCABLE_VENDOR_FIXES.map(fix => [fix.id, fix] as const),
-	)("carries the %s fix", async (_id, fix) => {
-		const content = await readFile(join(skillDir, fix.targetRelative), "utf8");
-		expect(planPatch(fix, content).kind).toBe("skip-already-applied");
-	});
+	test.each(IMPECCABLE_VENDOR_FIXES.map(fix => [fix.id, fix] as const))(
+		"carries the %s fix",
+		async (_id, fix) => {
+			const content = await readFile(join(skillDir, fix.targetRelative), "utf8");
+			expect(planPatch(fix, content).kind).toBe("skip-already-applied");
+		},
+	);
 
 	test("accepts the checked-in Pi variant", async () => {
 		await assertPiImpeccableVariant(skillDir);
