@@ -59,6 +59,14 @@ describe("buildCommitMessage", () => {
 		).toThrow(/subject must match Conventional Commits/);
 	});
 
+	test("rejects commits without a body", () => {
+		expect(() =>
+			buildCommitMessage({
+				subject: "chore: update generated files",
+			}),
+		).toThrow(/commit body is required/);
+	});
+
 	test("accepts any repo-configured type, leaving the type-enum to commitlint", () => {
 		const message = buildCommitMessage({
 			subject: "revise(front): correct the publications page",

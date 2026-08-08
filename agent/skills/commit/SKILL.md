@@ -13,7 +13,7 @@ Use Conventional Commits:
 type[(scope)]: imperative summary
 ```
 
-For any commit with a body, use the bundled helper. Pass the subject and body as
+Every commit MUST include a body and use the bundled helper. Pass the subject and body as
 structured inputs; the helper wraps paragraphs, validates the final message with
 commitlint, writes the internal `git commit -F` file, and runs git.
 
@@ -37,8 +37,8 @@ Use `COMMIT_ACTION=amend` for amendments and `COMMIT_ACTION=dry-run` to inspect
 the generated message without committing. Do not use repeated `git commit -m`
 flags for body commits.
 
-A title-only `git commit -m "type: summary"` is acceptable only for mechanical
-changes whose purpose is fully explained by the subject.
+Title-only commits are prohibited, including for mechanical changes. A useful
+body must explain why the change exists beyond what the diff already shows.
 
 ## Message format
 

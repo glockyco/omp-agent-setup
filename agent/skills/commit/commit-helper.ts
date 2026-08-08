@@ -67,7 +67,7 @@ export function buildCommitMessage(input: Pick<CommitInput, "subject" | "body">)
 	if (subject.length > 72) throw new Error("subject must be 72 characters or less");
 
 	const body = input.body?.trim();
-	if (!body) return `${subject}\n`;
+	if (!body) throw new Error("commit body is required");
 	return `${subject}\n\n${wrapBody(body)}\n`;
 }
 
