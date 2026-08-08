@@ -6,14 +6,14 @@ This is maintenance, not design. Do not redesign anything, do not open files out
 
 Three kinds of drift travel under "out of date". Keep them apart:
 
-- **Tool version.** The installed skill is older than the published one. `context.mjs` reports that at boot as `UPDATE_AVAILABLE` and `npx impeccable update` fixes it. Not this command's job.
+- **Tool version.** The installed skill is older than the published one. `context.mjs` reports that at boot as `UPDATE_AVAILABLE`. To update this managed copy, run `(cd ~/Projects/omp-agent-setup && bun run update-impeccable && bun run bootstrap)`; this command does not update it.
 - **Schema drift.** An artifact was written by an older Impeccable: fields nothing reads, fields now expected, files in retired locations. Mechanical, and this command repairs most of it.
 - **Truth drift.** The code moved on and the document no longer describes it. No file comparison settles this. `document` owns DESIGN.md, `init` owns PRODUCT.md, and this command's job is to hand them a specific gap rather than a vague suspicion.
 
 ## Step 1: Run the pass
 
 ```
-node .github/skills/impeccable/scripts/doctor.mjs --json
+node "${OMP_AGENT_DIR:-$HOME/.omp/agent}"/skills/impeccable/scripts/doctor.mjs --json
 ```
 
 Add `--target <path>` when the user named a workspace, file, or route in a monorepo. Without it the report describes the repo root, and in a monorepo that is often the wrong project.
@@ -26,7 +26,7 @@ An empty `findings` array is the good outcome. Say so in one line and stop.
 
 The severity says what should happen, not how bad it is.
 
-- **`auto`** carries no decision. Run `node .github/skills/impeccable/scripts/doctor.mjs --fix` once to apply these, then report what it moved in one line. Do not ask permission first, and do not ask about them afterward.
+- **`auto`** carries no decision. Run `node "${OMP_AGENT_DIR:-$HOME/.omp/agent}"/skills/impeccable/scripts/doctor.mjs --fix` once to apply these, then report what it moved in one line. Do not ask permission first, and do not ask about them afterward.
 - **`mention`** needs the user to know but not to decide anything now. State each one in a sentence with its offered fix.
 - **`route`** needs a specific command. Name the command and the gap it would close. Run it only if the user asks in this turn; `init` and `document` are conversations, not repairs you perform unattended.
 

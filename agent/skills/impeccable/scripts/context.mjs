@@ -1252,6 +1252,8 @@ function automaticHookMode(ctx) {
   }
   const activeRoot = path.resolve(ctx.projectRoot || process.cwd());
   if (!hookEnabledAt(activeRoot)) return 'none';
+  // OMP wires hook-lib.mjs through a global extension rather than a project manifest.
+  if (truthyEnv(process.env.IMPECCABLE_OMP_HOOK)) return 'stop';
   const manifests = HOOK_MANIFESTS_BY_PROVIDER[IMPECCABLE_PROVIDER_ID] || [];
   const roots = [...new Set([process.cwd(), ctx.projectRoot, ctx.repoRoot].filter(Boolean).map((root) => path.resolve(root)))];
   for (const root of roots) {

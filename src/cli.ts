@@ -18,16 +18,27 @@ import {
 	unhealthyPatchExecutions,
 	unhealthyPluginSteps,
 } from "./bootstrap.ts";
+import {
+	IMPECCABLE_VENDOR_FIXES,
+	type ImpeccableVariantIssue,
+	inspectPiImpeccableVariant,
+} from "./impeccable-update.ts";
 import { updateImpeccableFromRemote } from "./impeccable-update-runtime.ts";
 import { auditFleet, renderReport } from "./lsp-audit.ts";
 import { discoverRepos, makeDefsResolver, makePathResolver, realFs } from "./lsp-audit-runtime.ts";
+import { LOCAL_MANAGED_AGENTS } from "./managed-agents.ts";
 import { LOCAL_MANAGED_RULES } from "./managed-rules.ts";
 import { LOCAL_MANAGED_SKILLS } from "./managed-skills.ts";
 import { isParsableMcpJson, MANAGED_MCP_SERVERS, type McpHealth, readMcpServer } from "./mcp.ts";
 import { checkMcpServer } from "./mcp-runtime.ts";
+import { executeOmpUpdateWorkflow, parseOmpUpdateArgs } from "./omp-update.ts";
+import { readOmpVersion, runOmpUpdater } from "./omp-update-runtime.ts";
+import { findOptionalSkill, LOCAL_OPTIONAL_SKILLS } from "./optional-skills.ts";
 import { resolveOmpScopeRoot } from "./patches-runtime.ts";
 import { expandHome, PLANNOTATOR_SKILLS } from "./paths.ts";
 import { loadManifest } from "./plugins-runtime.ts";
+import { parseUpdateVendoredSkillArgs } from "./vendored-skill-update.ts";
+import { updateVendoredSkill } from "./vendored-skill-update-runtime.ts";
 import { checkSkillLoader, ompDirectSmoke, ompExtensionSmoke, scanLog } from "./verify.ts";
 import { makeRealSkillLoader, readLogFile, realRunner } from "./verify-runtime.ts";
 
@@ -45,7 +56,8 @@ async function cmdBootstrap(_args: string[]): Promise<number> {
 	const patchUnhealthy = unhealthyPatchExecutions(report.patchExecutions).length > 0;
 	const binUnhealthy =
 		(report.binLink !== undefined && isBinLinkUnhealthy(report.binLink)) ||
-		(report.plansBinLink !== undefined && isBinLinkUnhealthy(report.plansBinLink));
+		(report.plansBinLink !== undefined && isBinLinkUnhealthy(report.plansBinLink)) ||
+		(report.skillBinLink !== undefined && isBinLinkUnhealthy(report.skillBinLink));
 	const pluginUnhealthy = unhealthyPluginSteps(report.pluginSteps).length > 0;
 	return patchUnhealthy || binUnhealthy || pluginUnhealthy ? 1 : 0;
 }
@@ -86,6 +98,17 @@ async function cmdVerify(_args: string[]): Promise<number> {
 			console.error(`FAIL: missing skills: ${loader.missing.join(", ")}`);
 			failures++;
 		}
+		// Optional skills are deployed to a directory OMP does not scan, so they
+		// must stay invisible from a repository that has not opted in. Moving a
+		// payload into `agent/skills/` or adding a scanned directory turns this red.
+		const leaked = LOCAL_OPTIONAL_SKILLS.filter(skill => loader.loadedNames.includes(skill.name));
+		for (const skill of LOCAL_OPTIONAL_SKILLS) {
+			console.log(`  ${leaked.includes(skill) ? "LEAKED" : "ok"}  ${skill.name} (opt-in, not loaded)`);
+		}
+		if (leaked.length > 0) {
+			console.error(`FAIL: opt-in skills loaded globally: ${leaked.map(s => s.name).join(", ")}`);
+			failures++;
+		}
 	} catch (error) {
 		console.error(`FAIL: skill loader error: ${(error as Error).message}`);
 		failures++;
@@ -118,6 +141,19 @@ async function cmdVerify(_args: string[]): Promise<number> {
 		console.log("  ok   omp-plans --help");
 	} else {
 		console.error("FAIL: omp-plans --help exited nonzero");
+		failures++;
+	}
+
+	console.log("\n==> omp-skill CLI smoke");
+	const skillSmoke = Bun.spawnSync({
+		cmd: ["bun", join(repoRoot(), "src", "skill-cli.ts"), "--help"],
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	if (skillSmoke.exitCode === 0) {
+		console.log("  ok   omp-skill --help");
+	} else {
+		console.error("FAIL: omp-skill --help exited nonzero");
 		failures++;
 	}
 
@@ -159,6 +195,9 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 				break;
 		}
 	}
+	const impeccableIssues = await inspectPiImpeccableVariant(join(agentDir, "skills", "impeccable"));
+	for (const line of renderImpeccableDoctorLines(impeccableIssues)) console.log(line);
+	issues += impeccableIssues.length;
 	const binPath = resolveBunBinPath();
 	const expectedBinTarget = resolveOmpSourceEntry(resolveOmpScopeRoot());
 	const binPlan = planBinLink({
@@ -185,6 +224,20 @@ async function cmdDoctor(_args: string[]): Promise<number> {
 		console.log(`  ok   omp-plans bin -> ${plansSource}`);
 	} else {
 		console.log(`  WARN omp-plans bin: ${plansPlan.kind}`);
+		issues++;
+	}
+	const skillBinPath = join(dirname(binPath), "omp-skill");
+	const skillSource = join(repoRoot(), "src", "skill-cli.ts");
+	const skillPlan = planBinLink({
+		binPath: skillBinPath,
+		desiredTarget: skillSource,
+		current: await probeBinState(skillBinPath),
+		sourceUsable: await isUsableSourceEntry(skillSource),
+	});
+	if (skillPlan.kind === "skip-up-to-date") {
+		console.log(`  ok   omp-skill bin -> ${skillSource}`);
+	} else {
+		console.log(`  WARN omp-skill bin: ${skillPlan.kind}`);
 		issues++;
 	}
 	const manifestPath = join(repoRoot(), "manifests", "plugins.yml");
@@ -294,10 +347,24 @@ export async function classifyManagedCheck(
 	return { kind: "ok-symlink", target };
 }
 
+export function renderImpeccableDoctorLines(
+	issues: readonly ImpeccableVariantIssue[],
+	fixCount = IMPECCABLE_VENDOR_FIXES.length,
+): string[] {
+	if (issues.length === 0) {
+		return [`  ok   impeccable content (Pi provider, clean Markdown, ${fixCount} vendor fixes)`];
+	}
+	return [
+		...issues.map(issue => `  WARN impeccable content: ${issue.message}`),
+		"       remediation: run bun run update-impeccable; if anchor drift remains, update IMPECCABLE_VENDOR_FIXES",
+	];
+}
+
 export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 	return [
 		[join(agentDir, "AGENTS.md"), "AGENTS.md", "symlink"],
 		[join(agentDir, "extensions", "omp-session-env.ts"), "omp-session-env.ts", "symlink"],
+		[join(agentDir, "extensions", "impeccable-hook.ts"), "impeccable-hook.ts", "symlink"],
 		[join(agentDir, "lsp.json"), "lsp.json", "symlink"],
 		...LOCAL_MANAGED_SKILLS.map(
 			skillName =>
@@ -317,6 +384,18 @@ export function managedAgentChecks(agentDir: string): ManagedAgentCheck[] {
 					"symlink",
 				] satisfies ManagedAgentCheck,
 		),
+		...LOCAL_OPTIONAL_SKILLS.map(
+			skill =>
+				[
+					join(agentDir, "optional-skills", skill.name),
+					`optional-skills/${skill.name}`,
+					"symlink",
+				] satisfies ManagedAgentCheck,
+		),
+		...LOCAL_MANAGED_AGENTS.map(
+			agent =>
+				[join(agentDir, "agents", `${agent}.md`), `${agent}.md`, "symlink"] satisfies ManagedAgentCheck,
+		),
 	];
 }
 
@@ -324,7 +403,82 @@ async function cmdUpdateImpeccable(_args: string[]): Promise<number> {
 	const result = await updateImpeccableFromRemote({ repoRoot: repoRoot() });
 	const oldVersion = result.oldVersion ?? "none";
 	console.log(`Impeccable skill updated: ${oldVersion} -> ${result.newVersion}`);
+	console.log(`  vendored agents: ${result.agents.length}`);
+	for (const fix of result.fixes) {
+		console.log(`  vendor fix ${fix.id}: ${fix.kind}`);
+	}
+	// Anything other than a clean apply means upstream moved the code the fix
+	// targets: either they fixed it themselves (drop our entry) or they rewrote
+	// the block and the fix is now absent while the bug may not be.
+	const stale = result.fixes.filter(fix => fix.kind !== "apply");
+	if (stale.length > 0) {
+		console.log(
+			`Re-check src/impeccable-update.ts: ${stale.map(fix => fix.id).join(", ")} did not apply cleanly.`,
+		);
+	}
 	console.log("Review the git diff, then run 'bun run bootstrap' and 'bun run verify'.");
+	return 0;
+}
+
+async function cmdUpdateOmp(args: string[]): Promise<number> {
+	const parsed = parseOmpUpdateArgs(args);
+	if (parsed.kind === "help") {
+		console.log("usage: bun run update-omp");
+		return 0;
+	}
+	if (parsed.kind === "error") {
+		console.error(parsed.message);
+		return 2;
+	}
+
+	const result = await executeOmpUpdateWorkflow(
+		{
+			readVersion: readOmpVersion,
+			update: runOmpUpdater,
+			bootstrap: () => cmdBootstrap([]),
+			doctor: () => cmdDoctor([]),
+			verify: () => cmdVerify([]),
+		},
+		event => {
+			if (event.kind === "version") {
+				console.log(`OMP version ${event.position}: ${event.value}`);
+				return;
+			}
+			const heading = {
+				update: "omp update",
+				bootstrap: "bootstrap after omp update",
+				doctor: "doctor after omp update",
+				verify: "verify after omp update",
+			}[event.stage];
+			console.log(`\n==> ${heading}`);
+		},
+	);
+	return result.kind === "success" ? 0 : result.exitCode;
+}
+
+async function cmdUpdateVendoredSkill(args: string[]): Promise<number> {
+	const parsed = parseUpdateVendoredSkillArgs(args);
+	const known = LOCAL_OPTIONAL_SKILLS.map(skill => skill.name).join(", ");
+	if (parsed.kind === "help") {
+		console.log(`usage: bun run update-vendored-skill <name>\nknown: ${known}`);
+		return 0;
+	}
+	if (parsed.kind === "error") {
+		console.error(parsed.message);
+		return 2;
+	}
+	const skill = findOptionalSkill(parsed.name);
+	if (!skill) {
+		console.error(`unknown optional skill: ${parsed.name} (known: ${known})`);
+		return 2;
+	}
+	const result = await updateVendoredSkill({ repoRoot: repoRoot(), skill });
+	console.log(
+		`Vendored skill ${result.name}: ${result.oldCommit.slice(0, 8)} -> ${result.newCommit.slice(0, 8)} (${result.files.length} files)`,
+	);
+	console.log(
+		`Record commit "${result.newCommit}" in src/optional-skills.ts, review the diff, then run 'bun run bootstrap'.`,
+	);
 	return 0;
 }
 
@@ -460,7 +614,9 @@ const COMMANDS: Record<string, (args: string[]) => Promise<number>> = {
 	"audit-lsp": cmdAuditLsp,
 	"install-lsp": cmdInstallLsp,
 	"update-impeccable": cmdUpdateImpeccable,
+	"update-omp": cmdUpdateOmp,
 	"update-plannotator": () => cmdUpdatePlugin("plannotator"),
+	"update-vendored-skill": cmdUpdateVendoredSkill,
 };
 
 async function main(): Promise<number> {

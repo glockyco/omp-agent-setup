@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
 	auditFleet,
 	classifyActivity,
@@ -13,6 +14,7 @@ import {
 	renderReport,
 	type ServerDef,
 } from "../src/lsp-audit.ts";
+import { LSP_INSTALL_CHANNELS } from "../src/lsp-channels.ts";
 
 /** Test fixture: an in-memory FsView built from a flat map of dir → filenames. */
 function fixtureFs(layout: Record<string, readonly string[]>): FsView {
@@ -280,10 +282,48 @@ describe("auditFleet", () => {
 		expect(reports[0]?.directories[0]?.activeServers[0]?.resolved).toBe(
 			"/p/local/node_modules/.bin/typescript-language-server",
 		);
+		expect(renderReport(reports, now)).toContain(
+			"typescript-language-server -> /p/local/node_modules/.bin/typescript-language-server",
+		);
 	});
 });
 
 describe("renderReport", () => {
+	test("reports installer remediation per gap", () => {
+		const fs = fixtureFs({ "/p/r": ["pom.xml", "build.gradle"] });
+		const path = fixturePath([]);
+		const now = new Date("2026-05-15T00:00:00Z");
+		const jdtls: ServerDef = {
+			name: "jdtls",
+			command: "jdtls",
+			rootMarkers: ["pom.xml"],
+			isLinter: false,
+			disabled: false,
+		};
+		const kotlin: ServerDef = {
+			name: "kotlin-lsp",
+			command: "kotlin-lsp",
+			rootMarkers: ["build.gradle"],
+			isLinter: false,
+			disabled: false,
+		};
+		const reports = auditFleet(
+			[{ label: "r", path: "/p/r", lastCommitAt: now, subPackages: [] }],
+			() => [jdtls, kotlin],
+			fs,
+			path,
+			now,
+		);
+		const macReport = renderReport(reports, now, "darwin");
+		expect(macReport).toContain("jdtls");
+		expect(macReport).toContain("kotlin-lsp");
+		expect(macReport.match(/remediation: run 'bun run install-lsp'/g)).toHaveLength(2);
+
+		const linuxReport = renderReport(reports, now, "linux");
+		expect(linuxReport).toContain("kotlin-lsp's official Homebrew formula is macOS-only");
+		expect(linuxReport).toContain("manually put kotlin-lsp on PATH on linux");
+	});
+
 	test("groups by activity and surfaces coverage gaps", () => {
 		const fs = fixtureFs({
 			"/p/active-repo": ["package.json"],
@@ -333,8 +373,31 @@ describe("renderReport", () => {
 			now,
 		);
 		const out = renderReport(reports, now);
+		expect(out).toContain("typescript-language-server -> /fixture/bin/typescript-language-server");
 		expect(out).toContain("All active repos have full binary coverage.");
 		expect(out).not.toContain("COVERAGE GAPS");
+	});
+});
+
+describe("install-lsp registry", () => {
+	test("matches every installer invocation exactly", () => {
+		const script = readFileSync(new URL("../scripts/install-lsp.sh", import.meta.url), "utf8");
+		const parsed: Record<string, string> = {};
+		const helperChannels: Record<string, string> = {
+			bun_global: "bun",
+			uv_tool: "uv",
+			brew: "brew",
+			brew_macos: "brew-macos",
+			dotnet_tool: "dotnet",
+		};
+		const invocationRe = /^\s*ensure_(bun_global|uv_tool|brew|brew_macos|dotnet_tool)\s+(\S+)/gm;
+		for (const match of script.matchAll(invocationRe)) {
+			const helper = match[1];
+			const command = match[2];
+			if (helper && command) parsed[command] = helperChannels[helper] ?? "";
+		}
+		if (/^\s*ensure_rust_analyzer\s*$/m.test(script)) parsed["rust-analyzer"] = "rustup";
+		expect(parsed).toEqual(LSP_INSTALL_CHANNELS);
 	});
 });
 
