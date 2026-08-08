@@ -10,7 +10,7 @@ Primary harness is [oh-my-pi](https://github.com/can1357/oh-my-pi) (`omp`) from 
 
 Use OMP's native workflow and tools: scope the change, research existing code, decompose only when useful, implement the clean cut, verify with evidence, then clean up. User and project instructions override this global file. Small isolated reversible edits may stay direct. Changes that span subsystems, gain callers, affect deployment/config, or outlive one session use `/plan`, `docs/plans/`, task subagents, or Plannotator review as appropriate.
 
-Skills load via OMP's `skills.customDirectories`. Full skill bodies are available on demand through `skill://<name>`. For current platform behavior, prefer OMP docs (`omp://context-files.md`, `omp://skills.md`, `omp://task-agent-discovery.md`, `omp://tools/task.md`, `omp://system-prompt-customization.md`) over stale local process lore.
+Skills load via OMP's `skills.customDirectories`. Full skill bodies are available on demand through `skill://<name>`. Some skills are opt-in per repository: they are deployed to `~/.omp/agent/optional-skills/`, which OMP never scans, and a repo turns one on with `omp-skill enable <name>` (`list`, `list --fleet`, and `disable` round it out). For current platform behavior, prefer OMP docs (`omp://context-files.md`, `omp://skills.md`, `omp://task-agent-discovery.md`, `omp://tools/task.md`, `omp://system-prompt-customization.md`) over stale local process lore.
 
 ## Planning files
 
@@ -23,7 +23,7 @@ the active list. Full convention: `skill://planning-files`.
 
 ## Design assistance
 
-Impeccable is available globally for frontend/design work. Use project `PRODUCT.md`/`DESIGN.md` when present. Don't impose visual redesigns on non-UI tasks.
+Impeccable is available globally for frontend/design work. Its managed OMP extension runs the immediate detector after direct UI file edits and a deduplicated deep pass when the agent settles; respect its findings as review input, not automatic defects. Use project `PRODUCT.md`/`DESIGN.md` when present. Don't impose visual redesigns on non-UI tasks.
 
 ## Writing style
 
@@ -31,6 +31,6 @@ Avoid semicolons in prose. Split the thought into separate sentences, or use a c
 
 ## Conventions and recovery
 
-Files under `~/.omp/agent/` (`AGENTS.md`, `extensions/omp-session-env.ts`, `lsp.json`, `skills/<name>/`, managed keys in `config.yml`) are owned by `glockyco/omp-agent-setup`. Managed skill names live in `src/managed-skills.ts`. Don't edit deployed copies directly. Change the source in `~/Projects/omp-agent-setup/` and run `bun run bootstrap` (`bun run doctor` for a health check, `bun run verify` for the full gate). Commit guidance lives in `skill://commit`. Documentation guidance lives in `skill://writing-project-readmes` and `skill://writing-agent-instructions`. Don't add repo-local plugin or skill copies unless a repo needs a genuine override.
+Files under `~/.omp/agent/` (`AGENTS.md`, managed `extensions/*.ts`, `lsp.json`, `skills/<name>/`, `optional-skills/<name>/`, managed keys in `config.yml`) are owned by `glockyco/omp-agent-setup`. Managed skill names live in `src/managed-skills.ts`, opt-in ones in `src/optional-skills.ts`. Don't edit deployed copies directly. Change the source in `~/Projects/omp-agent-setup/` and run `bun run bootstrap` (`bun run doctor` for a health check, `bun run verify` for the full gate). Commit guidance lives in `skill://commit`. Documentation guidance lives in `skill://writing-project-readmes` and `skill://writing-agent-instructions`. Don't add repo-local plugin or skill copies unless a repo needs a genuine override.
 
 If Plannotator seems inactive, verify `~/Projects/plannotator/apps/pi-extension/` is built and that `bun run doctor` sees the managed extension/config surfaces.

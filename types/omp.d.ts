@@ -40,6 +40,43 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		type: "session_start";
 	}
 
+	export interface ToolResultEvent {
+		type: "tool_result";
+		toolName: string;
+		toolCallId: string;
+		input: Record<string, unknown>;
+		content: Array<
+			{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }
+		>;
+		isError: boolean;
+		details: unknown;
+	}
+
+	export interface ToolResultEventResult {
+		content?: ToolResultEvent["content"];
+		details?: unknown;
+		isError?: boolean;
+	}
+
+	export interface AgentEndEvent {
+		type: "agent_end";
+		messages: unknown[];
+		willContinue?: boolean;
+	}
+
+	export interface ExtensionUIContext {
+		notify(message: string, type?: "info" | "warning" | "error"): void;
+		setStatus(key: string, text: string | undefined): void;
+	}
+
+	export interface CustomMessagePayload<T = unknown> {
+		customType: string;
+		content: string;
+		display: boolean;
+		details?: T;
+		attribution?: string;
+	}
+
 	/**
 	 * Read-only slice of OMP's session manager surfaced to extensions via
 	 * {@link ExtensionContext}. Only the methods our extensions actually use
@@ -57,6 +94,8 @@ declare module "@oh-my-pi/pi-coding-agent" {
 
 	export interface ExtensionContext {
 		cwd: string;
+		hasUI: boolean;
+		ui: ExtensionUIContext;
 		sessionManager: ReadonlySessionManager;
 	}
 
@@ -77,5 +116,11 @@ declare module "@oh-my-pi/pi-coding-agent" {
 			handler: ExtensionHandler<BeforeAgentStartEvent, BeforeAgentStartEventResult>,
 		): void;
 		on(event: "session_start", handler: ExtensionHandler<SessionStartEvent>): void;
+		on(event: "tool_result", handler: ExtensionHandler<ToolResultEvent, ToolResultEventResult>): void;
+		on(event: "agent_end", handler: ExtensionHandler<AgentEndEvent>): void;
+		sendMessage<T = unknown>(
+			message: CustomMessagePayload<T>,
+			options?: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" },
+		): void;
 	}
 }

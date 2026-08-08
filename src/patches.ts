@@ -37,14 +37,16 @@
  */
 type PatchPackage = "pi-coding-agent" | "pi-agent-core" | "pi-ai";
 
-/** Identity and content of a single source patch. */
-export interface Patch {
-	/** Stable id used in reports and tests; one patch per id. */
+/**
+ * The parts of a patch that {@link planPatch} needs: what to look for, what to
+ * write instead, and how to tell the edit is already there. Target addressing
+ * is deliberately absent so other vendored trees can reuse the same planner
+ * with their own addressing (see `./impeccable-update.ts`, which addresses a
+ * file inside the vendored skill instead of a `@oh-my-pi` package).
+ */
+export interface SourceEdit {
+	/** Stable id used in reports and tests; one edit per id. */
 	id: string;
-	/** Installed `@oh-my-pi` package the target file lives in. */
-	package: PatchPackage;
-	/** Path inside {@link Patch.package}, POSIX style. */
-	targetRelative: string;
 	/** One-line human-readable purpose. */
 	description: string;
 	/** Exact OLD block. Must occur exactly once in the unpatched file. */
@@ -55,12 +57,20 @@ export interface Patch {
 	appliedSignature: string;
 }
 
+/** Identity and content of a single `@oh-my-pi` source patch. */
+export interface Patch extends SourceEdit {
+	/** Installed `@oh-my-pi` package the target file lives in. */
+	package: PatchPackage;
+	/** Path inside {@link Patch.package}, POSIX style. */
+	targetRelative: string;
+}
+
 /** Outcome of planning a single patch against the current file contents. */
-export type PatchPlanEntry =
-	| { kind: "apply"; patch: Patch; nextContent: string }
-	| { kind: "skip-already-applied"; patch: Patch }
-	| { kind: "skip-anchor-missing"; patch: Patch }
-	| { kind: "error-anchor-ambiguous"; patch: Patch; matchCount: number };
+export type PatchPlanEntry<P extends SourceEdit = Patch> =
+	| { kind: "apply"; patch: P; nextContent: string }
+	| { kind: "skip-already-applied"; patch: P }
+	| { kind: "skip-anchor-missing"; patch: P }
+	| { kind: "error-anchor-ambiguous"; patch: P; matchCount: number };
 
 /**
  * Decide what to do for a single patch given the current file contents.
@@ -73,7 +83,10 @@ export type PatchPlanEntry =
  *    so the CLI can surface it. Multiple: refuse to guess which one to
  *    replace.
  */
-export function planPatch(patch: Patch, currentContent: string): PatchPlanEntry {
+export function planPatch<P extends SourceEdit>(
+	patch: P,
+	currentContent: string,
+): PatchPlanEntry<P> {
 	if (currentContent.includes(patch.appliedSignature)) {
 		return { kind: "skip-already-applied", patch };
 	}
