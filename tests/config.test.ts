@@ -25,6 +25,7 @@ describe("mergeManagedConfig", () => {
 		expect(readTopLevel(merged, "extensions")).toEqual([
 			"~/Projects/plannotator/apps/pi-extension",
 			"~/.omp/agent/extensions/omp-session-env.ts",
+			"~/.omp/agent/extensions/impeccable-hook.ts",
 		]);
 	});
 

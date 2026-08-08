@@ -54,6 +54,9 @@ Subject:
   code symbol.
 - Do not end with a period.
 - Use a scope only when it improves scanability.
+- Never identify the work by a plan, slice, ticket, or finding number. "close slice
+  7.5" or "fix M10" tells a reader nothing and goes stale the moment the plan is
+  renumbered or archived. Name the change itself.
 
 Body:
 
@@ -62,6 +65,9 @@ Body:
 - Do not paste command output, test summaries, or an implementation laundry list.
 - The diff shows what changed; the body explains context future maintainers
   cannot infer from the diff.
+- The same rule applies in the body: describe the problem and the reasoning, not
+  the identifier some tracker gave it. A body that stands alone stays useful
+  after the plan that prompted it is gone.
 
 ## Atomicity
 

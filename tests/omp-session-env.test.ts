@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { homedir } from "node:os";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import ompSessionEnv, { installSessionEnvVars } from "../extensions/omp-session-env.ts";
+import ompSessionEnv, {
+	decideOmpBinWarning,
+	installSessionEnvVars,
+} from "../extensions/omp-session-env.ts";
 
 describe("installSessionEnvVars", () => {
 	test("sets OMP_LOCAL_DIR/OMP_SESSION_DIR/OMP_SESSION_ID from sessionManager", () => {
@@ -71,6 +74,56 @@ describe("installSessionEnvVars", () => {
 	});
 });
 
+describe("decideOmpBinWarning", () => {
+	const binPath = "/home/demo/.bun/bin/omp";
+	const sourceTarget =
+		"/home/demo/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/src/cli.ts";
+
+	test("is silent when the bin points at the source CLI", () => {
+		expect(
+			decideOmpBinWarning({
+				binPath,
+				linkTarget: "../install/global/node_modules/@oh-my-pi/pi-coding-agent/src/cli.ts",
+				desiredTarget: sourceTarget,
+				warningShown: false,
+			}),
+		).toBe("silent");
+	});
+
+	test("warns when the bin points at the dist bundle", () => {
+		expect(
+			decideOmpBinWarning({
+				binPath,
+				linkTarget: "../install/global/node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js",
+				desiredTarget: sourceTarget,
+				warningShown: false,
+			}),
+		).toBe("warn");
+	});
+
+	test("stays silent when the bin is missing", () => {
+		expect(
+			decideOmpBinWarning({
+				binPath,
+				linkTarget: undefined,
+				desiredTarget: sourceTarget,
+				warningShown: false,
+			}),
+		).toBe("silent");
+	});
+
+	test("does not warn a second time after the warning has been shown", () => {
+		expect(
+			decideOmpBinWarning({
+				binPath,
+				linkTarget: "../install/global/node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js",
+				desiredTarget: sourceTarget,
+				warningShown: true,
+			}),
+		).toBe("silent");
+	});
+});
+
 describe("ompSessionEnv extension", () => {
 	test("registers only the session_start environment handler", () => {
 		const handlers: Record<string, ((event: unknown, ctx: unknown) => unknown)[]> = {};
@@ -91,7 +144,11 @@ describe("ompSessionEnv extension", () => {
 		for (const k of keys) previous[k] = process.env[k];
 		for (const k of keys) delete process.env[k];
 		try {
-			ompSessionEnv(stubApi);
+			ompSessionEnv(stubApi, {
+				readlink: () => {
+					throw new Error("missing");
+				},
+			});
 			expect(Object.keys(handlers)).toEqual(["session_start"]);
 			expect(process.env.OMP_AGENT_DIR).toBe(`${homedir()}/.omp/agent`);
 
@@ -122,5 +179,82 @@ describe("ompSessionEnv extension", () => {
 				else process.env[k] = value;
 			}
 		}
+	});
+
+	test("warns once when the injected bin points at the dist bundle", () => {
+		const handlers: ((event: unknown, ctx: unknown) => unknown)[] = [];
+		const notifications: string[] = [];
+		const stubApi = {
+			logger: { error() {} },
+			on(_event: string, handler: (event: unknown, ctx: unknown) => unknown) {
+				handlers.push(handler);
+			},
+		} as unknown as ExtensionAPI;
+		const previousBin = process.env.BUN_INSTALL;
+		process.env.BUN_INSTALL = "/tmp/omp-test-bun";
+		try {
+			ompSessionEnv(stubApi, {
+				readlink: path => {
+					expect(path).toBe("/tmp/omp-test-bun/bin/omp");
+					return "../install/global/node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js";
+				},
+			});
+			const handler = handlers[0];
+			if (!handler) throw new Error("expected a session_start handler");
+			const context = {
+				ui: {
+					notify(message: string) {
+						notifications.push(message);
+					},
+				},
+				cwd: "/cwd",
+				sessionManager: {
+					getCwd: () => "/cwd",
+					getSessionDir: () => "/parent",
+					getSessionId: () => "ses-warning",
+					getArtifactsDir: () => null,
+				},
+			};
+			handler({ type: "session_start" }, context);
+			handler({ type: "session_start" }, context);
+			expect(notifications).toEqual([
+				"OMP is running the unpatched bundle; run " +
+					"cd ~/Projects/omp-agent-setup && bun run bootstrap",
+			]);
+		} finally {
+			if (previousBin === undefined) delete process.env.BUN_INSTALL;
+			else process.env.BUN_INSTALL = previousBin;
+		}
+	});
+
+	test("swallows an injected readlink failure", () => {
+		const handlers: ((event: unknown, ctx: unknown) => unknown)[] = [];
+		const stubApi = {
+			logger: { error() {} },
+			on(_event: string, handler: (event: unknown, ctx: unknown) => unknown) {
+				handlers.push(handler);
+			},
+		} as unknown as ExtensionAPI;
+		ompSessionEnv(stubApi, {
+			readlink: () => {
+				throw new Error("readlink failed");
+			},
+		});
+		const handler = handlers[0];
+		if (!handler) throw new Error("expected a session_start handler");
+		expect(() =>
+			handler(
+				{ type: "session_start" },
+				{
+					cwd: "/cwd",
+					sessionManager: {
+						getCwd: () => "/cwd",
+						getSessionDir: () => "/parent",
+						getSessionId: () => "ses-readlink-error",
+						getArtifactsDir: () => null,
+					},
+				},
+			),
+		).not.toThrow();
 	});
 });

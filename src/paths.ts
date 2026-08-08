@@ -2,6 +2,21 @@ import { homedir } from "node:os";
 import { join, normalize } from "node:path";
 
 /**
+ * The Plannotator fork's checkout location, in the `~`-prefixed form that both
+ * `manifests/plugins.yml` and the emitted `config.yml` use verbatim.
+ *
+ * Three surfaces have to agree on this path: the manifest that clones and
+ * checks the fork out, the managed `extensions`/`skills.customDirectories`
+ * entries bootstrap writes, and the skill-loader directory `bun run verify`
+ * probes. Splitting them across three literals made a checkout move a
+ * three-file edit whose only failure signal was verify quietly looking at a
+ * directory bootstrap no longer configured.
+ */
+export const PLANNOTATOR_ROOT = "~/Projects/plannotator";
+export const PLANNOTATOR_EXTENSION = `${PLANNOTATOR_ROOT}/apps/pi-extension`;
+export const PLANNOTATOR_SKILLS = `${PLANNOTATOR_EXTENSION}/skills`;
+
+/**
  * Expand a leading `~` or `~/` segment to the current user's home directory.
  *
  * - `~` becomes `homedir()`.

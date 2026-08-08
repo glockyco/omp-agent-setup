@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { type Document, parseDocument } from "yaml";
+import { PLANNOTATOR_EXTENSION, PLANNOTATOR_SKILLS } from "./paths.ts";
 
 /**
  * The top-level OMP config keys this repository owns. Anything else in the
@@ -16,11 +17,12 @@ export type ManagedKey = (typeof MANAGED_KEYS)[number];
  */
 export const MANAGED_CONFIG: Record<ManagedKey, unknown> = {
 	extensions: [
-		"~/Projects/plannotator/apps/pi-extension",
+		PLANNOTATOR_EXTENSION,
 		"~/.omp/agent/extensions/omp-session-env.ts",
+		"~/.omp/agent/extensions/impeccable-hook.ts",
 	],
 	skills: {
-		customDirectories: ["~/Projects/plannotator/apps/pi-extension/skills"],
+		customDirectories: [PLANNOTATOR_SKILLS],
 	},
 	ask: {
 		timeout: 0,
