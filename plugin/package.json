@@ -1,0 +1,10 @@
+{
+  "name": "@glockyco/personal-omp-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Immutable personal behavior for Oh My Pi.",
+  "omp": {
+    "extensions": ["./extensions/personal-commit.ts"]
+  }
+}

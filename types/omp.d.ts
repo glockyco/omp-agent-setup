@@ -109,8 +109,35 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		// biome-ignore lint/suspicious/noConfusingVoidType: see comment above
 	) => Promise<R | void> | R | void;
 
+	export interface ExtensionToolResult {
+		content: Array<{ type: "text"; text: string }>;
+		details?: unknown;
+	}
+
+	export interface ExtensionToolDefinition {
+		name: string;
+		label: string;
+		description: string;
+		parameters: unknown;
+		execute(
+			toolCallId: string,
+			params: Record<string, unknown>,
+			signal: AbortSignal | undefined,
+			onUpdate: unknown,
+			ctx: ExtensionContext,
+		): Promise<ExtensionToolResult>;
+	}
+
+	export interface OmpSchemaBuilder {
+		string(): unknown;
+		enum<T extends readonly string[]>(values: T): unknown;
+		object(shape: Record<string, unknown>): unknown;
+	}
+
 	export interface ExtensionAPI {
 		logger: Logger;
+		zod: OmpSchemaBuilder;
+		registerTool(definition: ExtensionToolDefinition): void;
 		on(
 			event: "before_agent_start",
 			handler: ExtensionHandler<BeforeAgentStartEvent, BeforeAgentStartEventResult>,

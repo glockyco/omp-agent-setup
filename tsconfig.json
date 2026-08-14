@@ -21,6 +21,7 @@
     "src/**/*.ts",
     "tests/**/*.ts",
     "extensions/**/*.ts",
+    "plugin/**/*.ts",
     "types/**/*.d.ts",
     "agent/skills/**/*.ts"
   ],

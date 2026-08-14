@@ -1,0 +1,14 @@
+{
+  "$comment": "Only overrides that differ from OMP 17.2.15 defaults and have representative smoke coverage.",
+  "servers": {
+    "roslyn-language-server": {
+      "command": "Microsoft.CodeAnalysis.LanguageServer",
+      "args": ["--stdio", "--autoLoadProjects"],
+      "fileTypes": [".cs", ".csx"],
+      "rootMarkers": ["*.sln", "*.slnx", "*.csproj", "global.json"]
+    },
+    "svelte": {
+      "rootMarkers": ["svelte.config.js", "svelte.config.mjs", "svelte.config.ts"]
+    }
+  }
+}

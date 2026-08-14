@@ -2,5 +2,7 @@ backups/
 node_modules/
 *.local
 *.tsbuildinfo
+__pycache__/
+*.py[cod]
 .DS_Store
 .worktrees/

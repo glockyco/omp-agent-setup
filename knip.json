@@ -1,7 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["extensions/omp-session-env.ts", "src/plans-cli.ts", "src/skill-cli.ts"],
-  "project": ["src/**/*.ts", "extensions/**/*.ts"],
+  "entry": [
+    "extensions/omp-session-env.ts",
+    "plugin/extensions/personal-commit.ts",
+    "src/plans-cli.ts",
+    "src/skill-cli.ts"
+  ],
+  "project": ["src/**/*.ts", "extensions/**/*.ts", "plugin/**/*.ts"],
   "ignoreBinaries": ["omp"],
   "ignoreDependencies": ["@oh-my-pi/pi-coding-agent", "@commitlint/cli"]
 }
