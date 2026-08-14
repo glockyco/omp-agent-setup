@@ -27,14 +27,14 @@
 ## 5. Verify repository behavior
 
 - [x] 5.1 Run formatting, lint, types, dead-code, audit, tests, and coverage
-- [ ] 5.2 Run supported Darwin and Linux flake checks
+- [x] 5.2 Run supported Darwin and Linux flake checks
 - [x] 5.3 Create and install the least-privilege updater GitHub App
 - [x] 5.4 Store the App client ID and private key as Actions configuration
-- [ ] 5.5 Correct required status contexts and enforce protection for administrators
-- [ ] 5.6 Prove a generated update pull request starts both CI jobs and cannot merge when one fails
+- [x] 5.5 Correct required status contexts and enforce protection for administrators
+- [x] 5.6 Prove a generated update pull request starts both CI jobs and cannot merge when one fails
 
 ## 6. Complete the change
 
-- [ ] 6.1 Validate the OpenSpec change strictly
-- [ ] 6.2 Publish the reviewed implementation through a pull request
-- [ ] 6.3 Archive and validate the completed OpenSpec change
+- [x] 6.1 Validate the OpenSpec change strictly
+- [x] 6.2 Publish the reviewed implementation through a pull request
+- [x] 6.3 Archive and validate the completed OpenSpec change
