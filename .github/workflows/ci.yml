@@ -27,8 +27,5 @@ jobs:
             extra-substituters = https://cache.numtide.com
             extra-trusted-public-keys = niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
       - run: nix flake check --print-build-logs
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2.2.0
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
-      - run: bun run ci
+      - run: nix develop --command bun install --frozen-lockfile
+      - run: nix develop --command bun run ci

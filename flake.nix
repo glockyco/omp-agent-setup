@@ -52,6 +52,7 @@
           pkgs = nixpkgs.legacyPackages.${system};
           plugin = self.packages.${system}.default;
           omp = llm-agents.packages.${system}.omp;
+          openspec = llm-agents.packages.${system}.openspec;
         in
         {
           package-shape =
@@ -101,6 +102,54 @@
                 bun test ${./plugin}/tests/plugin-load.test.ts ${./plugin}/tests/personal-commit.test.ts
                 touch "$out"
               '';
+
+          bun-runtime =
+            pkgs.runCommand "personal-omp-plugin-bun-runtime"
+              {
+                nativeBuildInputs = [ pkgs.bun ];
+              }
+              ''
+                test "$(bun --version)" = "${pkgs.bun.version}"
+                touch "$out"
+              '';
+
+          openspec-contracts =
+            pkgs.runCommand "personal-omp-plugin-openspec-contracts"
+              {
+                nativeBuildInputs = [ openspec ];
+              }
+              ''
+                export CI=1
+                export HOME="$TMPDIR/home"
+                export OPENSPEC_TELEMETRY=0
+                mkdir -p "$HOME"
+                cd ${./.}
+                openspec validate --all --strict --no-interactive
+                openspec validate --archived --strict --no-interactive
+                touch "$out"
+              '';
+
+          openspec-adapters =
+            pkgs.runCommand "personal-omp-plugin-openspec-adapters"
+              {
+                nativeBuildInputs = [
+                  openspec
+                  pkgs.diffutils
+                ];
+              }
+              ''
+                export CI=1
+                export HOME="$TMPDIR/home"
+                export OPENSPEC_TELEMETRY=0
+                mkdir -p "$HOME"
+                cp -R ${./.} source
+                chmod -R u+w source
+                cd source
+                openspec update . --force
+                diff -ru ${./.}/.omp/commands .omp/commands
+                diff -ru ${./.}/.omp/skills .omp/skills
+                touch "$out"
+              '';
         }
       );
 
@@ -114,6 +163,7 @@
             packages = [
               pkgs.bun
               pkgs.git
+              llm-agents.packages.${system}.openspec
             ];
           };
         }

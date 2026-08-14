@@ -42,23 +42,24 @@ The workstation wrapper supplies fixed store paths instead of evaluating the sou
 Enter the pinned shell and install JavaScript development dependencies:
 
 ```bash
-nix develop
-bun install --frozen-lockfile
+nix develop --command bun install --frozen-lockfile
 ```
 
 Run the release gates:
 
 ```bash
-bun run ci
+nix develop --command bun run ci
 nix flake check
 ```
 
-CI runs the flake checks on Apple Silicon macOS and x86-64 Linux. The checks inspect package shape, load the extension in isolation, execute real Git hooks, verify paper-fetch fixtures, and validate the 53-rule STE inventory.
+CI runs the flake checks on Apple Silicon macOS and x86-64 Linux. The checks inspect package shape, load the extension in isolation, execute real Git hooks, verify paper-fetch fixtures, validate generated OpenSpec adapters and archived task completeness, and validate the 53-rule STE inventory.
+
+Renovate owns JavaScript dependencies and GitHub Actions. A separate weekly workflow owns Nix flake inputs. Both create review-only pull requests; required Darwin and Linux checks must pass before merge. See the workstation [dependency-update runbook](https://github.com/glockyco/nix-config/blob/main/docs/operations/dependency-updates.md) for the cross-repository release and rollback procedure.
 
 ## Release flow
 
 1. Change the plugin and its observable tests together.
-2. Run `bun run ci` and `nix flake check`.
+2. Run `nix develop --command bun run ci` and `nix flake check`.
 3. Publish one reviewed repository revision.
 4. Update the `personal-omp-plugin` lock in `nix-darwin`.
 5. Build and activate the workstation generation.

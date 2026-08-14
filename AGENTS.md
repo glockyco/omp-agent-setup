@@ -7,8 +7,7 @@ Source repository for the immutable personal [Oh My Pi](https://github.com/can13
 Use the pinned shell:
 
 ```bash
-nix develop
-bun install --frozen-lockfile
+nix develop --command bun install --frozen-lockfile
 ```
 
 Do not require a globally installed Bun, npm, Python, .NET SDK, or language server.
@@ -69,13 +68,29 @@ OMP's built-in catalog is the base. Add an override only when a representative s
 Run both gates before release:
 
 ```bash
-bun run ci
+nix develop --command bun run ci
 nix flake check
 ```
 
 `bun run ci` covers formatting, types, dead code, dependency advisories, extension behavior, real Git hooks, deterministic retrieval fixtures, and STE traceability. `nix flake check` covers immutable package shape and isolated payload execution. CI repeats the flake checks on `aarch64-darwin` and `x86_64-linux`.
 
 A permanent behavior change needs an observable test that fails for a plausible regression. Do not test source text when the behavior can be executed.
+
+## Dependency updates
+
+Renovate owns JavaScript dependencies, `bun.lock`, and GitHub Actions. The weekly `update.yml` workflow owns all Nix flake inputs and uses a short-lived token from the dependency-updater GitHub App. Renovate's Nix manager stays disabled. Neither updater merges changes.
+
+Use native commands for a manual update:
+
+```bash
+nix flake update
+CI=1 OPENSPEC_TELEMETRY=0 nix develop --command openspec update . --force
+nix develop --command bun install --frozen-lockfile
+nix develop --command bun run ci
+nix flake check
+```
+
+The workstation repository's [dependency-update runbook](https://github.com/glockyco/nix-config/blob/main/docs/operations/dependency-updates.md) owns the cross-repository schedule, GitHub App credentials, downstream activation, real-session smoke, and rollback.
 
 ## Release
 
