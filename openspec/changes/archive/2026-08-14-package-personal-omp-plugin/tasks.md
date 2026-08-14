@@ -1,7 +1,7 @@
 ## 1. Immutable package
 
 - [x] 1.1 Add the curated plugin manifest, personal policy, and flake outputs.
-- [ ] 1.2 Add package-shape and isolated OMP discovery checks on both flake systems.
+- [x] 1.2 Add package-shape and isolated OMP discovery checks on both flake systems.
 
 ## 2. Personal capabilities
 
@@ -18,7 +18,7 @@
 
 ## 4. Verification and handoff
 
-- [ ] 4.1 Build and inspect `packages.default` on Darwin and Linux.
+- [x] 4.1 Build and inspect `packages.default` on Darwin and Linux.
 - [x] 4.2 Validate the OpenSpec change and record exact verification evidence.
 - [x] 4.3 Hand the immutable package contract to the `nix-darwin` consumption change.
 - [x] 4.4 Audit STE paraphrases against an authorized official Issue 9 copy and record its local checksum without committing the PDF.
