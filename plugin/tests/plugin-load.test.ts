@@ -34,11 +34,7 @@ describe("packaged plugin", () => {
 	});
 
 	test("contains exactly the selected skills, policy, and LSP overrides", async () => {
-		for (const skill of [
-			"commit-policy",
-			"research-evidence",
-			"simplified-technical-english",
-		]) {
+		for (const skill of ["commit-policy", "research-evidence", "simplified-technical-english"]) {
 			expect(existsSync(join(pluginRoot, "skills", skill, "SKILL.md"))).toBe(true);
 		}
 		expect(existsSync(join(pluginRoot, "rules", "personal-policy.md"))).toBe(true);

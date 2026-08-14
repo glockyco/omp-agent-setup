@@ -1,7 +1,5 @@
-# Planning Index
+# Archived planning history
 
-## active
+The files in [`archive/`](./archive/) are historical records from the retired mutable deployment system. They are not active implementation instructions.
 
-- **Setup Maintenance Overview** [overview] `2026-07-31-setup-maintenance-overview`
-
-_16 archived — see `docs/plans/archive/`._
+Current behavior is defined by [`openspec/specs/`](../../openspec/specs/). Workstation composition and activation are owned by the separate `nix-darwin` repository.

@@ -1,87 +1,77 @@
-# OMP Agent Setup
+# Personal OMP Plugin
 
-Source of truth for my global [oh-my-pi](https://github.com/can1357/oh-my-pi) agent environment.
-A Bun CLI deploys managed files, merges OMP config, reconciles active plugin forks, and reapplies local OMP source patches.
+Immutable personal behavior for [Oh My Pi](https://github.com/can1357/oh-my-pi). The flake exports one valid OMP plugin directory for Darwin and Linux.
 
-Personal clone-to-own dotfile, not a packaged tool — paths, plugin forks, and conventions are mine.
+This repository does not install OMP or write to `~/.omp/agent`. The separate `nix-darwin` workstation repository pins this flake, adds the plugin to the default OMP wrapper, and owns language-server packages and activation.
 
 [![CI](https://github.com/glockyco/omp-agent-setup/actions/workflows/ci.yml/badge.svg)](https://github.com/glockyco/omp-agent-setup/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-## Requirements
+## Plugin contents
 
-- [Bun](https://bun.sh/) 1.3.14 (pinned in [`.bun-version`](./.bun-version))
-- [oh-my-pi](https://github.com/can1357/oh-my-pi) on `PATH`
-- `gh` for first-time plugin clone
+| Path | Capability |
+|---|---|
+| `plugin/extensions/personal-commit.ts` | Structured commit, amend, and non-mutating preview tool |
+| `plugin/skills/commit-policy/` | Conventional Commit policy and causal body guidance |
+| `plugin/skills/research-evidence/` | Search, paper acquisition, evidence reading, and BibTeX workflow |
+| `plugin/skills/simplified-technical-english/` | Audited ASD-STE100 Issue 9 relationships and software-writing adaptations |
+| `plugin/rules/personal-policy.md` | Short personal deviations from OMP defaults |
+| `plugin/lsp.json` | Only the Roslyn executable and Svelte root-marker overrides |
 
-## Quickstart
+The plugin contains no credentials, providers, models, agents, service configuration, or mutable caches.
+
+## Use from Nix
+
+Build the immutable directory:
 
 ```bash
-gh repo clone glockyco/omp-agent-setup ~/Projects/omp-agent-setup
-cd ~/Projects/omp-agent-setup
-bun install --frozen-lockfile
-bun run bootstrap
-bun run verify
+nix build .#
 ```
 
-## What bootstrap manages
+A host wrapper must load both plugin capabilities and the declared extension:
 
-| Source | Deployed at |
-|---|---|
-| `agent/AGENTS.md`, `agent/lsp.json`, `extensions/omp-session-env.ts`, `agent/skills/`, `agent/rules/`, `agent/agents/` | `~/.omp/agent/` — symlinked |
-| `agent/optional-skills/` | `~/.omp/agent/optional-skills/` — symlinked, opt-in per repo via `omp-skill enable <name>` |
-| managed keys in `src/config.ts` | `~/.omp/agent/config.yml` — merged |
-| managed servers in `src/mcp.ts` | `~/.omp/agent/mcp.json` — merged |
-| `manifests/plugins.yml` | active plugin checkouts under `~/Projects/` |
-| `src/patches.ts` | OMP source files — patched in place by `update-omp` or `bootstrap` recovery |
+```bash
+plugin="$(nix build .# --no-link --print-out-paths)"
+omp --plugin-dir "$plugin" --extension "$plugin"
+```
 
-Every run snapshots the pre-deploy state to `backups/<UTC-timestamp>/` before touching anything.
-`bun run doctor` reports the current state without changing anything, including whether each managed MCP server's binary, background service, and daemon are actually healthy.
+The workstation wrapper supplies fixed store paths instead of evaluating the source checkout at runtime.
 
-Bootstrap deliberately does not install background services. When a managed MCP server needs one, `doctor` prints the install command instead.
+## Development
 
-## MCP servers
+Enter the pinned shell and install JavaScript development dependencies:
 
-| Server | Endpoint | Needs |
-|---|---|---|
-| `remnote` | `http://127.0.0.1:3001/mcp` | `remnote-mcp-server` on `PATH`, its launchd agent, and RemNote.app open for reads and writes |
+```bash
+nix develop
+bun install --frozen-lockfile
+```
 
-Install the RemNote daemon's background service once with `remnote-mcp-server daemon install-launchd`; `remnote-mcp-server daemon uninstall-launchd` reverses it. Operating guidance for agents lives in [`agent/rules/remnote.md`](./agent/rules/remnote.md).
+Run the release gates:
 
-## Maintenance commands
+```bash
+bun run ci
+nix flake check
+```
 
-| Script | What it does |
-|---|---|
-| `bun run bootstrap` | Deploy / reconcile all managed surfaces. Idempotent. |
-| `bun run verify` | Full live gate for OMP smoke, skill discovery, logs, and `omp-plans`. |
-| `bun run doctor` | Read-only health report. |
-| `bun run audit-lsp` | Fleet LSP audit across `~/Projects/*`. `--include-dormant` widens the scan. |
-| `bun run install-lsp` | Install all LSP binaries via the canonical channel. Idempotent. |
-| `bun run update-omp` | Update OMP, then stop on the first failed bootstrap, doctor, or verify gate. |
-| `bun run update-plannotator` | Rebase Plannotator fork's `omp-local` onto upstream; print the new SHA. |
-| `bun run update-impeccable` | Vendor the latest Impeccable `.pi` skill into `agent/skills/impeccable` and the four Claude-variant subagents into `agent/agents/`; review diff before bootstrap. |
+CI runs the flake checks on Apple Silicon macOS and x86-64 Linux. The checks inspect package shape, load the extension in isolation, execute real Git hooks, verify paper-fetch fixtures, and validate the 53-rule STE inventory.
 
-Use `bun run update-omp` for normal OMP updates. If the repository command cannot start, recover with `omp update`, then immediately run `bun run bootstrap`, `bun run doctor`, and `bun run verify`.
+## Release flow
 
-## Developer commands
+1. Change the plugin and its observable tests together.
+2. Run `bun run ci` and `nix flake check`.
+3. Publish one reviewed repository revision.
+4. Update the `personal-omp-plugin` lock in `nix-darwin`.
+5. Build and activate the workstation generation.
+6. Run a real wrapped OMP session before removing or changing an older generation.
 
-| Script | What it does |
-|---|---|
-| `bun run ci` | Run lint, types, dead-code, dependency audit, and coverage tests. |
-| `bun run fix` | Apply Biome fixes. |
+OMP continues to own authentication, preferences, sessions, history, caches, logs, and databases under its writable state directory. Herdr continues to own its generated OMP integration.
 
-## Plugins
+## ASD-STE100 boundary
 
-| Plugin | Upstream | Fork (`omp-local`) |
-|---|---|---|
-| Plannotator | [backnotprop/plannotator](https://github.com/backnotprop/plannotator) | [glockyco/plannotator](https://github.com/glockyco/plannotator/tree/omp-local) |
+The repository records the official Issue 9 PDF source and SHA-256, and all 53 working paraphrases were audited against that copy. The PDF and complete controlled dictionary are not committed.
 
-`omp-local` carries minimal OMP-specific adapters on top of `upstream/main`. To update: `bun run update-plannotator` → push the fork branch after review → bump `currentCommit` in [`manifests/plugins.yml`](./manifests/plugins.yml) → `bun run verify`.
-
-## LSP
-
-Three layers: binaries on `$PATH` ([`scripts/install-lsp.sh`](./scripts/install-lsp.sh)) → global overrides ([`agent/lsp.json`](./agent/lsp.json)) → per-project `./lsp.json` only for genuine deviations. `bun run audit-lsp` surfaces gaps. See [`AGENTS.md`](./AGENTS.md#lsp-maintenance) for policy.
+The skill provides unofficial STE-based guidance. It does not make AI output compliant. A qualified writer must use the official standard and dictionary for a compliance decision.
 
 ## License
 
-[MIT](./LICENSE) — working on this repo? See [`AGENTS.md`](./AGENTS.md).
+[MIT](./LICENSE) covers this repository's code and original text only. Third-party standards and source material retain their own rights.

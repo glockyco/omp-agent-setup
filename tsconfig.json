@@ -17,13 +17,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": [
-    "src/**/*.ts",
-    "tests/**/*.ts",
-    "extensions/**/*.ts",
-    "plugin/**/*.ts",
-    "types/**/*.d.ts",
-    "agent/skills/**/*.ts"
-  ],
-  "exclude": ["node_modules", "backups"]
+  "include": ["plugin/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["node_modules"]
 }

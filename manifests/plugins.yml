@@ -1,8 +1,0 @@
-plugins:
-  plannotator:
-    path: ~/Projects/plannotator
-    upstream: https://github.com/backnotprop/plannotator.git
-    fork: https://github.com/glockyco/plannotator.git
-    branch: omp-local
-    currentCommit: d86bea997f48b858b2a962c58856bd8459b11f58
-    purpose: Plannotator pi-extension with OMP loader, browser-asset fixes, and OMP internal URI resolution

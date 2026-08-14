@@ -3,10 +3,10 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	type CommandRunner,
 	executeCommit,
 	formatCommitMessage,
 	parseCommitInput,
-	type CommandRunner,
 	wrapBody,
 } from "../extensions/personal-commit.ts";
 
@@ -52,9 +52,9 @@ describe("structured input", () => {
 	test("requires a conventional subject and causal body field", () => {
 		expect(() => formatCommitMessage({ subject: "bad", body: "Reason." })).toThrow(/Conventional/);
 		expect(() => formatCommitMessage({ subject: "docs: explain", body: "" })).toThrow(/body/);
-		expect(() => formatCommitMessage({ subject: `docs: ${"x".repeat(70)}`, body: "Reason." })).toThrow(
-			/72/,
-		);
+		expect(() =>
+			formatCommitMessage({ subject: `docs: ${"x".repeat(70)}`, body: "Reason." }),
+		).toThrow(/72/);
 	});
 });
 
@@ -66,9 +66,12 @@ describe("message formatting", () => {
 		);
 		expect(formatted).toContain(`\n${url}\n`);
 		expect(formatted).toContain("\n\nThe store path fixes that drift.");
-		expect(formatted.split("\n").filter(line => line !== url).every(line => line.length <= 72)).toBe(
-			true,
-		);
+		expect(
+			formatted
+				.split("\n")
+				.filter(line => line !== url)
+				.every(line => line.length <= 72),
+		).toBe(true);
 	});
 
 	test("preview has no command side effects", async () => {
