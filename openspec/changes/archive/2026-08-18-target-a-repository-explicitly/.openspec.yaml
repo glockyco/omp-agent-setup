@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-18
+goal: A commit cannot land in an unintended repository, and a multi-repository
+  task does not need a workaround

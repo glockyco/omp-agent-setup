@@ -17,10 +17,17 @@ describe("packaged plugin", () => {
 	test("loads the declared extension factory and registers personal_commit", async () => {
 		const manifest = await Bun.file(join(pluginRoot, "package.json")).json();
 		const registrations: Array<Record<string, unknown>> = [];
+		// OMP's schema values are chainable, so a double that returns a plain
+		// object would pass while the real runtime rejected the extension.
+		const schema = (value: Record<string, unknown>): Record<string, unknown> => ({
+			...value,
+			optional: () => schema({ ...value, optional: true }),
+			describe: (description: string) => schema({ ...value, description }),
+		});
 		const api = {
 			zod: {
-				string: () => ({ type: "string" }),
-				enum: (values: readonly string[]) => ({ type: "enum", values }),
+				string: () => schema({ type: "string" }),
+				enum: (values: readonly string[]) => schema({ type: "enum", values }),
 				object: (shape: Record<string, unknown>) => ({ type: "object", shape }),
 			},
 			registerTool: (definition: Record<string, unknown>) => registrations.push(definition),

@@ -17,9 +17,12 @@ Every commit needs a body. The body explains **why** the change exists. Include 
 
 Use `personal_commit` for preview, commit, and amend. Pass the subject and body as separate structured fields. Do not put escaped `\\n` sequences in either field.
 
+Pass `repo` to commit in a repository other than the session's. A relative value resolves against the session directory. Every result names the repository it targeted, so check that line when a task spans more than one repository.
+
 The tool:
 
 - checks the cross-repository Conventional Commit shape;
+- verifies the target repository before it writes anything, and reports the work tree root it committed in;
 - requires a body;
 - preserves paragraph boundaries and wraps prose;
 - writes one internal message file;

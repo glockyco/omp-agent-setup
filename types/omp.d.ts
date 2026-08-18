@@ -128,9 +128,15 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		): Promise<ExtensionToolResult>;
 	}
 
+	/** The chainable subset of the runtime schema surface this plugin uses. */
+	export interface OmpSchema {
+		optional(): OmpSchema;
+		describe(description: string): OmpSchema;
+	}
+
 	export interface OmpSchemaBuilder {
-		string(): unknown;
-		enum<T extends readonly string[]>(values: T): unknown;
+		string(): OmpSchema;
+		enum<T extends readonly string[]>(values: T): OmpSchema;
 		object(shape: Record<string, unknown>): unknown;
 	}
 
