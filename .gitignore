@@ -6,4 +6,3 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .worktrees/
-.pre-commit-config.yaml

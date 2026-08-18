@@ -6,14 +6,6 @@
 
     # Keep OMP on its upstream-supported package set for discovery checks.
     llm-agents.url = "github:numtide/llm-agents.nix";
-
-    # Git hooks whose entries are absolute store paths, so a commit made outside
-    # the devshell -- from an editor, a GUI client, or an agent -- runs the same
-    # tools rather than failing on an ambient PATH.
-    git-hooks = {
-      url = "github:cachix/git-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -21,7 +13,6 @@
       self,
       nixpkgs,
       llm-agents,
-      git-hooks,
     }:
     let
       systems = [
@@ -29,58 +20,6 @@
         "x86_64-linux"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-
-      # Each entry names `bun` by store path and then a script from package.json,
-      # so Nix decides which bun runs and `bun.lock` decides everything that bun
-      # then runs. A hook carrying its own linter would be a second version of a
-      # tool the lockfile already pins.
-      gitHooks = forAllSystems (
-        system:
-        let
-          bun = "${nixpkgs.legacyPackages.${system}.bun}/bin/bun";
-        in
-        git-hooks.lib.${system}.run {
-          src = ./.;
-          hooks = {
-            check-lint = {
-              enable = true;
-              name = "biome";
-              entry = "${bun} run check:lint";
-              language = "system";
-              types_or = [
-                "ts"
-                "javascript"
-                "json"
-                "markdown"
-              ];
-              pass_filenames = false;
-            };
-            check-types = {
-              enable = true;
-              name = "tsc";
-              entry = "${bun} run check:types";
-              language = "system";
-              types_or = [
-                "ts"
-                "javascript"
-              ];
-              pass_filenames = false;
-            };
-            # The full gate at push time. Dead-code and advisory scans and the
-            # test suite are worth waiting for once before a push, and not on
-            # every commit.
-            ci = {
-              enable = true;
-              name = "bun run ci";
-              entry = "${bun} run ci";
-              language = "system";
-              pass_filenames = false;
-              always_run = true;
-              stages = [ "pre-push" ];
-            };
-          };
-        }
-      );
     in
     {
       packages = forAllSystems (
@@ -224,13 +163,17 @@
             packages = [
               pkgs.bun
               pkgs.git
+              pkgs.lefthook
               llm-agents.packages.${system}.openspec
             ];
 
-            # Entering the shell installs the hooks, so a clone is configured by
-            # the step it already takes rather than by a separate instruction
-            # nobody runs.
-            inherit (gitHooks.${system}) shellHook;
+            # Installing is idempotent, so it is safe on every entry. The guard
+            # keeps it quiet outside a work tree.
+            shellHook = ''
+              if [ -d .git ]; then
+                lefthook install >/dev/null
+              fi
+            '';
           };
         }
       );
