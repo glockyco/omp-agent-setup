@@ -241,21 +241,13 @@
                 touch "$out"
               '';
 
-          openspec-contracts =
-            pkgs.runCommand "personal-omp-plugin-openspec-contracts"
-              {
-                nativeBuildInputs = [ openspec ];
-              }
-              ''
-                export CI=1
-                export HOME="$TMPDIR/home"
-                export OPENSPEC_TELEMETRY=0
-                mkdir -p "$HOME"
-                cd ${./.}
-                openspec validate --all --strict --no-interactive
-                openspec validate --archived --strict --no-interactive
-                touch "$out"
-              '';
+          # This repository defines the check and consumes it like any other,
+          # so the definition cannot drift from what the fleet runs.
+          openspec-contracts = self.lib.openspecCheck {
+            inherit pkgs;
+            src = ./.;
+            name = "personal-omp-plugin-openspec-contracts";
+          };
 
           openspec-adapters =
             pkgs.runCommand "personal-omp-plugin-openspec-adapters"
