@@ -129,6 +129,15 @@
                 test -f ${plugin}/rules/personal-policy.md
                 test -f ${plugin}/lsp.json
                 test -x ${plugin}/skills/research-evidence/scripts/fetch_pdf.py
+
+                test -d ${plugin}/commands
+                for command in opsx-apply opsx-archive opsx-explore opsx-propose opsx-sync opsx-update; do
+                  test -f ${plugin}/commands/"$command".md
+                done
+                for skill in openspec-apply-change openspec-archive-change openspec-explore openspec-propose openspec-sync-specs openspec-update-change; do
+                  test -f ${plugin}/skills/"$skill"/SKILL.md
+                done
+
                 test ! -e ${plugin}/agents
                 test ! -e ${plugin}/models
                 omp --plugin-dir=${plugin} --help >/dev/null
@@ -197,16 +206,24 @@
                 ];
               }
               ''
-                export CI=1
                 export HOME="$TMPDIR/home"
-                export OPENSPEC_TELEMETRY=0
                 mkdir -p "$HOME"
-                cp -R ${./.} source
-                chmod -R u+w source
-                cd source
-                openspec update . --force
-                diff -ru ${./.}/.omp/commands .omp/commands
-                diff -ru ${./.}/.omp/skills .omp/skills
+
+                adapterConfig=${./openspec/config.yaml}
+                ${generateAdapters}
+
+                # diff reports a missing or extra adapter as "Only in ...", so a
+                # payload that lacks a generated file fails as loudly as one that
+                # differs from it.
+                diff -ru ${./plugin}/commands "$scratch/.omp/commands"
+                for generated in "$scratch"/.omp/skills/openspec-*; do
+                  diff -ru "${./plugin}/skills/$(basename "$generated")" "$generated"
+                done
+
+                payload=( ${./plugin}/skills/openspec-*/ )
+                generated=( "$scratch"/.omp/skills/openspec-*/ )
+                test "''${#payload[@]}" = "''${#generated[@]}"
+
                 touch "$out"
               '';
         }
