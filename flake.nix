@@ -105,6 +105,61 @@
         }
       );
 
+      # The fleet's OpenSpec artifact check, in one place.
+      #
+      # Every repository holding an `openspec/` directory consumes this instead
+      # of writing the commands itself:
+      #
+      #   inputs.fleet.url = "github:glockyco/omp-agent-setup";
+      #   checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
+      #
+      # The CLI comes from `llm-agents`, not Nixpkgs. Nixpkgs lags far enough
+      # that its `validate` has no `--archived` flag, so it cannot check that an
+      # archived change finished its tasks, which is the failure this check
+      # exists to catch. Re-test with `openspec validate --help` before
+      # reconsidering. Consumers inherit the version through this flake and
+      # never pin the CLI themselves.
+      lib.openspecCheck =
+        {
+          pkgs,
+          src,
+          name ? "openspec-artifacts",
+        }:
+        pkgs.runCommand name
+          {
+            nativeBuildInputs = [
+              llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.openspec
+            ];
+
+            # Only the artifacts. A repository's build outputs stay out of the
+            # store, and a commit that touches nothing under `openspec/` reuses
+            # this result instead of recomputing it.
+            artifacts = nixpkgs.lib.fileset.toSource {
+              root = src;
+              fileset = src + "/openspec";
+            };
+          }
+          ''
+            export CI=1
+            export HOME="$TMPDIR/home"
+            export OPENSPEC_TELEMETRY=0
+            mkdir -p "$HOME"
+
+            # A CLI that no longer offers --archived would still exit zero on
+            # the first command, and this check would then pass while proving
+            # less than it claims. Fail on the missing flag instead.
+            if ! openspec validate --help | grep -q -- --archived; then
+              echo "openspec $(openspec --version) has no 'validate --archived'." >&2
+              echo "This check cannot verify archived task completion with it." >&2
+              exit 1
+            fi
+
+            cd "$artifacts"
+            openspec validate --all --strict --no-interactive
+            openspec validate --archived --strict --no-interactive
+            touch "$out"
+          '';
+
       checks = forAllSystems (
         system:
         let
