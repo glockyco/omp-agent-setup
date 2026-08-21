@@ -32,6 +32,8 @@ Use OpenSpec for permanent behavior changes. Read `openspec/specs/` before chang
 
 Do not restore `omp-plans`, a global planning hook, or repository-level instructions that call one.
 
+This repository owns the generated OpenSpec workflow for every repository on the workstation. Regenerate it with `nix run .#sync-openspec-adapters`, review the diff, and commit it. Do not run `openspec init` in a consuming repository, and do not track adapters there. A consuming repository keeps its own `openspec/` directory, because specifications and changes are repository content.
+
 ## Runtime boundaries
 
 The flake output must be a self-contained OMP plugin directory. It must not:
