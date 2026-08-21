@@ -34,6 +34,22 @@ Do not restore `omp-plans`, a global planning hook, or repository-level instruct
 
 This repository owns the generated OpenSpec workflow for every repository on the workstation. Regenerate it with `nix run .#sync-openspec-adapters`, review the diff, and commit it. Do not run `openspec init` in a consuming repository, and do not track adapters there. A consuming repository keeps its own `openspec/` directory, because specifications and changes are repository content.
 
+It also owns how those artifacts are verified. `lib.openspecCheck` is the one definition of that check, and every repository holding an `openspec/` directory consumes it:
+
+```nix
+inputs.fleet.url = "github:glockyco/omp-agent-setup";
+checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
+```
+
+Do not write the validation commands into a consuming repository, and do not pin the OpenSpec CLI there. Both live here. Nothing detects a repository that gains `openspec/` later and never adopts the check, so list the roots and their adoption when one appears:
+
+```bash
+for r in ~/src/github.com/glockyco/*/ ~/.config/nix-darwin; do
+  [ -d "$r/openspec" ] && printf '%s %s\n' "$(basename "$r")" \
+    "$(grep -ql openspecCheck "$r/flake.nix" 2>/dev/null && echo consumes || echo UNVERIFIED)"
+done
+```
+
 ## Runtime boundaries
 
 The flake output must be a self-contained OMP plugin directory. It must not:

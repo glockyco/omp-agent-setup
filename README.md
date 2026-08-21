@@ -21,6 +21,21 @@ This repository does not install OMP or write to `~/.omp/agent`. The separate `n
 
 The plugin contains no credentials, providers, models, agents, service configuration, or mutable caches.
 
+## Fleet outputs
+
+Beside the plugin, this flake exposes the check that every repository holding OpenSpec artifacts runs. It is not part of the payload.
+
+| Output | Purpose |
+|---|---|
+| `lib.openspecCheck { pkgs, src }` | Validates a repository's OpenSpec artifacts strictly and rejects a change archived with unfinished tasks |
+
+A consuming repository adds the input and references the output, and says nothing about which commands run or which CLI version validates:
+
+```nix
+inputs.fleet.url = "github:glockyco/omp-agent-setup";
+checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
+```
+
 ## Use from Nix
 
 Build the immutable directory:
