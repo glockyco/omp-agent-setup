@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["plugin/**/*.ts", "types/**/*.d.ts", "*.json", "*.md"]
+    "includes": [
+      "plugin/**/*.ts",
+      "types/**/*.d.ts",
+      "*.json",
+      "*.md",
+      "!plugin/commands/",
+      "!plugin/skills/openspec-*/"
+    ]
   },
   "formatter": {
     "enabled": true,
