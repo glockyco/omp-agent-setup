@@ -19,7 +19,7 @@ Do not require a globally installed Bun, npm, Python, .NET SDK, or language serv
 - `plugin/extensions/`: dependency-free runtime extension source.
 - `plugin/skills/` and `plugin/rules/`: personal behavior loaded by OMP.
 - `plugin/commands/` and `plugin/skills/openspec-*/`: the generated OpenSpec workflow. Every repository loads this one copy. Write it only with `nix run .#sync-openspec-adapters`. `biome.json` excludes it because the freshness check reproduces it byte for byte.
-- `plugin/lsp.json`: minimal differences from the pinned OMP defaults.
+- `plugin/lsp/lsp.json`: minimal differences from the pinned OMP defaults. This subdirectory is a scoped plugin root. The wrapper loads it with `--plugin-dir` and the package root with `--extension`, because only the first supplies LSP overrides and only the second loads the extension. Pointing both flags at the package root would register every workflow command twice.
 - `plugin/tests/`: isolated Bun and Python behavior tests.
 - `types/omp.d.ts`: narrow development-only declarations for the OMP extension API.
 - `openspec/specs/`: accepted behavior contracts.

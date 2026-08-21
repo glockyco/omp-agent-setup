@@ -45,7 +45,7 @@ describe("packaged plugin", () => {
 			expect(existsSync(join(pluginRoot, "skills", skill, "SKILL.md"))).toBe(true);
 		}
 		expect(existsSync(join(pluginRoot, "rules", "personal-policy.md"))).toBe(true);
-		const lsp = await Bun.file(join(pluginRoot, "lsp.json")).json();
+		const lsp = await Bun.file(join(pluginRoot, "lsp", "lsp.json")).json();
 		expect(Object.keys(lsp.servers).sort()).toEqual(["roslyn-language-server", "svelte"]);
 	});
 });

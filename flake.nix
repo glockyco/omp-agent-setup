@@ -127,7 +127,12 @@
                 test "$(jq -r '.omp.extensions | length' ${plugin}/package.json)" = 1
                 test -f ${plugin}/extensions/personal-commit.ts
                 test -f ${plugin}/rules/personal-policy.md
-                test -f ${plugin}/lsp.json
+                # The LSP overrides sit in their own root. The wrapper loads that
+                # root with --plugin-dir, which scans <root>/commands, so keeping
+                # them beside the payload's commands would register the workflow
+                # a second time under a store-derived name.
+                test -f ${plugin}/lsp/lsp.json
+                test ! -e ${plugin}/lsp/commands
                 test -x ${plugin}/skills/research-evidence/scripts/fetch_pdf.py
 
                 test -d ${plugin}/commands
