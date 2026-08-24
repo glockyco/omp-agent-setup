@@ -1,6 +1,6 @@
 ---
 name: simplified-technical-english
-description: Write, rewrite, or audit technical prose with traceable ASD-STE100 Issue 9 principles. Use for documentation, procedures, runbooks, error messages, release notes, incident reports, agent instructions, and explicit STE requests.
+description: Write, rewrite, or audit clear technical prose with traceable ASD-STE100 Issue 9 principles. Use for documentation, plans, proposals, designs, specifications, tasks, commit and pull request text, comments, docstrings, API descriptions, CLI and error text, procedures, runbooks, release notes, incident reports, agent instructions, and explicit STE requests.
 license: MIT
 metadata:
   standard: ASD-STE100 Issue 9 (January 2025)
@@ -9,7 +9,7 @@ metadata:
 
 # Simplified Technical English
 
-Use ASD-STE100 principles to make technical text clear and difficult to misread. Describe ordinary output as **STE-based**. Do not claim ASD-STE100 compliance unless a qualified human audits it with the official standard and dictionary.
+Use ASD-STE100 principles to make technical text clear and difficult to misread. Do not claim ASD-STE100 compliance unless a qualified human audits the text with the official standard and dictionary.
 
 Read these references before a strict request or rule audit:
 
@@ -33,8 +33,14 @@ When you audit text, report the rule identifier, offending text, and rewrite for
 
 | Mode | Use | Boundary |
 |---|---|---|
-| Pragmatic (default) | Technical prose that must be clear | Apply structural rules. Keep necessary domain terms. Describe the result as STE-based. |
+| Pragmatic (default) | Technical prose that must be clear | Apply structural rules. Keep necessary domain terms. |
 | Strict | The user explicitly requests STE or compliance | Apply structural and vocabulary discipline. Require the official dictionary and qualified human approval for a compliance claim. |
+
+## Software prose
+
+Use pragmatic mode for documentation, plans, proposals, designs, specifications, task descriptions, commit and pull request text, comments, docstrings, API descriptions, CLI text, errors, release notes, incident reports, and agent instructions.
+
+Apply the rules only to prose that you add or materially revise. Do not rewrite unrelated comments, docstrings, or documentation.
 
 ## Text classes
 
@@ -55,6 +61,7 @@ Do not rewrite these items:
 - identifiers, commands, flags, and paths;
 - quoted errors and log lines;
 - product names, endpoint names, and configuration keys;
+- format-required keywords such as `MUST`, `SHOULD`, `MAY`, and `SHALL`;
 - numbers with units.
 
 These are technical names under rules 1.5 and 8.6. Apply grammar around them without changing their bytes.
