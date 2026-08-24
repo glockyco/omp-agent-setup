@@ -1,19 +1,23 @@
 ---
 name: research-evidence
-description: Find, screen, acquire, read, verify, and register scholarly evidence. Use for literature searches, paper PDFs, citation graphs, evidence characterization, DOI verification, and BibTeX additions or cleanup.
+description: Find, screen, acquire, read, verify, characterize, and register computer-science and adjacent technical evidence. Use for literature searches, related work, paper PDFs, citation graphs, evidence for technical claims, DOI verification, and BibTeX additions or cleanup.
 ---
 
 # Research and evidence
 
-Use one workflow:
+For a paper search, evidence claim, or paper characterization, use this workflow:
 
 ```text
 search -> screen -> acquire -> read -> verify metadata -> register
 ```
 
+For metadata-only DOI verification or bibliography maintenance, verify authoritative metadata and update the registration. Do not search for, acquire, or read full text unless that work is necessary to resolve the metadata.
+
 Never fabricate metadata. Never characterize a paper without reading the relevant full text.
 
 ## 1. Search
+
+Optimize the default search for computer science and adjacent technical literature. Use another domain-specific index only when the task or repository requires it.
 
 Use authoritative indexes:
 
@@ -43,6 +47,8 @@ A wrong DOI corrupts acquisition and citation traversal. Confirm that the resolv
 
 ## 3. Acquire
 
+For DOI acquisition, use Unpaywall metadata to discover an official publisher-hosted open-access PDF. If the metadata provides none, continue to the next source.
+
 Use this order:
 
 1. publisher-hosted open-access published version;
@@ -69,7 +75,16 @@ If automated acquisition fails, report the attempted source classes. Obtain an a
 
 Read the text that supports each intended claim. For mechanism, method, limitation, or result claims, read the relevant body section. An abstract is enough only for abstract-level claims.
 
-Record evidence with its page, section, figure, table, or quotation when the repository requires traceability.
+When a paper supports a claim, record:
+
+- the supported claim;
+- whether you read the full text;
+- the supporting page, section, figure, table, or quotation;
+- the relevant method or data;
+- the relevant result;
+- material limitations.
+
+Omit fields that do not apply. Do not add empty placeholders.
 
 ## 5. Verify metadata
 
@@ -77,9 +92,9 @@ Take title, authors, venue, year, pages, and DOI from OpenAlex, Crossref, DBLP, 
 
 ## 6. Register
 
-Follow the repository's bibliography location and ordering rules.
+Follow the repository's bibliography location, key, field, formatting, and ordering rules. These rules take precedence over the defaults below.
 
-BibTeX conventions:
+When the repository defines no applicable convention, use these BibTeX defaults:
 
 - key: `author_year_keyword`;
 - brace-protect acronyms, tool names, and proper nouns in titles;
