@@ -12,10 +12,10 @@ This repository does not install OMP or write to `~/.omp/agent`. The separate `n
 | Path | Capability |
 |---|---|
 | `plugin/extensions/personal-commit.ts` | Structured commit, amend, and non-mutating preview tool |
-| `plugin/skills/commit-policy/` | Conventional Commit policy and causal body guidance |
-| `plugin/skills/research-evidence/` | Search, paper acquisition, evidence reading, and BibTeX workflow |
+| `plugin/skills/commit-policy/` | Atomic checkpoint, Conventional Commit, and causal body guidance |
+| `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
 | `plugin/skills/simplified-technical-english/` | Audited ASD-STE100 Issue 9 relationships and software-writing adaptations |
-| `plugin/rules/personal-policy.md` | Short personal deviations from OMP defaults |
+| `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults |
 | `plugin/lsp/lsp.json` | Only the Roslyn executable and Svelte root-marker overrides, in a scoped plugin root |
 | `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
 

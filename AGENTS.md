@@ -68,15 +68,15 @@ The personal extension uses only runtime APIs already available in OMP's Bun pro
 
 ### Structured commits
 
-`personal_commit` accepts structured `commit`, `amend`, and `preview` input. Keep Git hooks enabled. Never stage, push, bypass hooks, or run planning commands from the extension. Preview must not mutate the repository.
+`personal_commit` accepts structured `commit`, `amend`, and `preview` input. Keep Git hooks enabled. Never stage, push, bypass hooks, or run planning commands from the extension. Preview must not mutate the repository. Agents stage only task-owned changes and create local commits at coherent, verified checkpoints. A push requires an explicit user request.
 
 ### Research evidence
 
-Keep source precedence deterministic. Validate downloaded PDF bytes. Require an explicit Unpaywall identity. Never fabricate a citation or infer metadata from memory when an authoritative source is available.
+Keep computer-science evidence work primary and source precedence deterministic. Validate downloaded PDF bytes. Require an explicit Unpaywall identity. Repository bibliography conventions override skill defaults. Never fabricate a citation or infer metadata from memory when an authoritative source is available.
 
 ### Simplified Technical English
 
-The official ASD-STE100 Issue 9 source and checksum are in `plugin/skills/simplified-technical-english/references/standard.md`. Preserve the exact 53-identifier inventory and resolved checklist citations. The guidance is STE-based; do not claim that generated output is compliant without qualified human review and the controlled dictionary.
+The official ASD-STE100 Issue 9 source and checksum are in `plugin/skills/simplified-technical-english/references/standard.md`. Preserve the exact 53-identifier inventory and resolved checklist citations. Do not claim that generated output is compliant without qualified human review and the controlled dictionary.
 
 ### Language servers
 
