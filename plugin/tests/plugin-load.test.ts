@@ -10,6 +10,8 @@ describe("packaged plugin", () => {
 		const manifest = await Bun.file(join(pluginRoot, "package.json")).json();
 		expect(manifest.name).toBe("@glockyco/personal-omp-plugin");
 		expect(manifest.omp.extensions).toEqual(["./extensions/personal-commit.ts"]);
+		expect(manifest.bin).toBeUndefined();
+		expect(existsSync(join(pluginRoot, "bin"))).toBe(false);
 		expect(existsSync(join(pluginRoot, "agents"))).toBe(false);
 		expect(existsSync(join(pluginRoot, "models"))).toBe(false);
 	});
@@ -46,6 +48,19 @@ describe("packaged plugin", () => {
 		}
 		expect(existsSync(join(pluginRoot, "rules", "personal-policy.md"))).toBe(true);
 		const lsp = await Bun.file(join(pluginRoot, "lsp", "lsp.json")).json();
-		expect(Object.keys(lsp.servers).sort()).toEqual(["roslyn-language-server", "svelte"]);
+		expect(Object.keys(lsp.servers).sort()).toEqual([
+			"markdown-oxide",
+			"marksman",
+			"roslyn-language-server",
+			"svelte",
+		]);
+		expect(lsp.servers.marksman).toEqual({ disabled: true });
+		expect(lsp.servers["markdown-oxide"]).toEqual({
+			command: "markdown-oxide",
+			args: [],
+			fileTypes: [".md", ".markdown"],
+			rootMarkers: [".moxide.toml", ".obsidian", ".git"],
+			warmupTimeoutMs: 2000,
+		});
 	});
 });

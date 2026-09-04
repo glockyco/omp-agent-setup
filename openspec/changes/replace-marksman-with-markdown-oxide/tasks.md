@@ -1,7 +1,7 @@
 ## 1. Markdown Server Override
 
-- [ ] 1.1 Disable the built-in `marksman` server and add the complete `markdown-oxide` definition in `plugin/lsp/lsp.json`, then verify the JSON parses and contains exactly one enabled Markdown server.
-- [ ] 1.2 Update the plugin package-shape test and README for the new override set, then run the focused plugin-load test and confirm that no executable enters the plugin payload.
+- [x] 1.1 Disable the built-in `marksman` server and add the complete `markdown-oxide` definition in `plugin/lsp/lsp.json`, then verify the JSON parses and contains exactly one enabled Markdown server.
+- [x] 1.2 Update the plugin package-shape test and README for the new override set, then run the focused plugin-load test and confirm that no executable enters the plugin payload.
 
 ## 2. Verification and Release
 
