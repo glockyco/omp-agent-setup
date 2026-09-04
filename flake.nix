@@ -187,7 +187,12 @@
                 # them beside the payload's commands would register the workflow
                 # a second time under a store-derived name.
                 test -f ${plugin}/lsp/lsp.json
+                test "$(jq -c '.servers.marksman' ${plugin}/lsp/lsp.json)" = '{"disabled":true}'
+                test "$(jq -r '.servers["markdown-oxide"].command' ${plugin}/lsp/lsp.json)" = markdown-oxide
+                test "$(jq -r '.servers["markdown-oxide"].fileTypes | join(",")' ${plugin}/lsp/lsp.json)" = .md,.markdown
                 test ! -e ${plugin}/lsp/commands
+                test ! -e ${plugin}/bin
+                test "$(jq -r 'has("bin")' ${plugin}/package.json)" = false
                 test -x ${plugin}/skills/research-evidence/scripts/fetch_pdf.py
 
                 test -d ${plugin}/commands

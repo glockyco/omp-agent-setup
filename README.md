@@ -16,7 +16,7 @@ This repository does not install OMP or write to `~/.omp/agent`. The separate `n
 | `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
 | `plugin/skills/simplified-technical-english/` | Audited ASD-STE100 Issue 9 relationships and software-writing adaptations |
 | `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults |
-| `plugin/lsp/lsp.json` | Only the Roslyn executable and Svelte root-marker overrides, in a scoped plugin root |
+| `plugin/lsp/lsp.json` | Markdown Oxide selection, Marksman disablement, and the Roslyn and Svelte overrides, in a scoped plugin root |
 | `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
 
 The plugin contains no credentials, providers, models, agents, service configuration, or mutable caches.

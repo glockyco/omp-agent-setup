@@ -1,6 +1,16 @@
 {
   "$comment": "Only overrides that differ from OMP 17.2.15 defaults and have representative smoke coverage.",
   "servers": {
+    "marksman": {
+      "disabled": true
+    },
+    "markdown-oxide": {
+      "command": "markdown-oxide",
+      "args": [],
+      "fileTypes": [".md", ".markdown"],
+      "rootMarkers": [".moxide.toml", ".obsidian", ".git"],
+      "warmupTimeoutMs": 2000
+    },
     "roslyn-language-server": {
       "command": "Microsoft.CodeAnalysis.LanguageServer",
       "args": ["--stdio", "--autoLoadProjects"],
