@@ -3,20 +3,20 @@ pre-commit:
   commands:
     biome:
       glob: "*.{ts,js,json,md}"
-      run: /nix/var/nix/profiles/default/bin/nix develop --command bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      run: nix develop --command bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
     typecheck:
       glob: "*.ts"
-      run: /nix/var/nix/profiles/default/bin/nix develop --command bunx tsc --noEmit
+      run: nix develop --command bunx tsc --noEmit
 
 pre-push:
   commands:
     lockfile:
-      run: /nix/var/nix/profiles/default/bin/nix develop --command bun install --frozen-lockfile
+      run: nix develop --command bun install --frozen-lockfile
     ci:
-      run: /nix/var/nix/profiles/default/bin/nix develop --command bun run ci
+      run: nix develop --command bun run ci
 
 commit-msg:
   commands:
     commitlint:
-      run: /nix/var/nix/profiles/default/bin/nix develop --command bunx commitlint --edit {1}
+      run: nix develop --command bunx commitlint --edit {1}
