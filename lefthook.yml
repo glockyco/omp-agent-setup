@@ -14,7 +14,9 @@ pre-push:
     lockfile:
       run: nix develop --command bun install --frozen-lockfile
     ci:
-      run: nix develop --command bun run ci
+      run: |
+        unset $(git rev-parse --local-env-vars)
+        nix develop --command bun run ci
 
 commit-msg:
   commands:
