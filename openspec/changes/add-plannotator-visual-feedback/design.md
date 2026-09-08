@@ -4,7 +4,7 @@ See `proposal.md` for motivation and the parent change identity. The accepted pe
 
 The actual OMP checkout exports `resolveLocalUrlToFile` through `@oh-my-pi/pi-coding-agent/internal-urls`. Extension contexts provide `mode`, `hasUI`, `cwd`, `localProtocolOptions`, and a read-only session manager. The manager exposes `getSessionId`, `getLeafId`, and `getBranch`. Commands accept asynchronous handlers. `sendUserMessage` supports `deliverAs: "followUp"`.
 
-Upstream Plannotator 0.27.12 emits `annotated` with string feedback or `dismissed` for plain JSON annotation. Its local listener uses `127.0.0.1`, and port zero requests a random port. Its client lease currently requires gate mode. A separately authorized upstream change must remove that requirement without enabling approval.
+Upstream Plannotator 0.27.12 emits `annotated` with string feedback or `dismissed` for plain JSON annotation. Its local listener uses `127.0.0.1`, and port zero requests a random port. Its client lease requires gate mode. The approved contract uses the stock CLI without that lease or a downstream patch. Closing a tab can leave the review pending, with explicit cancellation as recovery.
 
 ## Goals / Non-Goals
 
@@ -46,7 +46,7 @@ Compare the current document hash before delivery. If content changed or is unav
 
 Launch the child in a new process group on supported Unix hosts. On cancellation and settlement, signal only that group and escalate to `SIGKILL` after a bounded termination wait. Await output closure before removing the private directory. Cleanup runs on startup failure, dismissal, protocol error, successful feedback, navigation, and cancellation. Keep user history and preferences outside the owned directory untouched.
 
-A browser that never connects requires explicit cancellation. Tab-close dismissal depends on the separately verified upstream client lease; do not replace it with gate mode or an adapter-injected script.
+A browser that never connects requires explicit cancellation. A closed browser tab can also leave the stock CLI pending. `/plannotator-cancel`, session navigation, and shutdown release that review through the existing cancellation path. Do not add a client-lease patch, gate mode, browser script, review timeout, or fallback.
 
 ### Constrain the child environment
 
@@ -58,10 +58,10 @@ Require `ctx.mode === "tui"`, `ctx.hasUI`, and no SSH session markers. Reject ex
 - POSIX process groups match the supported Linux and Darwin hosts. Native Windows hosting is unsupported; WSL uses the Linux path.
 - Plannotator can retain annotation history according to user preferences. Cleanup deletes only adapter-owned snapshots, not upstream data.
 - Background feedback uses OMP's existing queued-message semantics. Navigation must cancel before delivery; final session and branch checks provide a second guard.
-- Browser closure and loopback reachability require the actual compatible executable and browser. Unit doubles cannot prove them.
+- Stock annotation, explicit cancellation after browser closure, and loopback reachability require the actual executable and browser. Unit doubles cannot prove them.
 
 ## Verification and Release
 
 Retain regressions for cancellation races, independent sessions, immutable source identity, branch selection, and protocol errors. Replace one-extension assertions with capability discovery. Main runs strict OpenSpec validation, plugin CI, flake checks, and real OMP/browser smoke after concurrent edits settle.
 
-This change does not publish, update workstation pins, activate a host, or archive itself. Release acceptance remains blocked until the parent records compatible upstream, package, native browser, and platform evidence.
+This change does not publish, update workstation pins, activate a host, or archive itself. Release acceptance remains blocked until the parent records stock-package, native-browser, and platform evidence. The workstation retains the on-demand, commit-pinned vendor package. The removed client-lease acceptance does not complete any unrun release gate.

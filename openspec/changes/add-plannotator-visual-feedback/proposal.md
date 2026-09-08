@@ -24,7 +24,7 @@ None. The existing immutable package and capability-isolation contracts remain u
 
 Implementation affects `plugin/extensions/plannotator.ts`, the plugin manifest, development host declarations, plugin tests, flake checks, and the README. Runtime code uses only APIs available in OMP's Bun process.
 
-The parent change is `nix-config/openspec/changes/add-plannotator-visual-feedback`. Its five planning artifacts define the cross-repository contract. User authorization covers this companion change and implementation, but not publication, activation, or upstream submission. The workstation owns executable selection. Upstream must support client leases for local JSON annotation without gate mode before release acceptance.
+The parent change is `nix-config/openspec/changes/add-plannotator-visual-feedback`. Its five planning artifacts define the cross-repository contract. User authorization covers this companion change and implementation, but not publication, activation, or upstream submission. The workstation owns executable selection through an on-demand, commit-pinned vendor package. The adapter uses the stock CLI without a downstream client-lease patch. Closing a browser tab can leave the review pending until `/plannotator-cancel`, session navigation, or shutdown. Automatic tab-close dismissal is not a release requirement.
 
 ## Non-goals
 

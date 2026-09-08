@@ -70,7 +70,7 @@ Non-empty submitted annotations SHALL enter the originating conversation exactly
 
 ### Requirement: Owned review lifecycle
 
-Each session SHALL allow one pending review, while separate sessions SHALL operate independently. Annotation commands SHALL return control while the review is pending. Status SHALL identify the pending source and cancellation command. Dismissal, explicit cancellation, navigation, and shutdown SHALL release the owned process group and private snapshot without deleting user history or preferences. Browser closure SHALL return dismissal after the compatible executable's finite disconnect grace period, while a brief reconnect SHALL keep the review active.
+Each session SHALL allow one pending review, while separate sessions SHALL operate independently. Annotation commands SHALL return control while the review is pending. Status SHALL identify the pending source and cancellation command. Dismissal, explicit cancellation, navigation, and shutdown SHALL release the owned process group and private snapshot without deleting user history or preferences. Browser closure MAY leave a review pending. `/plannotator-cancel` SHALL remain available to release that review without feedback. Automatic browser-tab-close dismissal SHALL NOT be required.
 
 #### Scenario: Cancel one concurrent review
 
@@ -88,15 +88,15 @@ Each session SHALL allow one pending review, while separate sessions SHALL opera
 - **WHEN** the browser does not open after the child starts
 - **THEN** the command interface remains available and explicit cancellation releases the review
 
-#### Scenario: Close and reconnect
+#### Scenario: Cancel after browser closure
 
-- **WHEN** the browser disconnects and reconnects within the documented grace period
-- **THEN** the review remains active
-- **AND** a sustained disconnect settles as dismissal without feedback
+- **WHEN** a closed browser tab leaves the review pending and the user runs `/plannotator-cancel`
+- **THEN** the adapter releases the owned process, listener, and private snapshot
+- **AND** cancellation produces no feedback or model turn
 
 ### Requirement: Annotation-only local subprocess
 
-The adapter SHALL invoke only `plannotator annotate <private snapshot.md> --json` using an argument array. Only non-empty `annotated` feedback SHALL reach OMP. `dismissed` and empty annotations SHALL produce notices without model turns. Failed processes, malformed output, and unexpected decisions, including `approved`, SHALL report errors without feedback. Invocation SHALL require a local interactive OMP session. The child SHALL use random loopback ports and the platform-native browser, with sharing disabled regardless of inherited Plannotator settings.
+The adapter SHALL invoke only the stock `plannotator annotate <private snapshot.md> --json` CLI using an argument array. The workstation SHALL supply the on-demand, commit-pinned vendor package. The adapter SHALL NOT require a downstream client-lease patch, gate mode, review timeout, or fallback. Only non-empty `annotated` feedback SHALL reach OMP. `dismissed` and empty annotations SHALL produce notices without model turns. Failed processes, malformed output, and unexpected decisions, including `approved`, SHALL report errors without feedback. Invocation SHALL require a local interactive OMP session. The child SHALL use random loopback ports and the platform-native browser, with sharing disabled regardless of inherited Plannotator settings.
 
 #### Scenario: Unexpected decision or process failure
 

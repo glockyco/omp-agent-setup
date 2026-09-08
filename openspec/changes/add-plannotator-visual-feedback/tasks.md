@@ -15,10 +15,12 @@
 ## 3. Cross-repository acceptance
 
 - [x] 3.1 Verify real native `local://` resolution in two OMP sessions and a busy-session feedback round trip; record source identity, no source edits, and one follow-up delivery.
-- [x] 3.2 Verify the compatible upstream annotation-only lease in the browser, including sustained disconnect, brief reconnect, no initial connection, and loopback-only listeners; record the finite disconnect grace period.
+- [x] 3.2 Cancelled by the approved stock-CLI contract: annotation-only client-lease and disconnect-grace acceptance. The completed patched-browser experiment remains historical evidence below.
 - [x] 3.3 Record the reviewed plugin revision and parent integration evidence after verification; do not publish, activate, synchronize specs, or archive without the required authorization and completed acceptance.
 
-## Verification evidence
+- [ ] 3.4 Record parent evidence for the stock on-demand package, browser annotation, explicit cancellation after tab closure, and navigation/shutdown cleanup. Keep native-platform release gates open until exercised.
+
+## Historical verification evidence
 
 Implementation checkpoint: `0e39f18`. Cross-repository evidence is recorded in `nix-config/openspec/changes/add-plannotator-visual-feedback/evidence.md`.
 
@@ -31,3 +33,13 @@ Implementation checkpoint: `0e39f18`. Cross-repository evidence is recorded in `
 - The real child ignored inherited sharing, port, host, and browser overrides. Its listener used a random loopback port with sharing and gate mode disabled.
 
 These checks used managed Linux Chromium and temporary wrapper overrides. They do not replace the parent change's Windows-browser/Herdr, macOS, publication, production-pin, activation, network, or rollback gates. No repository was published, no host was activated, and no change was archived.
+
+## Approved contract supersession — 2026-09-08
+
+The user approved the stock CLI and removed the downstream client-lease patch requirement. Task 3.2 and the `420ee6c` browser results above describe the superseded experiment, not current release acceptance. Automatic tab-close dismissal and a finite disconnect grace period are no longer required.
+
+The existing adapter invokes annotation-only JSON mode and already cancels on `/plannotator-cancel`, session navigation, and shutdown. A closed tab can leave the review pending. No adapter, executable payload, or test changes are needed for this contract revision. No plugin publication or downstream plugin-pin update is required solely for these documentation changes.
+
+The workstation retains its on-demand, commit-pinned vendor package. Stock-package/browser acceptance and the unrun native release gates remain required. This revision ran no validation, build, test, or native browser checks. Historical evidence does not complete task 3.4.
+
+Subsequent parent verification used stock Plannotator 0.27.12 and the unchanged published adapter in a fresh wrapped OMP session through Herdr. Document and last-response feedback passed in managed Linux Chromium. Explicit cancellation after tab closure removed the listener, and source bytes stayed unchanged. The parent evidence file records package paths and cleanup. Strict validation of this companion change passed. These observations do not complete unrun native-platform or navigation/shutdown runtime gates.

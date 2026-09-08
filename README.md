@@ -72,11 +72,11 @@ Relative paths use the session's working directory. `local://` uses that session
 
 Submitted annotations return once as follow-up user feedback, with the source identity and snapshot hash. A changed or unavailable source produces a warning. Feedback waits while OMP is busy and starts a conversation turn when OMP is idle. The adapter does not apply replacement suggestions or treat feedback as approval.
 
-One review can run per session. Separate sessions have independent reviews. The command interface remains available while the footer shows a pending review. Use `/plannotator-cancel` if the browser does not open. Navigation and shutdown also cancel the review. Cancellation removes only the owned process and temporary snapshot, not Plannotator preferences or history.
+One review can run per session. Separate sessions have independent reviews. The command interface remains available while the footer shows a pending review. Use `/plannotator-cancel` if the browser does not open or a closed tab leaves the review pending. Navigation and shutdown also cancel the review. Cancellation removes only the owned process and temporary snapshot, not Plannotator preferences or history.
 
 Reviews use random loopback ports and the platform-native browser, including the Windows browser on WSL. SSH and noninteractive invocation are unsupported. The child disables sharing and ignores inherited browser, port, and operational Plannotator overrides. It preserves `PLANNOTATOR_DATA_DIR`.
 
-Release requires an executable with client leases for plain `annotate --json`, without `--gate`. The upstream 0.27.12 executable alone lacks automatic tab-close dismissal for this mode. The parent workstation change records the compatible revision and verified disconnect grace period. Explicit cancellation remains available if no browser connects.
+The adapter supports the stock `plannotator annotate <snapshot.md> --json` CLI, without `--gate` or a downstream client-lease patch. The workstation supplies an on-demand, commit-pinned vendor package. Automatic browser-tab-close dismissal is not guaranteed. The parent workstation change retains stock-package, browser, and native-platform release checks.
 
 This adapter adds no planner, approval gate, automatic edits, code-review or PR commands, installer, updater, publisher, or full Pi extension.
 
