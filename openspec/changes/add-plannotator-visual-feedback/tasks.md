@@ -16,4 +16,18 @@
 
 - [x] 3.1 Verify real native `local://` resolution in two OMP sessions and a busy-session feedback round trip; record source identity, no source edits, and one follow-up delivery.
 - [x] 3.2 Verify the compatible upstream annotation-only lease in the browser, including sustained disconnect, brief reconnect, no initial connection, and loopback-only listeners; record the finite disconnect grace period.
-- [ ] 3.3 Record the reviewed plugin revision and parent integration evidence after verification; do not publish, activate, synchronize specs, or archive without the required authorization and completed acceptance.
+- [x] 3.3 Record the reviewed plugin revision and parent integration evidence after verification; do not publish, activate, synchronize specs, or archive without the required authorization and completed acceptance.
+
+## Verification evidence
+
+Implementation checkpoint: `0e39f18`. Cross-repository evidence is recorded in `nix-config/openspec/changes/add-plannotator-visual-feedback/evidence.md`.
+
+- `nix develop --command bun run ci` passed: lint, types, dead-code check, production audit, and 28 Bun tests. The audit found no vulnerabilities.
+- `nix flake check --print-build-logs` passed on `x86_64-linux`, including 28 immutable-payload Bun tests and 9 Python tests. Native Darwin checks were not run.
+- `openspec validate add-plannotator-visual-feedback --strict` passed.
+- Real OMP sessions resolved the same `local://` name to distinct document contents. Cancelling one review left the other available.
+- The corrected immutable package started an idle feedback turn and queued busy feedback after the active turn. Exactly two feedback messages produced the expected three-response sequence. Source bytes remained unchanged.
+- The compatible upstream fix is local commit `420ee6c`. The actual browser survived a brief reconnect and dismissed after sustained disconnection, using a 30-second client lease grace. A never-connected review remained available after 47 seconds and required explicit cancellation.
+- The real child ignored inherited sharing, port, host, and browser overrides. Its listener used a random loopback port with sharing and gate mode disabled.
+
+These checks used managed Linux Chromium and temporary wrapper overrides. They do not replace the parent change's Windows-browser/Herdr, macOS, publication, production-pin, activation, network, or rollback gates. No repository was published, no host was activated, and no change was archived.
