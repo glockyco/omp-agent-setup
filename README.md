@@ -12,6 +12,7 @@ This repository does not install OMP or write to `~/.omp/agent`. The separate `n
 | Path | Capability |
 |---|---|
 | `plugin/extensions/personal-commit.ts` | Structured commit, amend, and non-mutating preview tool |
+| `plugin/extensions/plannotator.ts` | Local browser annotation of document and assistant-response snapshots |
 | `plugin/skills/commit-policy/` | Atomic checkpoint, Conventional Commit, and causal body guidance |
 | `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
 | `plugin/skills/simplified-technical-english/` | Audited ASD-STE100 Issue 9 relationships and software-writing adaptations |
@@ -44,14 +45,40 @@ Build the immutable directory:
 nix build .#
 ```
 
-A host wrapper must load both plugin capabilities and the declared extension:
+A host wrapper must load the scoped LSP root and all declared extensions:
 
 ```bash
 plugin="$(nix build .# --no-link --print-out-paths)"
-omp --plugin-dir "$plugin" --extension "$plugin"
+omp --plugin-dir "$plugin/lsp" --extension "$plugin"
 ```
 
 The workstation wrapper supplies fixed store paths instead of evaluating the source checkout at runtime.
+
+## Visual annotation
+
+The workstation wrapper supplies Plannotator separately. Use a local interactive OMP session on macOS or Linux/WSL:
+
+```text
+/plannotator-annotate docs/design.md
+/plannotator-annotate "docs/design notes.md"
+/plannotator-annotate local://draft.md
+/plannotator-last
+/plannotator-cancel
+```
+
+Relative paths use the session's working directory. `local://` uses that session's native OMP mapping. Document inputs must be UTF-8 text or Markdown files; URLs, HTML, binary files, and directories are unsupported.
+
+`/plannotator-last` selects the latest completed visible assistant response on the active branch. It excludes thinking, tool data, and hidden messages. Both commands open a private snapshot, not an editable source file.
+
+Submitted annotations return once as follow-up user feedback, with the source identity and snapshot hash. A changed or unavailable source produces a warning. Feedback waits while OMP is busy and starts a conversation turn when OMP is idle. The adapter does not apply replacement suggestions or treat feedback as approval.
+
+One review can run per session. Separate sessions have independent reviews. The command interface remains available while the footer shows a pending review. Use `/plannotator-cancel` if the browser does not open. Navigation and shutdown also cancel the review. Cancellation removes only the owned process and temporary snapshot, not Plannotator preferences or history.
+
+Reviews use random loopback ports and the platform-native browser, including the Windows browser on WSL. SSH and noninteractive invocation are unsupported. The child disables sharing and ignores inherited browser, port, and operational Plannotator overrides. It preserves `PLANNOTATOR_DATA_DIR`.
+
+Release requires an executable with client leases for plain `annotate --json`, without `--gate`. The upstream 0.27.12 executable alone lacks automatic tab-close dismissal for this mode. The parent workstation change records the compatible revision and verified disconnect grace period. Explicit cancellation remains available if no browser connects.
+
+This adapter adds no planner, approval gate, automatic edits, code-review or PR commands, installer, updater, publisher, or full Pi extension.
 
 ## Development
 

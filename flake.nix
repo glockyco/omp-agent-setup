@@ -179,8 +179,9 @@
               }
               ''
                 test "$(jq -r .name ${plugin}/package.json)" = "@glockyco/personal-omp-plugin"
-                test "$(jq -r '.omp.extensions | length' ${plugin}/package.json)" = 1
+                jq -e '.omp.extensions | index("./extensions/personal-commit.ts") != null and index("./extensions/plannotator.ts") != null' ${plugin}/package.json >/dev/null
                 test -f ${plugin}/extensions/personal-commit.ts
+                test -f ${plugin}/extensions/plannotator.ts
                 test -f ${plugin}/rules/personal-policy.md
                 # The LSP overrides sit in their own root. The wrapper loads that
                 # root with --plugin-dir, which scans <root>/commands, so keeping
@@ -232,7 +233,7 @@
                 export HOME="$TMPDIR/home"
                 mkdir -p "$HOME"
                 export PERSONAL_PLUGIN_DIR=${plugin}
-                bun test ${./plugin}/tests/plugin-load.test.ts ${./plugin}/tests/personal-commit.test.ts
+                bun test ${./plugin}/tests/plugin-load.test.ts ${./plugin}/tests/personal-commit.test.ts ${./plugin}/tests/plannotator.test.ts
                 touch "$out"
               '';
 

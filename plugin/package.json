@@ -5,6 +5,6 @@
   "type": "module",
   "description": "Immutable personal behavior for Oh My Pi.",
   "omp": {
-    "extensions": ["./extensions/personal-commit.ts"]
+    "extensions": ["./extensions/personal-commit.ts", "./extensions/plannotator.ts"]
   }
 }

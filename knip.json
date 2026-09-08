@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["plugin/extensions/personal-commit.ts", "plugin/tests/*.test.ts"],
+  "entry": ["plugin/extensions/*.ts", "plugin/tests/*.test.ts"],
   "project": ["plugin/**/*.ts", "types/**/*.d.ts"],
-  "ignoreDependencies": ["@oh-my-pi/pi-coding-agent", "@commitlint/cli"]
+  "ignoreDependencies": ["@oh-my-pi/pi-coding-agent", "@commitlint/cli"],
+  "ignoreBinaries": ["plannotator"]
 }

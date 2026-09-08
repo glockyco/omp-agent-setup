@@ -6,19 +6,21 @@ import { pathToFileURL } from "node:url";
 const pluginRoot = process.env.PERSONAL_PLUGIN_DIR ?? join(import.meta.dir, "..");
 
 describe("packaged plugin", () => {
-	test("declares one extension and no agent or model payload", async () => {
+	test("declares required extensions and no agent or model payload", async () => {
 		const manifest = await Bun.file(join(pluginRoot, "package.json")).json();
 		expect(manifest.name).toBe("@glockyco/personal-omp-plugin");
-		expect(manifest.omp.extensions).toEqual(["./extensions/personal-commit.ts"]);
+		expect(manifest.omp.extensions).toContain("./extensions/personal-commit.ts");
+		expect(manifest.omp.extensions).toContain("./extensions/plannotator.ts");
 		expect(manifest.bin).toBeUndefined();
 		expect(existsSync(join(pluginRoot, "bin"))).toBe(false);
 		expect(existsSync(join(pluginRoot, "agents"))).toBe(false);
 		expect(existsSync(join(pluginRoot, "models"))).toBe(false);
 	});
 
-	test("loads the declared extension factory and registers personal_commit", async () => {
+	test("loads declared factories and registers commit and annotation capabilities", async () => {
 		const manifest = await Bun.file(join(pluginRoot, "package.json")).json();
 		const registrations: Array<Record<string, unknown>> = [];
+		const commands: string[] = [];
 		// OMP's schema values are chainable, so a double that returns a plain
 		// object would pass while the real runtime rejected the extension.
 		const schema = (value: Record<string, unknown>): Record<string, unknown> => ({
@@ -33,6 +35,8 @@ describe("packaged plugin", () => {
 				object: (shape: Record<string, unknown>) => ({ type: "object", shape }),
 			},
 			registerTool: (definition: Record<string, unknown>) => registrations.push(definition),
+			registerCommand: (name: string) => commands.push(name),
+			on: () => {},
 		};
 		for (const relative of manifest.omp.extensions) {
 			// This intentionally exercises OMP's runtime-selected manifest loading boundary.
@@ -40,6 +44,11 @@ describe("packaged plugin", () => {
 			module.default(api);
 		}
 		expect(registrations.map(item => item.name)).toEqual(["personal_commit"]);
+		expect(commands.sort()).toEqual([
+			"plannotator-annotate",
+			"plannotator-cancel",
+			"plannotator-last",
+		]);
 	});
 
 	test("contains exactly the selected skills, policy, and LSP overrides", async () => {

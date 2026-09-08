@@ -90,9 +90,28 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		getSessionDir(): string;
 		getSessionId(): string;
 		getArtifactsDir(): string | null;
+		getLeafId(): string | null;
+		getBranch(): SessionEntry[];
+	}
+
+	export interface SessionEntry {
+		type: string;
+		id: string;
+		message?: {
+			role: string;
+			stopReason?: "stop" | "length" | "toolUse" | "error" | "aborted";
+			content: Array<{ type: string; text?: string }>;
+		};
+	}
+
+	export interface LocalProtocolOptions {
+		getArtifactsDir?: () => string | null;
+		getSessionId?: () => string | null;
 	}
 
 	export interface ExtensionContext {
+		mode: "tui" | "rpc" | "json" | "print";
+		localProtocolOptions?: LocalProtocolOptions;
 		cwd: string;
 		hasUI: boolean;
 		ui: ExtensionUIContext;
@@ -144,6 +163,21 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		logger: Logger;
 		zod: OmpSchemaBuilder;
 		registerTool(definition: ExtensionToolDefinition): void;
+		registerCommand(
+			name: string,
+			options: {
+				description?: string;
+				handler: (args: string, ctx: ExtensionContext) => Promise<void>;
+			},
+		): void;
+		on(
+			event:
+				| "session_before_switch"
+				| "session_before_branch"
+				| "session_before_tree"
+				| "session_shutdown",
+			handler: ExtensionHandler<{ type: string }>,
+		): void;
 		on(
 			event: "before_agent_start",
 			handler: ExtensionHandler<BeforeAgentStartEvent, BeforeAgentStartEventResult>,
@@ -156,4 +190,13 @@ declare module "@oh-my-pi/pi-coding-agent" {
 			options?: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" },
 		): void;
 	}
+}
+
+declare module "@oh-my-pi/pi-coding-agent/internal-urls/local-protocol" {
+	import type { LocalProtocolOptions } from "@oh-my-pi/pi-coding-agent";
+
+	export function resolveLocalUrlToFile(
+		input: string,
+		context?: { cwd?: string; localProtocolOptions?: LocalProtocolOptions },
+	): Promise<{ path: string; size: number } | null>;
 }
