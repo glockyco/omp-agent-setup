@@ -195,6 +195,9 @@
                 test ! -e ${plugin}/bin
                 test "$(jq -r 'has("bin")' ${plugin}/package.json)" = false
                 test -x ${plugin}/skills/research-evidence/scripts/fetch_pdf.py
+                for file in SKILL.md LICENSE references/introduction.md references/examples/index.md; do
+                  test -f ${plugin}/skills/research-paper-writing/"$file"
+                done
 
                 test -d ${plugin}/commands
                 for command in opsx-apply opsx-archive opsx-explore opsx-propose opsx-sync opsx-update; do

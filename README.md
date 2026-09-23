@@ -15,6 +15,7 @@ This repository does not install OMP or write to `~/.omp/agent`. The separate `n
 | `plugin/extensions/plannotator.ts` | Local browser annotation of document and assistant-response snapshots |
 | `plugin/skills/commit-policy/` | Atomic checkpoint, Conventional Commit, and causal body guidance |
 | `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
+| `plugin/skills/research-paper-writing/` | Master-cai's outline-first paper drafting, section guides, examples, and skeptical self-review. Source verification remains with `research-evidence` |
 | `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults |
 | `plugin/lsp/lsp.json` | Markdown Oxide selection, Marksman disablement, and the Roslyn and Svelte overrides, in a scoped plugin root |
 | `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
@@ -111,4 +112,4 @@ OMP continues to own authentication, preferences, sessions, history, caches, log
 
 ## License
 
-[MIT](./LICENSE) covers this repository's code and original text only. Third-party standards and source material retain their own rights.
+[MIT](./LICENSE) covers this repository's code and original text. The writing skill includes [Master-cai's upstream MIT license](./plugin/skills/research-paper-writing/LICENSE).

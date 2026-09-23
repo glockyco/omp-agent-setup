@@ -55,7 +55,14 @@ describe("packaged plugin", () => {
 		const skills = readdirSync(join(pluginRoot, "skills")).filter(
 			skill => !skill.startsWith("openspec-"),
 		);
-		expect(skills.sort()).toEqual(["commit-policy", "research-evidence"]);
+		expect(skills.sort()).toEqual(["commit-policy", "research-evidence", "research-paper-writing"]);
+		for (const relative of [
+			"SKILL.md",
+			"references/introduction.md",
+			"references/examples/index.md",
+		]) {
+			expect(existsSync(join(pluginRoot, "skills", "research-paper-writing", relative))).toBe(true);
+		}
 		expect(existsSync(join(pluginRoot, "rules", "personal-policy.md"))).toBe(true);
 		const lsp = await Bun.file(join(pluginRoot, "lsp", "lsp.json")).json();
 		expect(Object.keys(lsp.servers).sort()).toEqual([
