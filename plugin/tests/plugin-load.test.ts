@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -52,9 +52,10 @@ describe("packaged plugin", () => {
 	});
 
 	test("contains exactly the selected skills, policy, and LSP overrides", async () => {
-		for (const skill of ["commit-policy", "research-evidence", "simplified-technical-english"]) {
-			expect(existsSync(join(pluginRoot, "skills", skill, "SKILL.md"))).toBe(true);
-		}
+		const skills = readdirSync(join(pluginRoot, "skills")).filter(
+			skill => !skill.startsWith("openspec-"),
+		);
+		expect(skills.sort()).toEqual(["commit-policy", "research-evidence"]);
 		expect(existsSync(join(pluginRoot, "rules", "personal-policy.md"))).toBe(true);
 		const lsp = await Bun.file(join(pluginRoot, "lsp", "lsp.json")).json();
 		expect(Object.keys(lsp.servers).sort()).toEqual([

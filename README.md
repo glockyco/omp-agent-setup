@@ -15,7 +15,6 @@ This repository does not install OMP or write to `~/.omp/agent`. The separate `n
 | `plugin/extensions/plannotator.ts` | Local browser annotation of document and assistant-response snapshots |
 | `plugin/skills/commit-policy/` | Atomic checkpoint, Conventional Commit, and causal body guidance |
 | `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
-| `plugin/skills/simplified-technical-english/` | Audited ASD-STE100 Issue 9 relationships and software-writing adaptations |
 | `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults |
 | `plugin/lsp/lsp.json` | Markdown Oxide selection, Marksman disablement, and the Roslyn and Svelte overrides, in a scoped plugin root |
 | `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
@@ -95,7 +94,7 @@ nix develop --command bun run ci
 nix flake check
 ```
 
-CI runs the flake checks on Apple Silicon macOS and x86-64 Linux. The checks inspect package shape, load the extension in isolation, execute real Git hooks, verify paper-fetch fixtures, validate generated OpenSpec adapters and archived task completeness, and validate the 53-rule STE inventory.
+CI runs the flake checks on Apple Silicon macOS and x86-64 Linux. The checks inspect package shape, load the extension in isolation, execute real Git hooks, verify paper-fetch fixtures, and validate generated OpenSpec adapters and archived task completeness.
 
 Renovate owns JavaScript dependencies and GitHub Actions. A separate weekly workflow owns Nix flake inputs. Both create review-only pull requests; required Darwin and Linux checks must pass before merge. See the workstation [dependency-update runbook](https://github.com/glockyco/nix-config/blob/main/docs/operations/dependency-updates.md) for the cross-repository release and rollback procedure.
 
@@ -109,12 +108,6 @@ Renovate owns JavaScript dependencies and GitHub Actions. A separate weekly work
 6. Run a real wrapped OMP session before removing or changing an older generation.
 
 OMP continues to own authentication, preferences, sessions, history, caches, logs, and databases under its writable state directory. Herdr continues to own its generated OMP integration.
-
-## ASD-STE100 boundary
-
-The repository records the official Issue 9 PDF source and SHA-256, and all 53 working paraphrases were audited against that copy. The PDF and complete controlled dictionary are not committed.
-
-The skill provides unofficial STE-based guidance. It does not make AI output compliant. A qualified writer must use the official standard and dictionary for a compliance decision.
 
 ## License
 

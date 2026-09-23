@@ -74,10 +74,6 @@ The personal extension uses only runtime APIs already available in OMP's Bun pro
 
 Keep computer-science evidence work primary and source precedence deterministic. Validate downloaded PDF bytes. Require an explicit Unpaywall identity. Repository bibliography conventions override skill defaults. Never fabricate a citation or infer metadata from memory when an authoritative source is available.
 
-### Simplified Technical English
-
-The official ASD-STE100 Issue 9 source and checksum are in `plugin/skills/simplified-technical-english/references/standard.md`. Preserve the exact 53-identifier inventory and resolved checklist citations. Do not claim that generated output is compliant without qualified human review and the controlled dictionary.
-
 ### Language servers
 
 OMP's built-in catalog is the base. Add an override only when a representative scenario fails without it and passes with it. The workstation wrapper, not this repository, owns executable packages. Keep one primary server per language through executable availability.
@@ -91,7 +87,7 @@ nix develop --command bun run ci
 nix flake check
 ```
 
-`bun run ci` covers formatting, types, dead code, dependency advisories, extension behavior, real Git hooks, deterministic retrieval fixtures, and STE traceability. `nix flake check` covers immutable package shape and isolated payload execution. CI repeats the flake checks on `aarch64-darwin` and `x86_64-linux`.
+`bun run ci` covers formatting, types, dead code, dependency advisories, extension behavior, real Git hooks, and deterministic retrieval fixtures. `nix flake check` covers immutable package shape and isolated payload execution. CI repeats the flake checks on `aarch64-darwin` and `x86_64-linux`.
 
 Entering the devshell installs the hooks in `lefthook.yml`: formatting and types on commit, commitlint on the message, and the lockfile check plus `bun run ci` on push. Each job reaches its tool through `nix develop`, so a commit works from an editor or a GUI client.
 
