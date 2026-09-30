@@ -53,6 +53,24 @@ the same agent behavior. Pin the plugin output so rollback restores the same
 capabilities.
 ```
 
+### Give the reason, not the requester
+
+A request is not a reason. Do not write "as requested", "per feedback", or "the user asked". State the reason itself: the defect, constraint, or need the change addresses.
+
+Weak body:
+
+```text
+The owner found the paragraph incoherent, so rewrite it as requested.
+```
+
+Better body:
+
+```text
+The paragraph used "generation" for both Nix generations and OMP source
+generations, so the rollback claim was ambiguous. Name each generation
+explicitly.
+```
+
 ## Use structured transport
 
 Use `personal_commit` for preview, commit, and amend. Pass the subject and body as separate structured fields. Do not put escaped `\\n` sequences in either field.

@@ -159,7 +159,7 @@ export default function personalCommit(pi: ExtensionAPI): void {
 		parameters: z.object({
 			action: z.enum(["commit", "amend", "preview"] as const),
 			subject: z.string(),
-			body: z.string(),
+			body: z.string().describe("why the change exists, not who asked for it"),
 			repo: z
 				.string()
 				.optional()
