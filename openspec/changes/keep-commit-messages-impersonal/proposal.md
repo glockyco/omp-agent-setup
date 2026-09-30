@@ -1,13 +1,12 @@
 ## Why
 
-Agents that revise work in response to conversational feedback write commit bodies such as "The owner found the paragraph incoherent" or "as requested". This names a person or a conversation as the cause. The commit then records who asked for the change instead of why it was needed, and readers of the history cannot see the defect. The commit policy asks for a causal body but does not say what counts as a cause, so a request passes as one. Cleaning up affected histories requires rewriting published commits.
+After feedback in a conversation, agents write commit bodies such as "The owner found the paragraph incoherent" or "as requested". These record who asked for a change, not why it exists, so the history loses the reason. The commit policy asks for a causal body but never says that a request is not a cause. Fixing such messages later means rewriting published history.
 
 ## What Changes
 
-- The commit policy requires self-contained bodies. A body states the defect, constraint, or behavior in terms of the repository's content. It does not attribute the change to the user, an owner, a reviewer, feedback, or the conversation.
-- The commit-policy skill gains a weak and a strong example of an attributed body.
-- The `personal_commit` `body` field description states the rule, so an agent sees it at every call, even without the skill loaded.
-- No validation rejects such wording. The guidance stays in prompts (see design.md).
+- The commit policy says a body gives the reason for a change, not who asked for it, with a weak and a better example.
+- The `personal_commit` `body` field description repeats the rule, so agents see it even without the skill loaded.
+- No validation rejects such wording (see design.md).
 
 ## Capabilities
 
@@ -15,10 +14,10 @@ Agents that revise work in response to conversational feedback write commit bodi
 
 ### Modified Capabilities
 
-- `structured-commit`: adds a requirement that commit bodies are self-contained and that the tool's agent-visible descriptions state it.
+- `structured-commit`: commit bodies give the reason, not the requester.
 
 ## Impact
 
 - `plugin/skills/commit-policy/SKILL.md`: new subsection under "Write the message".
-- `plugin/extensions/personal-commit.ts`: `body` field description. Formatting, validation, and Git execution are unchanged.
-- Consumers pick up the change when nix-config updates its `personal-omp-plugin` lock.
+- `plugin/extensions/personal-commit.ts`: `body` field description only. Formatting, validation, and Git execution are unchanged.
+- nix-config picks up the change when it updates its `personal-omp-plugin` lock.

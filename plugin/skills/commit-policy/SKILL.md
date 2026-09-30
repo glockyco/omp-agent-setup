@@ -35,9 +35,9 @@ Use this subject form:
 type[(scope)]!: imperative summary
 ```
 
-The repository's hooks and CI own its permitted types, scopes, generated-file rules, and release policy. Do not duplicate those enums here.
+The repository's hooks and CI define its permitted types, scopes, generated-file rules, and release policy. Do not repeat them here.
 
-Every commit needs a body. The body explains **why** the change exists. Include the previous failure, invariant, constraint, or user-visible reason. Do not list only edited files or restate the subject.
+Every commit needs a body that explains **why** the change exists: the failure, constraint, invariant, or need behind it. Do not just list edited files or restate the subject.
 
 Weak body:
 
@@ -55,7 +55,7 @@ capabilities.
 
 ### Give the reason, not the requester
 
-A request is not a reason. Do not write "as requested", "per feedback", or "the user asked". State the reason itself: the defect, constraint, or need the change addresses.
+A request is not a reason. Do not write "as requested", "per feedback", or "the user asked". State the reason directly.
 
 Weak body:
 
@@ -77,4 +77,4 @@ Use `personal_commit` for preview, commit, and amend. Pass the subject and body 
 
 Pass `repo` when the target is not the session repository. A relative path resolves against the session directory. Check the repository path in every tool result.
 
-`personal_commit` verifies the repository, formats the causal message, invokes ordinary Git commit or amend with hooks enabled, and reports the work tree root. It never stages, pushes, bypasses hooks, or runs planning commands. Use ordinary Git staging before you call it.
+`personal_commit` checks the repository, formats the message, runs ordinary `git commit` or `git commit --amend` with hooks enabled, and reports the work tree root. It never stages, pushes, bypasses hooks, or runs planning commands. Stage with ordinary Git first.
