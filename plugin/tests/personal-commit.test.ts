@@ -74,6 +74,120 @@ describe("message formatting", () => {
 		).toBe(true);
 	});
 
+	test("keeps the reader list separate from prose without blank lines", () => {
+		const body = `The analysis consumes one normalized episode table, but identification
+runs store raw attempt records with transcripts. The reader:
+- maps strategies to the three tool-use settings;
+- links transformed cases to their untransformed counterparts;
+- counts a success only for a single reported line that equals the tracked
+  fault line;
+- keeps round-limit and malformed answers as unanswered episodes, and
+  excludes and counts API, transport, and empty-response failures;
+- prices cache writes the way the run's usage totals do;
+- subtracts the repair-test time from episode wall time.
+Snapshots built before the generator recorded difficulty get it from
+LeetCodeDataset at a pinned revision. Unknown metadata, strategies, tools,
+or errors stop the conversion instead of being guessed.`;
+		const message = formatCommitMessage({ subject: "feat: read episode records", body });
+		expect(message).toContain("with transcripts. The reader:\n- maps strategies");
+		expect(message).toContain("\n- links transformed cases");
+		expect(message).toContain("\n- counts a success");
+		expect(message).toContain("\n  tracked fault line;\n- keeps round-limit");
+		expect(message).toContain("\n  excludes and counts API, transport, and empty-response failures;");
+		expect(message).toContain("\n- prices cache writes");
+		expect(message).toContain(
+			"\n- subtracts the repair-test time from episode wall time.\nSnapshots built",
+		);
+		expect(message.split("\n").every(line => line.length <= 72)).toBe(true);
+	});
+
+	test("wraps all bullet markers with a hanging indent", () => {
+		const words = Array<string>(20).fill("word");
+		for (const marker of ["-", "*", "+"]) {
+			expect(wrapBody(`${marker} ${words.join(" ")}`)).toBe(
+				`${marker} ${words.slice(0, 14).join(" ")}\n  ${words.slice(14).join(" ")}`,
+			);
+		}
+	});
+
+	test("wraps ordered lists including multi-digit markers", () => {
+		const words = Array<string>(20).fill("word");
+		const markers = ["1.", "2)", "10.", "10)"];
+		const body = markers.map(marker => `${marker} ${words.join(" ")}`).join("\n");
+		expect(wrapBody(body)).toBe(
+			markers
+				.map(marker => {
+					const count = marker.length === 2 ? 14 : 13;
+					return `${marker} ${words.slice(0, count).join(" ")}\n${" ".repeat(marker.length + 1)}${words.slice(count).join(" ")}`;
+				})
+				.join("\n"),
+		);
+	});
+
+	test("preserves nested markers even at the code indentation threshold", () => {
+		const words = Array<string>(20).fill("word");
+		expect(wrapBody(`- Parent item\n    - ${words.join(" ")}\n  * Another nested item`)).toBe(
+			`- Parent item\n    - ${words.slice(0, 13).join(" ")}\n      ${words.slice(13).join(" ")}\n  * Another nested item`,
+		);
+	});
+
+	test("reflows indented item continuations but ends a list at unindented prose", () => {
+		expect(wrapBody("- First part\n  of the item\nFollowing prose\ncontinues here.")).toBe(
+			"- First part of the item\nFollowing prose continues here.",
+		);
+		expect(wrapBody("- First item\n\nAnother paragraph.")).toBe("- First item\n\nAnother paragraph.");
+	});
+
+	test("preserves fenced code including blank lines and overlong lines", () => {
+		const code = `\`\`\`ts\nconst value = "${"x".repeat(90)}";\n\n    run(  value );\n\`\`\``;
+		expect(wrapBody(`Why this matters.\n${code}\nFollowing prose\nreflows.`)).toBe(
+			`Why this matters.\n${code}\nFollowing prose reflows.`,
+		);
+		expect(wrapBody(`\`\`\`\`\n\`\`\`\n\n- not a list\n\`\`\`\``)).toBe(
+			`\`\`\`\`\n\`\`\`\n\n- not a list\n\`\`\`\``,
+		);
+	});
+
+	test("preserves indented code at body edges through message formatting", () => {
+		const code = `    const value = "${"x".repeat(90)}";  \n\tuse(  value );`;
+		expect(formatCommitMessage({ subject: "fix: keep code indentation", body: code })).toBe(
+			`fix: keep code indentation\n\n${code}\n`,
+		);
+	});
+
+	test("preserves final Git trailer lines without reflow", () => {
+		const trailers = `Signed-off-by: Example Person <person@example.test>\nFixes #123\nBREAKING CHANGE: ${"word ".repeat(20).trim()}`;
+		expect(wrapBody(`The incompatibility needs an explanation.\n\n${trailers}`)).toBe(
+			`The incompatibility needs an explanation.\n\n${trailers}`,
+		);
+		expect(wrapBody(trailers)).toBe(trailers);
+	});
+
+	test("does not treat mixed or non-final prose as a trailer block", () => {
+		expect(wrapBody("Reason: one line\nand another line.")).toBe(
+			"Reason: one line and another line.",
+		);
+		expect(wrapBody("Reason: one line\nFixes #123\n\nFinal prose.")).toBe(
+			"Reason: one line Fixes #123\n\nFinal prose.",
+		);
+	});
+
+	test("reflows ordinary prose and normalizes paragraph separation as before", () => {
+		const words = Array<string>(20).fill("word");
+		expect(
+			wrapBody(
+				`  ${words.slice(0, 10).join(" ")}\n${words.slice(10).join(" ")}\n\n \nNext paragraph.`,
+			),
+		).toBe(`${words.slice(0, 14).join(" ")}\n${words.slice(14).join(" ")}\n\nNext paragraph.`);
+	});
+
+	test("does not break overlong list tokens", () => {
+		const token = `https://example.test/${"x".repeat(90)}`;
+		expect(wrapBody(`- Explain why ${token} stays intact.`)).toBe(
+			`- Explain why\n  ${token}\n  stays intact.`,
+		);
+	});
+
 	test("preview has no command side effects", async () => {
 		const calls: string[][] = [];
 		const runner: CommandRunner = async args => {

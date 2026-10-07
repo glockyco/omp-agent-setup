@@ -45,11 +45,59 @@ export function parseCommitInput(params: Record<string, unknown>): CommitInput {
 }
 
 export function wrapBody(body: string, lineLength = LINE_LENGTH): string {
-	return body
-		.trim()
-		.split(/\n\s*\n/u)
-		.map(paragraph => wrapParagraph(paragraph, lineLength))
-		.join("\n\n");
+	if (!body.trim()) return "";
+	const lines = body.replace(/^(?:[ \t]*\r?\n)+|(?:\r?\n[ \t]*)+$/gu, "").split(/\r?\n/u);
+	let trailerStart = lines.length;
+	while (trailerStart > 0 && lines[trailerStart - 1]?.trim()) trailerStart--;
+	const trailers = lines
+		.slice(trailerStart)
+		.every(line => /^(?:[^\s:]+(?::[ \t]+|[ \t]+#)|BREAKING CHANGE:[ \t]+)\S.*$/u.test(line));
+	const output: string[] = [];
+	let pending: string[] = [];
+	let prefix = "";
+	let fenceLength = 0;
+	const flush = () => {
+		if (pending.length) {
+			output.push(wrapParagraph(pending.join(" "), lineLength, prefix));
+			pending = [];
+		}
+		prefix = "";
+	};
+	for (const [index, line] of lines.entries()) {
+		if (fenceLength) {
+			output.push(line);
+			const closing = /^[ \t]*`{3,}[ \t]*$/u.exec(line);
+			if (closing && closing[0].trim().length >= fenceLength) fenceLength = 0;
+			continue;
+		}
+		const fence = /^[ \t]*`{3,}/u.exec(line);
+		if (fence) {
+			flush();
+			fenceLength = fence[0].trim().length;
+			output.push(line);
+		} else if (!line.trim()) {
+			flush();
+			if (output.length && output[output.length - 1] !== "") output.push("");
+		} else if (trailers && index >= trailerStart) {
+			flush();
+			output.push(line);
+		} else {
+			const marker = /^[ \t]*(?:[-*+]|\d+[.)]) /u.exec(line);
+			if (marker) {
+				flush();
+				prefix = marker[0];
+				pending.push(line.slice(prefix.length));
+			} else if (/^(?: {4}| {0,3}\t)/u.test(line)) {
+				flush();
+				output.push(line);
+			} else {
+				if (prefix && !/^[ \t]/u.test(line)) flush();
+				pending.push(line);
+			}
+		}
+	}
+	flush();
+	return output.join("\n");
 }
 
 export function formatCommitMessage(input: Pick<CommitInput, "subject" | "body">): string {
@@ -60,9 +108,10 @@ export function formatCommitMessage(input: Pick<CommitInput, "subject" | "body">
 	if (subject.length > LINE_LENGTH) throw new Error("subject must be 72 characters or less");
 	if (subject.includes("\n")) throw new Error("subject must be one line");
 
-	const body = input.body.trim();
-	if (!body) throw new Error("commit body is required and must explain why the change exists");
-	return `${subject}\n\n${wrapBody(body)}\n`;
+	if (!input.body.trim()) {
+		throw new Error("commit body is required and must explain why the change exists");
+	}
+	return `${subject}\n\n${wrapBody(input.body)}\n`;
 }
 
 /**
@@ -121,21 +170,24 @@ export async function executeCommit(
 	}
 }
 
-function wrapParagraph(paragraph: string, lineLength: number): string {
+function wrapParagraph(paragraph: string, lineLength: number, prefix = ""): string {
 	const words = paragraph.trim().replace(/\s+/gu, " ").split(" ");
 	const lines: string[] = [];
-	let current = "";
+	const continuation = prefix.replace(/[^\t]/gu, " ");
+	let current = prefix;
+	let hasWord = false;
 	for (const word of words) {
-		if (!current) {
-			current = word;
+		if (!hasWord) {
+			current += word;
+			hasWord = true;
 		} else if (current.length + 1 + word.length <= lineLength) {
 			current += ` ${word}`;
 		} else {
 			lines.push(current);
-			current = word;
+			current = `${continuation}${word}`;
 		}
 	}
-	if (current) lines.push(current);
+	if (hasWord) lines.push(current);
 	return lines.join("\n");
 }
 
