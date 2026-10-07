@@ -97,7 +97,7 @@ A permanent behavior change needs an observable test that fails for a plausible 
 
 ## Dependency updates
 
-Renovate owns JavaScript dependencies, `bun.lock`, and GitHub Actions. The protected `glockyco/dependency-automation` control plane owns all Nix flake inputs and uses a short-lived token from the dependency-updater GitHub App. This repository stores no App key and runs no local Nix scheduler. Renovate's Nix manager stays disabled. Neither updater merges changes.
+Renovate owns JavaScript dependencies, `bun.lock`, and GitHub Actions. The protected `glockyco/dependency-automation` control plane owns all Nix flake inputs and uses a short-lived token from the dependency-updater GitHub App. This repository stores no App key and runs no local Nix scheduler. Renovate's Nix manager stays disabled. Neither updater merges changes. Renovate's `constraints.bun` in `renovate.json` names the Bun that the locked development shell provides, so the lockfiles Renovate writes stay readable by that Bun; raise it when a flake update moves the shell's Bun.
 
 Use native commands for a manual update:
 

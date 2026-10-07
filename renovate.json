@@ -1,6 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:best-practices", "local>glockyco/renovate-config"],
+  "constraints": {
+    "bun": "1.3.13"
+  },
   "nix": {
     "enabled": false
   },
