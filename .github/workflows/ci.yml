@@ -21,6 +21,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The release-version check compares the payload with the base revision.
+          fetch-depth: 0
       - uses: DeterminateSystems/determinate-nix-action@v3.21.9
         with:
           extra-conf: |
@@ -29,3 +32,5 @@ jobs:
       - run: nix flake check --print-build-logs
       - run: nix develop --command bun install --frozen-lockfile
       - run: nix develop --command bun run ci
+        env:
+          RELEASE_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}

@@ -8,6 +8,9 @@
   "files": {
     "includes": [
       "plugin/**/*.ts",
+      "tests/**/*.ts",
+      "scripts/**/*.ts",
+      ".omp-plugin/*.json",
       "types/**/*.d.ts",
       "*.json",
       "*.md",

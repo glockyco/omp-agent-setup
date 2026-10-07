@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@oh-my-pi/pi-coding-agent";
 
-const pluginRoot = process.env.PERSONAL_PLUGIN_DIR ?? join(import.meta.dir, "..");
-// Exercise the manifest payload selected by the source or Nix check.
+const pluginRoot = process.env.PERSONAL_PLUGIN_DIR ?? join(import.meta.dir, "..", "plugin");
+// Exercise the manifest payload selected by the source run or the installed-release check.
 const { default: plannotator } = await import(
 	pathToFileURL(join(pluginRoot, "extensions/plannotator.ts")).href
 );

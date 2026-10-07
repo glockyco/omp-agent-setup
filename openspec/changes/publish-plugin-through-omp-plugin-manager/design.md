@@ -247,7 +247,14 @@ Delete `packages.personal-omp-plugin`, `packages.default`, the source copy/sheba
 
 Retain the Nix development shell, single Bun toolchain, generator app, freshness check, behavioral tests, Python retrieval fixtures, and OpenSpec validation. Move repository tests from `plugin/tests/` to repository `tests/`; update test relative paths, `PERSONAL_PLUGIN_DIR`, flake sources and any tracked references. Catalog `./plugin` is the copied runtime boundary and must contain no tests/dev caches. Python remains an ordinary host executable for explicitly invoking the research helper, not a requirement for loading the plugin and not a hidden Nix-store shebang. Keep executable permissions and complete writing-skill assets/licenses.
 
-Replace package-shape/default-output checks with checks over the release tree and an actual isolated manager install, using the locked upstream OMP selected by `llm-agents`. The same-version SDK/source loader used by the probe can observe provider-free discovery; expose its path from the locked OMP test environment and reject a CLI/SDK version mismatch rather than fetching a second independent runtime. The package's source exports are available in upstream `package.json`; a standalone-binary session observer using `getAllTools`, `getCommands`, and `getSystemPrompt` adds actual host acceptance without relying only on source loaders. Retain an installed-tree test pass by pointing existing behavior tests at the installed cache, not merely repository source.
+Replace package-shape/default-output checks with checks over the release tree and an actual isolated manager install, using the locked upstream OMP selected by `llm-agents`.
+
+**Implementation note (apply phase).** The locked `llm-agents` OMP is a compiled binary without importable source, so the gate observes the real binary instead of source loaders. `tests/release_gate.py` gives each profile a local, unreachable `release-gate` model (so no request can reach a provider) and then:
+
+- runs `omp --mode rpc --no-ui` and reads `get_available_commands` (workflow commands, extension-registered annotation commands with `source: extension`) and `get_state.systemPrompt` (the `<skills>` list, the always-applied `# Personal policy` text, and the `xd://personal_commit` device);
+- sets `lsp.lazy: false` and `lsp.shared: false` in the disposable profile and starts an interactive session in a pseudo-terminal; deterministic executable probes record which language servers OMP actually spawns and with which arguments.
+
+This is stronger than the spike's source probe because it exercises the shipped executable. The same harness ran unchanged against the official 18.8.0 standalone binary from `https://omp.sh/install --binary` (16/16 passing). Retain an installed-tree test pass by pointing existing behavior tests at the installed cache, not merely repository source.
 
 ### 5. Preserve CI and replace what it proves
 

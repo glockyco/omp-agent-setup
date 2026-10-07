@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Source repository for the immutable personal [Oh My Pi](https://github.com/can1357/oh-my-pi) plugin. The separate `nix-darwin` repository owns the executable wrapper, plugin pin, language servers, Home Manager activation, and rollback.
+Source repository for the personal [Oh My Pi](https://github.com/can1357/oh-my-pi) plugin. It is the `glockyco` marketplace and publishes one plugin, `personal@glockyco`, which every host installs and upgrades with OMP's plugin manager. Hosts own OMP, language servers, Plannotator, and their own OMP state.
 
 ## Setup
 
@@ -14,14 +14,15 @@ Do not require a globally installed Bun, npm, Python, .NET SDK, or language serv
 
 ## Source layout
 
-- `plugin/`: the complete runtime payload copied into the Nix store.
-- `plugin/package.json`: the OMP extension manifest.
+- `.omp-plugin/marketplace.json`: the marketplace catalog. Its `personal` entry carries the release version and delivers the LSP overrides through `lspServers`.
+- `plugin/`: the complete runtime payload that the plugin manager copies into its cache. Nothing else belongs in it.
+- `plugin/package.json`: the OMP extension manifest. Its version must equal the catalog entry's.
 - `plugin/extensions/`: dependency-free runtime extension source.
 - `plugin/skills/` and `plugin/rules/`: personal behavior loaded by OMP.
-- `plugin/commands/` and `plugin/skills/openspec-*/`: the generated OpenSpec workflow. Every repository loads this one copy. Write it only with `nix run .#sync-openspec-adapters`. `biome.json` excludes it because the freshness check reproduces it byte for byte.
-- `plugin/lsp/lsp.json`: minimal differences from the pinned OMP defaults. This subdirectory is a scoped plugin root. The wrapper loads it with `--plugin-dir` and the package root with `--extension`, because only the first supplies LSP overrides and only the second loads the extension. Pointing both flags at the package root would register every workflow command twice.
-- `plugin/tests/`: isolated Bun and Python behavior tests.
-- `types/omp.d.ts`: narrow development-only declarations for the OMP extension API.
+- `plugin/commands/` and `plugin/skills/openspec-*/`: the generated OpenSpec workflow. Every repository loads this one copy; the marketplace exposes the commands as `/personal:opsx-*`. Write it only with `nix run .#sync-openspec-adapters`. `biome.json` excludes it because the freshness check reproduces it byte for byte. Do not rename the generated files or add bare-name aliases.
+- `plugin/lsp/lsp.json`: minimal differences from the pinned OMP defaults.
+- `tests/`: Bun and Python behavior tests, the release-tree tests, and `release_gate.py`, the isolated install, discovery, and upgrade gate.
+- `scripts/`: release-tree validation and the release-version check.
 - `openspec/specs/`: accepted behavior contracts.
 - `openspec/changes/`: active and archived OpenSpec changes.
 - `docs/plans/archive/`: historical records from the retired mutable deployment system.
@@ -52,15 +53,16 @@ done
 
 ## Runtime boundaries
 
-The flake output must be a self-contained OMP plugin directory. It must not:
+The payload must be self-contained. It must not:
 
-- write to `~/.omp/agent`;
-- install or update OMP, Herdr, language servers, providers, models, or services;
-- include credentials, sessions, history, caches, logs, or databases;
+- write to `~/.omp`;
+- install or update OMP, language servers, Plannotator, providers, models, or services;
+- include credentials, sessions, history, caches, logs, databases, tests, or development tools;
 - depend on a mutable checkout, sibling repository, Homebrew package, or global package manager;
-- copy Herdr's generated integration;
 - patch installed OMP source;
-- expose compatibility aliases for the retired bootstrap, `omp-skill`, or `omp-plans` paths.
+- expose compatibility aliases for retired delivery paths or command names.
+
+Delivery has one owner: the plugin manager. Do not reintroduce a wrapper, `--extension`/`--plugin-dir` loading, a Nix runtime package, or a copied user configuration for this plugin.
 
 The personal extension uses only runtime APIs already available in OMP's Bun process. Add a runtime dependency only when the capability cannot be implemented clearly with those APIs.
 
@@ -76,7 +78,7 @@ Keep computer-science evidence work primary and source precedence deterministic.
 
 ### Language servers
 
-OMP's built-in catalog is the base. Add an override only when a representative scenario fails without it and passes with it. The workstation wrapper, not this repository, owns executable packages. Keep one primary server per language through executable availability.
+OMP's built-in catalog is the base. Add an override only when a representative scenario fails without it and passes with it. Hosts, not this repository, own server executables. Keep one primary server per language through executable availability.
 
 ## Checks
 
@@ -87,7 +89,7 @@ nix develop --command bun run ci
 nix flake check
 ```
 
-`bun run ci` covers formatting, types, dead code, dependency advisories, extension behavior, real Git hooks, and deterministic retrieval fixtures. `nix flake check` covers immutable package shape and isolated payload execution. CI repeats the flake checks on `aarch64-darwin` and `x86_64-linux`.
+`bun run ci` covers formatting, types, dead code, dependency advisories, the release tree and release-version signal, extension behavior, real Git hooks, and deterministic retrieval fixtures. `nix flake check` runs `tests/release_gate.py` with the locked OMP: real marketplace installation into a disposable profile, a fresh session's commands, skills, rule, tools, and language-server selection, the behavior tests against the installed cache, negative controls, and upgrades. It also checks adapter freshness and OpenSpec contracts. CI repeats both gates on `aarch64-darwin` and `x86_64-linux`.
 
 Entering the devshell installs the hooks in `lefthook.yml`: formatting and types on commit, commitlint on the message, and the lockfile check plus `bun run ci` on push. Each job reaches its tool through `nix develop`, so a commit works from an editor or a GUI client.
 
@@ -107,17 +109,17 @@ nix develop --command bun run ci
 nix flake check
 ```
 
-The workstation repository's [dependency-update runbook](https://github.com/glockyco/nix-config/blob/main/docs/operations/dependency-updates.md) owns the cross-repository schedule, GitHub App credentials, downstream activation, real-session smoke, and rollback.
+The workstation repository's [dependency-update runbook](https://github.com/glockyco/nix-config/blob/main/docs/operations/dependency-updates.md) owns the cross-repository schedule and GitHub App credentials.
 
 ## Release
 
-1. Run both local gates.
-2. Publish the reviewed revision.
-3. Update the `personal-omp-plugin` input in `nix-darwin`.
-4. Build and activate the workstation generation.
-5. Run a real wrapped session that observes the store path and exercises the changed capability.
+1. Raise the version in `.omp-plugin/marketplace.json`, `plugin/package.json`, and the root `package.json` in the same commit as any runtime change.
+2. Run both local gates.
+3. With explicit owner authorization, merge the reviewed release and create the immutable tag `vX.Y.Z`.
+4. Install the published release into a disposable OMP profile and confirm its version and capabilities.
+5. Upgrade hosts with `omp plugin marketplace update glockyco` and `omp plugin upgrade --scope user personal@glockyco`, then verify the changed capability in a fresh OMP session in Tern.
 
-The plugin and OMP revisions are independent. Do not update one implicitly while releasing the other.
+Roll back by publishing known-good content as a newer version. The plugin and OMP versions are independent: `omp update` never upgrades the plugin, and a plugin release never updates OMP.
 
 ## Commits
 

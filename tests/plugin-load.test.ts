@@ -3,7 +3,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const pluginRoot = process.env.PERSONAL_PLUGIN_DIR ?? join(import.meta.dir, "..");
+const pluginRoot = process.env.PERSONAL_PLUGIN_DIR ?? join(import.meta.dir, "..", "plugin");
 
 describe("packaged plugin", () => {
 	test("declares required extensions and no agent or model payload", async () => {

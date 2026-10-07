@@ -1,15 +1,16 @@
 {
   "name": "omp-agent-setup",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Immutable personal Oh My Pi plugin source and release checks.",
+  "description": "Personal Oh My Pi plugin source and release checks.",
   "scripts": {
-    "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:test",
+    "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:release && bun run check:test",
     "check:lint": "biome ci .",
     "check:types": "tsc --noEmit",
     "check:dead": "knip",
     "check:audit": "bun audit --prod --audit-level=moderate",
+    "check:release": "bun scripts/check-release-version.ts",
     "check:test": "bun test --coverage",
     "fix": "biome check --write ."
   },

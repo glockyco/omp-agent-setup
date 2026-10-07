@@ -2,13 +2,16 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-	type CommandRunner,
-	executeCommit,
-	formatCommitMessage,
-	parseCommitInput,
-	wrapBody,
-} from "../extensions/personal-commit.ts";
+import { pathToFileURL } from "node:url";
+import type * as CommitModule from "../plugin/extensions/personal-commit.ts";
+import type { CommandRunner } from "../plugin/extensions/personal-commit.ts";
+
+// PERSONAL_PLUGIN_DIR selects an installed release at run time, so the module
+// path cannot be static; the default is the source payload.
+const pluginRoot = process.env.PERSONAL_PLUGIN_DIR ?? join(import.meta.dir, "..", "plugin");
+const { executeCommit, formatCommitMessage, parseCommitInput, wrapBody } = (await import(
+	pathToFileURL(join(pluginRoot, "extensions", "personal-commit.ts")).href
+)) as typeof CommitModule;
 
 const temporaryRepositories: string[] = [];
 

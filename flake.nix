@@ -1,10 +1,10 @@
 {
-  description = "Immutable personal Oh My Pi plugin";
+  description = "Personal Oh My Pi plugin: release checks and the fleet OpenSpec validator";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
-    # Keep OMP on its upstream-supported package set for discovery checks.
+    # The locked OMP that the release gate installs and observes the plugin with.
     llm-agents.url = "github:numtide/llm-agents.nix";
   };
 
@@ -40,30 +40,6 @@
       '';
     in
     {
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        rec {
-          personal-omp-plugin = pkgs.stdenvNoCC.mkDerivation {
-            pname = "personal-omp-plugin";
-            version = "0.1.0";
-            src = ./plugin;
-            nativeBuildInputs = [ pkgs.python3 ];
-            dontBuild = true;
-            installPhase = ''
-              runHook preInstall
-              cp -R . "$out"
-              patchShebangs "$out/skills/research-evidence/scripts/fetch_pdf.py"
-              runHook postInstall
-            '';
-          };
-
-          default = personal-omp-plugin;
-        }
-      );
-
       # The only sanctioned writer of the generated payload. Everything else,
       # including the repository formatter, leaves those paths alone so that
       # reproducing them byte for byte stays a meaningful check.
@@ -164,79 +140,39 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          plugin = self.packages.${system}.default;
           omp = llm-agents.packages.${system}.omp;
           openspec = llm-agents.packages.${system}.openspec;
         in
         {
-          package-shape =
-            pkgs.runCommand "personal-omp-plugin-package-shape"
+          # Installs the candidate release with OMP's real plugin manager into a
+          # disposable profile, observes what a fresh session loads, runs the
+          # behavior tests against the installed cache, and exercises the
+          # negative controls and upgrades. See tests/release_gate.py.
+          release-gate =
+            pkgs.runCommand "personal-omp-plugin-release-gate"
               {
                 nativeBuildInputs = [
-                  pkgs.jq
                   omp
-                ];
-              }
-              ''
-                test "$(jq -r .name ${plugin}/package.json)" = "@glockyco/personal-omp-plugin"
-                jq -e '.omp.extensions | index("./extensions/personal-commit.ts") != null and index("./extensions/plannotator.ts") != null' ${plugin}/package.json >/dev/null
-                test -f ${plugin}/extensions/personal-commit.ts
-                test -f ${plugin}/extensions/plannotator.ts
-                test -f ${plugin}/rules/personal-policy.md
-                # The LSP overrides sit in their own root. The wrapper loads that
-                # root with --plugin-dir, which scans <root>/commands, so keeping
-                # them beside the payload's commands would register the workflow
-                # a second time under a store-derived name.
-                test -f ${plugin}/lsp/lsp.json
-                test "$(jq -c '.servers.marksman' ${plugin}/lsp/lsp.json)" = '{"disabled":true}'
-                test "$(jq -r '.servers["markdown-oxide"].command' ${plugin}/lsp/lsp.json)" = markdown-oxide
-                test "$(jq -r '.servers["markdown-oxide"].fileTypes | join(",")' ${plugin}/lsp/lsp.json)" = .md,.markdown
-                test ! -e ${plugin}/lsp/commands
-                test ! -e ${plugin}/bin
-                test "$(jq -r 'has("bin")' ${plugin}/package.json)" = false
-                test -x ${plugin}/skills/research-evidence/scripts/fetch_pdf.py
-                for file in SKILL.md LICENSE references/introduction.md references/examples/index.md; do
-                  test -f ${plugin}/skills/research-paper-writing/"$file"
-                done
-
-                test -d ${plugin}/commands
-                for command in opsx-apply opsx-archive opsx-explore opsx-propose opsx-sync opsx-update; do
-                  test -f ${plugin}/commands/"$command".md
-                done
-                for skill in openspec-apply-change openspec-archive-change openspec-explore openspec-propose openspec-sync-specs openspec-update-change; do
-                  test -f ${plugin}/skills/"$skill"/SKILL.md
-                done
-
-                test ! -e ${plugin}/agents
-                test ! -e ${plugin}/models
-                omp --plugin-dir=${plugin} --help >/dev/null
-                touch "$out"
-              '';
-
-          python-payload =
-            pkgs.runCommand "personal-omp-plugin-python-tests"
-              {
-                nativeBuildInputs = [ pkgs.python3 ];
-              }
-              ''
-                export PERSONAL_PLUGIN_DIR=${plugin}
-                python -m unittest discover -s ${./plugin/tests} -p 'test_*.py'
-                touch "$out"
-              '';
-
-          bun-payload =
-            pkgs.runCommand "personal-omp-plugin-bun-tests"
-              {
-                nativeBuildInputs = [
                   pkgs.bun
                   pkgs.git
+                  pkgs.python3
                 ];
+                release = nixpkgs.lib.fileset.toSource {
+                  root = ./.;
+                  fileset = nixpkgs.lib.fileset.unions [
+                    ./.omp-plugin
+                    ./plugin
+                    ./tests
+                    ./bunfig.toml
+                  ];
+                };
               }
               ''
                 export HOME="$TMPDIR/home"
                 mkdir -p "$HOME"
-                export PERSONAL_PLUGIN_DIR=${plugin}
-                bun test ${./plugin}/tests/plugin-load.test.ts ${./plugin}/tests/personal-commit.test.ts ${./plugin}/tests/plannotator.test.ts
+                export OMP_BIN=${nixpkgs.lib.getExe omp}
+                cd "$release"
+                python3 tests/release_gate.py
                 touch "$out"
               '';
 

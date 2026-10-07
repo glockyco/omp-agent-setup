@@ -2,10 +2,15 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import sys
 import unittest
 
+# Importing the helper must not write __pycache__ into the plugin payload or
+# the installed release under test.
+sys.dont_write_bytecode = True
 
-PLUGIN_ROOT = Path(os.environ.get("PERSONAL_PLUGIN_DIR", Path(__file__).parents[1]))
+
+PLUGIN_ROOT = Path(os.environ.get("PERSONAL_PLUGIN_DIR", Path(__file__).parents[1] / "plugin"))
 SCRIPT = PLUGIN_ROOT / "skills" / "research-evidence" / "scripts" / "fetch_pdf.py"
 SPEC = importlib.util.spec_from_file_location("fetch_pdf", SCRIPT)
 fetch_pdf = importlib.util.module_from_spec(SPEC)

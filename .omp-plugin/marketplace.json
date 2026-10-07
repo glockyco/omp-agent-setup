@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "glockyco",
+  "owner": {
+    "name": "glockyco"
+  },
+  "metadata": {
+    "description": "Personal Oh My Pi behavior: structured commits, research evidence, paper writing, visual annotation, and the OpenSpec workflow."
+  },
+  "plugins": [
+    {
+      "name": "personal",
+      "description": "Personal policy, skills, OpenSpec workflow commands, commit tool, Plannotator commands, and LSP overrides.",
+      "source": "./plugin",
+      "version": "0.2.0",
+      "lspServers": "./lsp/lsp.json",
+      "repository": "https://github.com/glockyco/omp-agent-setup",
+      "homepage": "https://github.com/glockyco/omp-agent-setup",
+      "license": "MIT"
+    }
+  ]
+}
