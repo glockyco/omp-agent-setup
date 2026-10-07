@@ -290,6 +290,10 @@ def language_servers_started(profile, path=None, settle=4.0, deadline=40.0):
             if process.poll() is not None:
                 break
     finally:
+        # On macOS an exiting process waits until its unread terminal output
+        # drains, so reaping it while the main side stays open and unread
+        # never returns. Closing the main side first discards that output.
+        os.close(main)
         try:
             os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
@@ -299,7 +303,6 @@ def language_servers_started(profile, path=None, settle=4.0, deadline=40.0):
         except subprocess.TimeoutExpired:
             os.killpg(process.pid, signal.SIGKILL)
             process.wait()
-        os.close(main)
     if not profile.lsp_log.exists():
         return {}
     servers = {}
