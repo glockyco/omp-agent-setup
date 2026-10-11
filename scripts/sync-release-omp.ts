@@ -19,15 +19,21 @@ export async function syncReleaseOmp(
 	return pin;
 }
 
+/** Normalize Bun's optional forwarded separator without changing caller arguments. */
+export async function syncReleaseOmpCommand(
+	args: readonly string[],
+	outputPath = OMP_PIN_PATH,
+	request: (url: string, init?: RequestInit) => Promise<Response> = fetch,
+): Promise<string> {
+	const offset = args[0] === "--" ? 1 : 0;
+	if (args.length !== offset + 1) throw new Error("usage: bun run sync:release-omp -- vX.Y.Z");
+	const pin = await syncReleaseOmp(args[offset], outputPath, request);
+	return `Updated .omp-version to ${pin.tag}; review all six asset digests before committing.`;
+}
+
 if (import.meta.main) {
 	try {
-		const args = process.argv.slice(2);
-		if (args[0] === "--") args.shift();
-		if (args.length !== 1) throw new Error("usage: bun run sync:release-omp -- vX.Y.Z");
-		const pin = await syncReleaseOmp(args[0]);
-		console.log(
-			`Updated .omp-version to ${pin.tag}; review all six asset digests before committing.`,
-		);
+		console.log(await syncReleaseOmpCommand(process.argv.slice(2)));
 	} catch (error) {
 		console.error(error instanceof Error ? error.message : error);
 		process.exitCode = 1;

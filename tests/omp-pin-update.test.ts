@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OMP_ASSETS, type OmpPin } from "../scripts/omp-pin.ts";
-import { syncReleaseOmp } from "../scripts/sync-release-omp.ts";
+import { syncReleaseOmp, syncReleaseOmpCommand } from "../scripts/sync-release-omp.ts";
 
 const scratch: string[] = [];
 const selected = "v18.8.8";
@@ -59,6 +59,27 @@ test("updater makes one fixed unauthenticated request and writes the complete si
 		"omp-windows-x64.exe",
 	]);
 });
+
+test.each([{ args: [selected] }, { args: ["--", selected] }])(
+	"command updates the complete pin with explicit arguments: %j",
+	async ({ args }) => {
+		const files = fixture();
+		const supplied = [...args];
+		const calls: string[] = [];
+		const message = await syncReleaseOmpCommand(args, files.pinPath, async url => {
+			calls.push(url);
+			return new Response(sums);
+		});
+		expect(args).toEqual<readonly string[]>(supplied);
+		expect(calls).toEqual([
+			`https://github.com/can1357/oh-my-pi/releases/download/${selected}/SHA256SUMS.txt`,
+		]);
+		expect(message).toBe(
+			`Updated .omp-version to ${selected}; review all six asset digests before committing.`,
+		);
+		expect(readFileSync(files.pinPath, "utf8")).toBe(`${JSON.stringify(expected, null, 2)}\n`);
+	},
+);
 
 test.each([
 	["missing", sums.split("\n").slice(0, -1).join("\n")],
@@ -149,6 +170,14 @@ test.each([
 	{ args: [selected, "--output", "other.json"] },
 ])("CLI refuses missing, invalid, or extra arguments: %j", async ({ args }) => {
 	const files = fixture();
+	let requests = 0;
+	await expect(
+		syncReleaseOmpCommand(args, files.pinPath, async () => {
+			requests++;
+			throw new Error("invalid command must not request checksums");
+		}),
+	).rejects.toThrow();
+	expect(requests).toBe(0);
 	const child = Bun.spawn(
 		[process.execPath, join(import.meta.dir, "../scripts/sync-release-omp.ts"), ...args],
 		{ cwd: files.root, stdout: "pipe", stderr: "pipe" },
