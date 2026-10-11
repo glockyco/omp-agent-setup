@@ -159,7 +159,7 @@ class OwnedTree:
                 return
             raise AssertionError(f"owned tree termination failed: {output}")
 
-    def stop(self, grace=1.0):
+    def stop(self, grace=1.0, reap_root=None):
         if os.name == "nt":
             self.remember()
             for pid in self.survivors():
@@ -171,8 +171,17 @@ class OwnedTree:
                 raise AssertionError("owned Windows subprocess tree survived force termination")
         else:
             for sig in (signal.SIGTERM, signal.SIGKILL):
+                if reap_root is not None:
+                    reap_root()
                 try:
-                    os.killpg(self.pid, sig)
+                    try:
+                        os.killpg(self.pid, sig)
+                    except PermissionError:
+                        # Darwin reports EPERM for a group containing only an
+                        # unreaped root; retry only after our handle reaps it.
+                        if reap_root is None or reap_root() is None:
+                            raise
+                        os.killpg(self.pid, sig)
                 except ProcessLookupError:
                     return
                 if sig == signal.SIGTERM:
@@ -182,7 +191,7 @@ class OwnedTree:
 def stop_spawned_process(process, tree=None, grace=1.0):
     """Keep query failures visible, but still stop a live, handle-owned root."""
     try:
-        (tree or OwnedTree(process.pid)).stop(grace)
+        (tree or OwnedTree(process.pid)).stop(grace, None if os.name == "nt" else process.poll)
     except BaseException:
         alive = process.isalive() if hasattr(process, "isalive") else process.poll() is None
         if alive and os.name == "nt":

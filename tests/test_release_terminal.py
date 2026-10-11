@@ -10,10 +10,42 @@ import time
 import unittest
 from unittest.mock import Mock, patch
 
-from release_gate import OwnedTree, Profile, Terminal, language_servers_started
+from release_gate import OwnedTree, Profile, Terminal, language_servers_started, stop_spawned_process
 
 
 class TerminalTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "Unix process-group reaping")
+    def test_exited_unreaped_root_is_reaped_before_group_cleanup(self):
+        process = subprocess.Popen([sys.executable, "-c", "pass"], stdout=subprocess.PIPE, start_new_session=True)
+        try:
+            self.assertEqual(process.stdout.read(), b"")
+            stop_spawned_process(process, grace=0)
+            self.assertEqual(process.returncode, 0)
+        finally:
+            process.stdout.close()
+            process.wait(timeout=10)
+
+    @unittest.skipIf(os.name == "nt", "Unix process-group reaping")
+    def test_group_permission_race_retries_only_after_reaping_our_root(self):
+        tree = OwnedTree.__new__(OwnedTree)
+        tree.pid = 123
+        process = Mock(pid=123)
+        process.poll.side_effect = [None, 0]
+        with patch("release_gate.os.killpg", side_effect=[PermissionError("zombie group"), ProcessLookupError()]) as kill:
+            stop_spawned_process(process, tree, grace=0)
+        self.assertEqual(process.poll.call_count, 2)
+        self.assertEqual(kill.call_count, 2)
+        process.poll.side_effect = [None, None]
+        with patch("release_gate.os.killpg", side_effect=PermissionError("denied")) as kill:
+            with self.assertRaisesRegex(PermissionError, "denied"):
+                stop_spawned_process(process, tree, grace=0)
+        kill.assert_called_once()
+        process.poll.side_effect = [None, 0]
+        with patch("release_gate.os.killpg", side_effect=PermissionError("live group denied")) as kill:
+            with self.assertRaisesRegex(PermissionError, "live group denied"):
+                stop_spawned_process(process, tree, grace=0)
+        self.assertEqual(kill.call_count, 2)
+
     def test_real_terminal_drains_and_releases_descendant_after_root_exit(self):
         with tempfile.TemporaryDirectory(prefix="terminal tree with spaces ") as directory:
             root = Path(directory)

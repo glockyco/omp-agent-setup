@@ -198,6 +198,8 @@ function processExists(pid: number): boolean {
 function processDouble(platform: NodeJS.Platform = "win32") {
 	const child = Object.assign(new EventEmitter(), {
 		pid: 101,
+		exitCode: null as number | null,
+		signalCode: null as NodeJS.Signals | null,
 		stdout: new PassThrough(),
 		stderr: new PassThrough(),
 	});
@@ -223,6 +225,7 @@ function processDouble(platform: NodeJS.Platform = "win32") {
 	let argv: string[] = [];
 	function close() {
 		if (closeCount++) return;
+		child.exitCode = 0;
 		child.stdout.end();
 		child.stderr.end();
 		child.emit("close", 0);
@@ -390,6 +393,72 @@ describe("injected annotation process boundary", () => {
 			expect(double.identities.some(identity => identity.pid === 999)).toBe(true);
 		});
 	}
+
+	test.each(["SIGTERM", "SIGKILL"] as const)(
+		"Darwin retries %s only after the owned root is reaped and accepts a gone group",
+		async racedSignal => {
+			const double = processDouble("darwin");
+			let refused = false;
+			const sleeps: number[] = [];
+			double.boundary.kill = (pid, signal) => {
+				double.signals.push({ pid, signal });
+				if (signal !== racedSignal) return;
+				if (!refused) {
+					refused = true;
+					throw Object.assign(new Error("Darwin zombie group"), { code: "EPERM" });
+				}
+				throw Object.assign(new Error("gone"), { code: "ESRCH" });
+			};
+			double.boundary.sleep = async milliseconds => {
+				sleeps.push(milliseconds);
+				if (milliseconds === 0) double.close();
+			};
+			const instance = await host(`darwin-reap-${racedSignal}`, double.boundary);
+			await writeFile(join(instance.ctx.cwd, "note.md"), "review");
+			await instance.command("plannotator-annotate", "note.md");
+			await until(() => !!double.snapshot);
+			await Promise.all([
+				instance.command("plannotator-cancel"),
+				instance.command("plannotator-cancel"),
+			]);
+			expect(sleeps).toEqual(racedSignal === "SIGTERM" ? [0] : [1000, 0]);
+			expect(double.signals).toEqual([
+				...(racedSignal === "SIGKILL" ? [{ pid: -101, signal: "SIGTERM" as const }] : []),
+				{ pid: -101, signal: racedSignal },
+				{ pid: -101, signal: racedSignal },
+			]);
+			expect(instance.notices.some(notice => notice.type === "error")).toBe(false);
+			expect(instance.feedback).toEqual([]);
+			expect(await Bun.file(double.snapshot).exists()).toBe(false);
+		},
+	);
+
+	test.each(["live-root", "exited-root"] as const)(
+		"Darwin permission failure with %s and live group members stays visible",
+		async state => {
+			const double = processDouble("darwin");
+			double.boundary.kill = (pid, signal) => {
+				double.signals.push({ pid, signal });
+				throw Object.assign(new Error("Darwin group denied"), { code: "EPERM" });
+			};
+			double.boundary.sleep = async milliseconds => {
+				expect(milliseconds).toBe(0);
+				if (state === "exited-root") double.child.exitCode = 0;
+			};
+			const instance = await host(`darwin-denied-${state}`, double.boundary);
+			await writeFile(join(instance.ctx.cwd, "note.md"), "review");
+			await instance.command("plannotator-annotate", "note.md");
+			await until(() => !!double.snapshot);
+			await instance.command("plannotator-cancel");
+			expect(double.signals).toHaveLength(state === "live-root" ? 1 : 2);
+			expect(instance.notices.at(-1)?.message).toContain("Darwin group denied");
+			expect(await Bun.file(double.snapshot).exists()).toBe(true);
+			expect(instance.feedback).toEqual([]);
+			double.close();
+			await until(() => instance.status === undefined);
+			await rm(join(double.snapshot, ".."), { recursive: true, force: true });
+		},
+	);
 
 	test("retains snapshots until stream close even when the owned tree is absent", async () => {
 		const double = processDouble();

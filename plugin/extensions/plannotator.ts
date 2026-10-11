@@ -363,14 +363,26 @@ function startChild(
 		completion.resolve({ code, stdout, stderr });
 		closure.resolve();
 	});
-	function signalGroup(signal: NodeJS.Signals): boolean {
+	async function signalGroup(signal: NodeJS.Signals): Promise<boolean> {
 		if (!child.pid) return false;
 		try {
 			boundary.kill(-child.pid, signal);
 			return true;
 		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
-			throw error;
+			const code = (error as NodeJS.ErrnoException).code;
+			if (code === "ESRCH") return false;
+			if (code !== "EPERM" || boundary.platform !== "darwin") throw error;
+			// Let the host reap an exited leader before retrying Darwin's
+			// zombie-only group refusal. Live-group permission failures stay visible.
+			await boundary.sleep(0);
+			if (!closed && typeof child.exitCode !== "number" && !child.signalCode) throw error;
+			try {
+				boundary.kill(-child.pid, signal);
+				return true;
+			} catch (retryError) {
+				if ((retryError as NodeJS.ErrnoException).code === "ESRCH") return false;
+				throw retryError;
+			}
 		}
 	}
 	let stopping: Promise<void> | undefined;
@@ -426,10 +438,10 @@ function startChild(
 					if (surviving(owned, await boundary.processes()).length)
 						throw new Error("Owned Windows processes survived force termination.");
 				}
-			} else if (boundary.platform !== "win32" && signalGroup("SIGTERM")) {
+			} else if (boundary.platform !== "win32" && (await signalGroup("SIGTERM"))) {
 				// Root close is not group close: descendants receive the full grace.
 				await boundary.sleep(1000);
-				signalGroup("SIGKILL");
+				await signalGroup("SIGKILL");
 			}
 			// Child close includes stdout/stderr closure; do not remove a live snapshot.
 			if (!closed) await closure.promise;
