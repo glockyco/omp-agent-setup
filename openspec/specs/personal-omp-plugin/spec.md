@@ -12,7 +12,7 @@ The plugin SHALL export no agents, model providers, local-model support, remote 
 #### Scenario: Inspect plugin discovery
 
 - **WHEN** OMP loads only the manager-installed personal plugin under a disposable profile
-- **THEN** personal policy, the remaining personal skills, the generated OpenSpec workflow skills and commands, one commit tool, and the declared LSP overrides are discoverable without personal agents, model changes, or Simplified Technical English guidance
+- **THEN** personal policy, the plain-prose rule, the remaining personal skills, the generated OpenSpec workflow skills and commands, one commit tool, and the declared LSP overrides are discoverable without personal agents, model changes, or Simplified Technical English guidance
 - **AND** both declared extension modules load without import or registration errors
 
 #### Scenario: Commands resolve from the payload
@@ -191,7 +191,7 @@ The documented installation SHALL use `omp plugin marketplace add glockyco/omp-a
 
 The release gate SHALL validate the catalog and demonstrate actual install, runtime discovery, and upgrade under a temporary HOME with isolated configuration, data and cache roots. It SHALL use no provider credentials or model request, SHALL leave real OMP state unchanged, and SHALL remove its temporary profiles.
 
-Verification SHALL observe both declared extension factories, the commit tool, all three annotation command registrations, all declared skills and their support assets, the always-applied personal policy, each workflow command exactly once, and every declared LSP override. A list or doctor result alone SHALL NOT satisfy runtime verification. Deterministic executable probes MAY prove configuration selection but SHALL NOT be reported as real language-server protocol or native-browser acceptance.
+Verification SHALL observe both declared extension factories, the commit tool, all three annotation command registrations, all declared skills and their support assets, every always-applied rule, each workflow command exactly once, and every declared LSP override. A list or doctor result alone SHALL NOT satisfy runtime verification. Deterministic executable probes MAY prove configuration selection but SHALL NOT be reported as real language-server protocol or native-browser acceptance.
 
 #### Scenario: Complete marketplace release is tested
 
@@ -209,3 +209,23 @@ Verification SHALL observe both declared extension factories, the commit tool, a
 
 - **WHEN** a candidate loses a declared extension, skill, rule, command, or required skill support asset
 - **THEN** the release gate fails and identifies the missing capability or asset
+
+### Requirement: Plain prose rule
+
+The plugin SHALL ship an always-applied plain-prose rule, separate from the personal policy, for the prose an agent writes in documentation, comments, docstrings, notebooks, commit messages and chat. The rule SHALL ask for short factual sentences and SHALL exclude semicolons between clauses, typographic quotes and apostrophes, em and en dashes, ellipsis characters, arrows, section signs, bold bullet lead-ins and slogans.
+
+#### Scenario: Load the rule
+
+- **WHEN** OMP starts with the manager-installed personal plugin
+- **THEN** the system prompt carries the plain-prose rule beside the personal policy
+- **AND** the personal policy text is unchanged
+
+### Requirement: Prose rule exemptions
+
+The plain-prose rule SHALL leave the punctuation of code, grammars, quotations, and manuscripts such as papers and theses unchanged. It SHALL NOT route writing to a skill or prescribe a controlled language.
+
+#### Scenario: Read the exemptions
+
+- **WHEN** OMP loads the plugin rules
+- **THEN** the plain-prose rule names code, grammars, quotations and manuscripts as exempt
+- **AND** it routes no writing task to a skill
