@@ -19,6 +19,7 @@
     "check:openspec": "bun scripts/check-openspec.ts",
     "check:installed-release": "bun scripts/check-installed-release.ts",
     "setup:release-omp": "bun scripts/setup-release-omp.ts",
+    "sync:release-omp": "bun scripts/sync-release-omp.ts",
     "fix": "biome check --write ."
   },
   "devDependencies": {

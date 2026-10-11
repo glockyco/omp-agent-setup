@@ -14,6 +14,54 @@ from release_gate import OwnedTree, Profile, Terminal, language_servers_started,
 
 
 class TerminalTests(unittest.TestCase):
+    def test_completed_conpty_reader_releases_handles_without_cancelling_io(self):
+        terminal = Terminal.__new__(Terminal)
+        terminal.process = Mock(closed=False)
+        reader = terminal.process._thread
+        reader.is_alive.return_value = False
+        pty_handle = terminal.process.pty
+        pty_handle.cancel_io.side_effect = AssertionError("no pending I/O")
+        with patch("release_gate.os.name", "nt"):
+            terminal._close_handles()
+        terminal.process.fileobj.close.assert_called_once()
+        terminal.process._server.close.assert_called_once()
+        reader.join.assert_called_once_with(timeout=10)
+        pty_handle.cancel_io.assert_not_called()
+        self.assertFalse(hasattr(terminal.process, "pty"))
+        self.assertTrue(terminal.process.closed)
+
+    def test_pending_conpty_reader_is_cancelled_and_joined_before_handle_release(self):
+        terminal = Terminal.__new__(Terminal)
+        terminal.process = Mock(closed=False)
+        reader = terminal.process._thread
+        reader.is_alive.side_effect = [True, False]
+        pty_handle = terminal.process.pty
+        with patch("release_gate.os.name", "nt"):
+            terminal._close_handles()
+        self.assertEqual(reader.join.call_count, 2)
+        pty_handle.cancel_io.assert_called_once()
+        self.assertFalse(hasattr(terminal.process, "pty"))
+        self.assertTrue(terminal.process.closed)
+
+    def test_live_conpty_reader_failures_remain_visible(self):
+        for failure in ("cancel", "join"):
+            with self.subTest(failure=failure):
+                terminal = Terminal.__new__(Terminal)
+                terminal.process = Mock(closed=False)
+                reader = terminal.process._thread
+                reader.is_alive.return_value = True
+                if failure == "cancel":
+                    terminal.process.pty.cancel_io.side_effect = OSError("Element not found.")
+                with patch("release_gate.os.name", "nt"):
+                    with self.assertRaisesRegex(
+                        OSError if failure == "cancel" else AssertionError,
+                        "Element not found.|ConPTY reader failed",
+                    ):
+                        terminal._close_handles()
+                terminal.process.fileobj.close.assert_called_once()
+                terminal.process._server.close.assert_called_once()
+                self.assertFalse(terminal.process.closed)
+
     @unittest.skipIf(os.name == "nt", "Unix process-group reaping")
     def test_exited_unreaped_root_is_reaped_before_group_cleanup(self):
         process = subprocess.Popen([sys.executable, "-c", "pass"], stdout=subprocess.PIPE, start_new_session=True)
@@ -206,6 +254,8 @@ class TerminalTests(unittest.TestCase):
                 env = profile.environment()
             self.assertNotIn("OPENAI_API_KEY", env)
             self.assertNotIn("PI_AGENT_DIR", env)
+            for path in (profile.work, profile.release):
+                self.assertTrue(path.is_relative_to(profile.home), path)
             for key in ("HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP", "TMPDIR", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"):
                 self.assertTrue(Path(env[key]).is_relative_to(root), (key, env[key]))
         finally:

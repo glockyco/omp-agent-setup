@@ -14,11 +14,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pythonExecutable } from "../scripts/check-installed-release.ts";
 import { checkReleaseVersion } from "../scripts/check-release-version.ts";
+import { readPin } from "../scripts/omp-pin.ts";
 import { CATALOG, PAYLOAD, validateReleaseTree } from "../scripts/release.ts";
 import {
 	cleanupReleaseOmp,
 	isolatedEnvironment,
-	releasePin,
 	setupReleaseOmp,
 } from "../scripts/setup-release-omp.ts";
 
@@ -296,16 +296,19 @@ describe("native release provisioning", () => {
 		expect(existsSync(root)).toBe(true);
 	});
 
-	test("failed release metadata removes scratch and never selects latest", async () => {
+	test("failed fixed-asset download removes scratch and never fetches metadata or latest", async () => {
 		const before = readdirSync(tmpdir()).filter(name => name.startsWith("personal release omp "));
-		const pin = await releasePin();
+		const pin = await readPin();
+		const host = process.platform === "win32" ? "windows" : process.platform;
+		const name = `omp-${host}-${process.arch}${process.platform === "win32" ? ".exe" : ""}`;
 		const fetch = spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response("unavailable", { status: 503 }),
 		);
 		try {
 			await expect(setupReleaseOmp()).rejects.toThrow(/HTTP 503/);
+			expect(fetch).toHaveBeenCalledTimes(1);
 			expect(fetch.mock.calls[0]?.[0]).toBe(
-				`https://api.github.com/repos/can1357/oh-my-pi/releases/tags/${pin}`,
+				`https://github.com/can1357/oh-my-pi/releases/download/${pin.tag}/${name}`,
 			);
 			expect(readdirSync(tmpdir()).filter(name => name.startsWith("personal release omp "))).toEqual(
 				before,
@@ -315,17 +318,17 @@ describe("native release provisioning", () => {
 		}
 	});
 
-	test("an official asset without a published digest is rejected before download", async () => {
-		const pin = await releasePin();
-		const host = process.platform === "win32" ? "windows" : process.platform;
-		const name = `omp-${host}-${process.arch}${process.platform === "win32" ? ".exe" : ""}`;
+	test("a reviewed pin missing a platform digest fails before download", async () => {
+		const pin = await readPin();
 		const before = readdirSync(tmpdir()).filter(entry => entry.startsWith("personal release omp "));
-		const fetch = spyOn(globalThis, "fetch").mockResolvedValue(
-			Response.json({ tag_name: pin, assets: [{ name, digest: null }] }),
-		);
+		const fetch = spyOn(globalThis, "fetch");
 		try {
-			await expect(setupReleaseOmp()).rejects.toThrow(/no published SHA-256/);
-			expect(fetch).toHaveBeenCalledTimes(1);
+			const assets = { ...pin.assets } as Record<string, string>;
+			delete assets["omp-windows-arm64.exe"];
+			await expect(setupReleaseOmp({ pin: { tag: pin.tag, assets } })).rejects.toThrow(
+				/missing asset/,
+			);
+			expect(fetch).not.toHaveBeenCalled();
 			expect(readdirSync(tmpdir()).filter(entry => entry.startsWith("personal release omp "))).toEqual(
 				before,
 			);
@@ -335,27 +338,15 @@ describe("native release provisioning", () => {
 	});
 
 	test("a digest mismatch fails before the downloaded asset can execute and removes scratch", async () => {
-		const pin = await releasePin();
-		const host = process.platform === "win32" ? "windows" : process.platform;
-		const name = `omp-${host}-${process.arch}${process.platform === "win32" ? ".exe" : ""}`;
 		const before = readdirSync(tmpdir()).filter(entry => entry.startsWith("personal release omp "));
-		const fetch = spyOn(globalThis, "fetch")
-			.mockResolvedValueOnce(
-				Response.json({
-					tag_name: pin,
-					assets: [
-						{
-							name,
-							digest: `sha256:${"0".repeat(64)}`,
-							browser_download_url: `https://github.com/can1357/oh-my-pi/releases/download/${pin}/${name}`,
-						},
-					],
-				}),
-			)
-			.mockResolvedValueOnce(new Response("must never execute this unverified asset"));
+		const fetch = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+			new Response("must never execute this unverified asset"),
+		);
 		try {
-			await expect(setupReleaseOmp()).rejects.toThrow(/digest: expected sha256:0+, observed sha256:/);
-			expect(fetch).toHaveBeenCalledTimes(2);
+			await expect(setupReleaseOmp()).rejects.toThrow(
+				/digest: expected sha256:[a-f0-9]+, observed sha256:/,
+			);
+			expect(fetch).toHaveBeenCalledTimes(1);
 			expect(readdirSync(tmpdir()).filter(entry => entry.startsWith("personal release omp "))).toEqual(
 				before,
 			);
@@ -363,4 +354,29 @@ describe("native release provisioning", () => {
 			fetch.mockRestore();
 		}
 	});
+	test.each(["initial", "interrupted"])(
+		"a failed asset stream (%s) removes its binary and every setup profile",
+		async stage => {
+			const before = readdirSync(tmpdir()).filter(entry => entry.startsWith("personal release omp "));
+			const body = new ReadableStream<Uint8Array>({
+				start(controller) {
+					if (stage === "initial") controller.error(new Error("partial asset failed"));
+					else controller.enqueue(new TextEncoder().encode("partial binary"));
+				},
+				pull(controller) {
+					controller.error(new Error("partial asset failed"));
+				},
+			});
+			const fetch = spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(body));
+			try {
+				await expect(setupReleaseOmp()).rejects.toThrow("partial asset failed");
+				expect(fetch).toHaveBeenCalledTimes(1);
+				expect(
+					readdirSync(tmpdir()).filter(entry => entry.startsWith("personal release omp ")),
+				).toEqual(before);
+			} finally {
+				fetch.mockRestore();
+			}
+		},
+	);
 });

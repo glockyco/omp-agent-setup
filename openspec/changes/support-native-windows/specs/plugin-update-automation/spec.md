@@ -23,7 +23,7 @@ The repository SHALL select one exact native Bun version through `.bun-version` 
 
 ### Requirement: Explicit dependency ownership
 
-Renovate SHALL own JavaScript dependencies, their lock-file maintenance, GitHub Actions, and the repository's native Bun, release-gate OMP, npm OpenSpec, Python setup, and Windows terminal-support pins. The central dependency automation control plane SHALL continue owning retained Nix inputs until the flake is removed in a separately gated change. Renovate's beta Nix manager SHALL remain disabled so one dependency has one updater. The target repository SHALL NOT store the updater App private key or run a competing Nix scheduler.
+Renovate SHALL own JavaScript dependencies, their lock-file maintenance, GitHub Actions, and the repository's native Bun, npm OpenSpec, Python setup, and Windows terminal-support pins. The repository maintainer SHALL own the selected OMP tag and all six reviewed platform digests through one explicit pin-update command; automatic tag-only OMP updates SHALL be disabled. The central dependency automation control plane SHALL continue owning retained Nix inputs until the flake is removed in a separately gated change. Renovate's beta Nix manager SHALL remain disabled so one dependency has one updater. The target repository SHALL NOT store the updater App private key or run a competing Nix scheduler.
 
 #### Scenario: Inspect update configuration
 
@@ -33,9 +33,16 @@ Renovate SHALL own JavaScript dependencies, their lock-file maintenance, GitHub 
 
 #### Scenario: Native release-tool pin changes
 
-- **WHEN** Renovate finds a newer OMP release tag or npm OpenSpec version
+- **WHEN** Renovate finds a newer npm OpenSpec version
 - **THEN** it proposes a reviewable native-pin update that runs the complete cross-system gates
 - **AND** it neither selects a mutable latest runtime nor publishes or upgrades a host
+
+#### Scenario: Maintainer updates the OMP release pin
+
+- **WHEN** a maintainer requests an explicit newer OMP release tag
+- **THEN** the repository command fetches only that release's fixed SHA256SUMS.txt URL and writes the tag and six required platform digests together after complete validation
+- **AND** missing, malformed or duplicate required checksums and download failures leave the existing pin unchanged
+- **AND** the pin diff requires review and complete cross-system gates without selecting latest, fetching runtime metadata or changing a host
 
 ### Requirement: Review-only flake updates
 

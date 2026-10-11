@@ -21,6 +21,7 @@ import tempfile
 import time
 import unittest
 import threading
+from unittest.mock import patch
 
 if os.name != "nt":
     import pty
@@ -266,8 +267,10 @@ class Terminal:
             # pywinpty's isalive() sets closed before close() can release sockets.
             self.process.fileobj.close()
             self.process._server.close()
-            self.process.pty.cancel_io()
             self.process._thread.join(timeout=10)
+            if self.process._thread.is_alive():
+                self.process.pty.cancel_io()
+                self.process._thread.join(timeout=10)
             if self.process._thread.is_alive():
                 raise AssertionError("ConPTY reader failed to release its terminal")
             del self.process.pty
@@ -303,9 +306,9 @@ class Profile:
 
     def _prepare(self):
         self.home = self.root / "home"
-        self.work = self.root / "work"
+        self.work = self.home / "work"
         self.bin = self.root / "bin"
-        self.release = self.root / "release"
+        self.release = self.home / "release"
         self.temp = self.root / "temp"
         self.bun = shutil.which("bun")
         if not self.bun:
@@ -386,6 +389,8 @@ class Profile:
         manifest_path.write_text(json.dumps(manifest, indent="\t") + "\n")
 
     def install(self):
+        if self.installed():
+            raise AssertionError("disposable profile must have an empty plugin list before installation")
         self.omp("plugin", "marketplace", "add", str(self.release))
         self.omp("plugin", "install", "--scope", "user", PLUGIN_ID)
 
@@ -395,11 +400,16 @@ class Profile:
 
     def installed(self):
         listing = json.loads(self.omp("plugin", "list", "--json").stdout)
-        return [
+        installed = [
             (entry, plugin["id"])
             for plugin in listing.get("marketplace", [])
             for entry in plugin.get("entries", [])
         ]
+        for entry, identifier in installed:
+            path = Path(entry["installPath"]).resolve()
+            if not path.is_relative_to(self.root.resolve()):
+                raise AssertionError(f"foreign plugin path discovered for {identifier}: {path}")
+        return installed
 
     def probe_path(self, name):
         return self.bin / (name + (".exe" if os.name == "nt" else ""))
@@ -615,6 +625,27 @@ class InstalledRelease(unittest.TestCase):
         path = self.install_path()
         cache = self.profile.home / ".omp" / "plugins" / "cache"
         self.assertTrue(path.is_relative_to(cache), path)
+
+    def test_scratch_beneath_a_configured_ancestor_does_not_discover_its_plugins(self):
+        with tempfile.TemporaryDirectory(prefix="configured release ancestor ") as directory:
+            ancestor = Path(directory)
+            registry = ancestor / ".omp" / "plugins" / "installed_plugins.json"
+            registry.parent.mkdir(parents=True)
+            shutil.copyfile(self.profile.home / ".omp" / "plugins" / "installed_plugins.json", registry)
+            root = ancestor / "nested scratch"
+            root.mkdir()
+            with patch.object(tempfile, "mkdtemp", return_value=str(root)):
+                profile = Profile()
+            try:
+                self.assertTrue(profile.work.is_relative_to(profile.home))
+                self.assertTrue(profile.release.is_relative_to(profile.home))
+                self.assertEqual(profile.installed(), [])
+                profile.install()
+                [(entry, identifier)] = profile.installed()
+                self.assertEqual(identifier, PLUGIN_ID)
+                self.assertTrue(Path(entry["installPath"]).resolve().is_relative_to(root.resolve()))
+            finally:
+                profile.close()
 
     def test_cache_holds_the_complete_payload(self):
         path = self.install_path()

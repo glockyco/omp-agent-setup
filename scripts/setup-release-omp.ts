@@ -1,12 +1,9 @@
 import { createHash } from "node:crypto";
-import { createWriteStream } from "node:fs";
-import { appendFile, chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, chmod, mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
-import { Readable, Transform } from "node:stream";
-import { pipeline } from "node:stream/promises";
+import { isAbsolute, join } from "node:path";
+import { type OmpAsset, readPin, validatePin } from "./omp-pin.ts";
 
-const repository = resolve(import.meta.dir, "..");
 const marker = ".personal-release-omp";
 const providerPrefixes = [
 	"PI_",
@@ -26,9 +23,12 @@ const providerPrefixes = [
 ];
 
 /** Both setup and version probes stay outside host/Tern state. */
-export async function isolatedEnvironment(root: string): Promise<Record<string, string>> {
+export async function isolatedEnvironment(
+	root: string,
+	source: NodeJS.ProcessEnv = process.env,
+): Promise<Record<string, string>> {
 	const env: Record<string, string> = {};
-	for (const [key, value] of Object.entries(process.env)) {
+	for (const [key, value] of Object.entries(source)) {
 		if (
 			value !== undefined &&
 			!providerPrefixes.some(prefix => key.toUpperCase().startsWith(prefix)) &&
@@ -70,17 +70,20 @@ export async function isolatedEnvironment(root: string): Promise<Record<string, 
 	return { ...env, ...paths, PI_SKIP_VERSION_CHECK: "1" };
 }
 
-export async function releasePin(): Promise<string> {
-	const pin = (await readFile(join(repository, ".omp-version"), "utf8")).trim();
-	if (!/^v\d+\.\d+\.\d+$/.test(pin)) throw new Error(`invalid OMP release pin: ${pin}`);
-	return pin;
-}
-
-export async function checkOmpVersion(binary: string, env: Record<string, string>): Promise<void> {
+export async function checkOmpVersion(
+	binary: string,
+	env: Record<string, string>,
+	expectedTag?: string,
+): Promise<void> {
 	if (!isAbsolute(binary))
 		throw new Error("OMP_BIN must be an absolute pinned official binary path");
-	const expected = (await releasePin()).slice(1);
-	const child = Bun.spawn([binary, "--version"], { env, stdout: "pipe", stderr: "pipe" });
+	const expected = (expectedTag ?? (await readPin()).tag).slice(1);
+	const child = Bun.spawn([binary, "--version"], {
+		cwd: env.HOME,
+		env,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
 	const timer = setTimeout(() => child.kill(), 30_000);
 	try {
 		const [stdout, stderr, code] = await Promise.all([
@@ -109,61 +112,59 @@ export async function cleanupReleaseOmp(root: string): Promise<void> {
 }
 
 /** Download only the selected official release asset; no installer or host PATH writes. */
-export async function setupReleaseOmp(): Promise<{ root: string; binary: string }> {
-	const root = await mkdtemp(join(tmpdir(), "personal release omp "));
+export async function setupReleaseOmp(
+	options: {
+		pin?: unknown;
+		env?: NodeJS.ProcessEnv;
+		scratchDirectory?: string;
+		request?: (url: string, init?: RequestInit) => Promise<Response>;
+	} = {},
+): Promise<{ root: string; binary: string }> {
+	const source = { ...(options.env ?? process.env) };
+	const temporary = options.scratchDirectory ?? tmpdir();
+	const request = options.request ?? fetch;
+	const pin = options.pin === undefined ? await readPin() : validatePin(options.pin);
+	const root = await mkdtemp(join(temporary, "personal release omp "));
 	try {
 		await writeFile(join(root, marker), "personal release OMP scratch\n");
-		const env = await isolatedEnvironment(root);
-		const pin = await releasePin();
+		const env = await isolatedEnvironment(root, source);
 		if (
 			!["win32", "linux", "darwin"].includes(process.platform) ||
 			!["x64", "arm64"].includes(process.arch)
 		)
 			throw new Error(`unsupported OMP release host: ${process.platform}/${process.arch}`);
 		const host = process.platform === "win32" ? "windows" : process.platform;
-		const name = `omp-${host}-${process.arch}${process.platform === "win32" ? ".exe" : ""}`;
-		const headers = {
-			Accept: "application/vnd.github+json",
-			"User-Agent": "personal-omp-release-gate",
-		};
-		const metadata = await fetch(
-			`https://api.github.com/repos/can1357/oh-my-pi/releases/tags/${pin}`,
-			{ headers, signal: AbortSignal.timeout(60_000) },
-		);
-		if (!metadata.ok) throw new Error(`OMP release metadata failed: HTTP ${metadata.status}`);
-		const release = (await metadata.json()) as {
-			tag_name: string;
-			assets: Array<{ name: string; digest: string; browser_download_url: string }>;
-		};
-		const assets = release.assets.filter(asset => asset.name === name);
-		const asset = assets[0];
-		if (release.tag_name !== pin || assets.length !== 1 || !asset)
-			throw new Error(`OMP ${pin} must publish exactly one ${name}`);
-		if (!/^sha256:[a-f0-9]{64}$/.test(asset.digest))
-			throw new Error(`OMP asset ${name} has no published SHA-256 digest`);
-		const url = `https://github.com/can1357/oh-my-pi/releases/download/${pin}/${name}`;
-		if (asset.browser_download_url !== url)
-			throw new Error(`unexpected OMP asset URL: ${asset.browser_download_url}`);
-		const download = await fetch(url, { signal: AbortSignal.timeout(900_000) });
+		const name =
+			`omp-${host}-${process.arch}${process.platform === "win32" ? ".exe" : ""}` as OmpAsset;
+		const expectedDigest = pin.assets[name];
+		const url = `https://github.com/can1357/oh-my-pi/releases/download/${pin.tag}/${name}`;
+		const download = await request(url, {
+			credentials: "omit",
+			signal: AbortSignal.timeout(900_000),
+		});
 		if (!download.ok || !download.body)
 			throw new Error(`OMP asset download failed: HTTP ${download.status}`);
 		const binary = join(root, process.platform === "win32" ? "omp.exe" : "omp");
 		const hash = createHash("sha256");
-		await pipeline(
-			Readable.fromWeb(download.body),
-			new Transform({
-				transform(chunk, _encoding, callback) {
-					hash.update(chunk);
-					callback(null, chunk);
-				},
-			}),
-			createWriteStream(binary, { mode: 0o600 }),
-		);
+		const file = await open(binary, "wx", 0o600);
+		try {
+			for await (const chunk of download.body) {
+				hash.update(chunk);
+				let offset = 0;
+				while (offset < chunk.byteLength) {
+					const { bytesWritten } = await file.write(chunk, offset, chunk.byteLength - offset);
+					if (bytesWritten === 0) throw new Error("OMP asset write made no progress");
+					offset += bytesWritten;
+				}
+			}
+		} finally {
+			await file.close();
+		}
 		const observed = `sha256:${hash.digest("hex")}`;
-		if (observed !== asset.digest)
-			throw new Error(`OMP ${name} digest: expected ${asset.digest}, observed ${observed}`);
+		if (observed !== expectedDigest)
+			throw new Error(`OMP ${name} digest: expected ${expectedDigest}, observed ${observed}`);
 		if (process.platform !== "win32") await chmod(binary, 0o700);
-		await checkOmpVersion(binary, env);
+		await checkOmpVersion(binary, env, pin.tag);
 		return { root, binary };
 	} catch (error) {
 		await rm(root, { recursive: true, force: true });
