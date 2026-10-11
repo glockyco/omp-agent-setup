@@ -18,7 +18,7 @@
 - [x] 3.2 Cancelled by the approved stock-CLI contract: annotation-only client-lease and disconnect-grace acceptance. The completed patched-browser experiment remains historical evidence below.
 - [x] 3.3 Record the reviewed plugin revision and parent integration evidence after verification; do not publish, activate, synchronize specs, or archive without the required authorization and completed acceptance.
 
-- [ ] 3.4 Record parent evidence for the stock on-demand package, browser annotation, explicit cancellation after tab closure, and navigation/shutdown cleanup. Keep native-platform release gates open until exercised.
+- [x] 3.4 Record parent evidence for the stock on-demand package, browser annotation, explicit cancellation after tab closure, and navigation/shutdown cleanup. Keep native-platform release gates open until exercised.
 
 ## Historical verification evidence
 
@@ -43,3 +43,5 @@ The existing adapter invokes annotation-only JSON mode and already cancels on `/
 The workstation retains its on-demand, commit-pinned vendor package. Stock-package/browser acceptance and the unrun native release gates remain required. This revision ran no validation, build, test, or native browser checks. Historical evidence does not complete task 3.4.
 
 Subsequent parent verification used stock Plannotator 0.27.12 and the unchanged published adapter in a fresh wrapped OMP session through Herdr. Document and last-response feedback passed in managed Linux Chromium. Explicit cancellation after tab closure removed the listener, and source bytes stayed unchanged. The parent evidence file records package paths and cleanup. Strict validation of this companion change passed. These observations do not complete unrun native-platform or navigation/shutdown runtime gates.
+
+Navigation and shutdown cleanup, 2026-10-11: in a fresh OMP 18.8.0 session in Korolev's NixOS-WSL (Tern pane), with stock Plannotator 0.27.12 from the workstation package and the published adapter, `/plannotator-annotate notes with spaces.md` started `plannotator annotate <snapshot> --json` with a `127.0.0.1` listener and a private snapshot directory. `/new` removed the process, the listener and the snapshot directory. A second pending review was likewise removed when `/exit` ended the session. The source file's SHA-256 was unchanged before and after. The owner separately confirmed that browser annotation keeps working in WSL. Native Windows and macOS gates stay open; they belong to `support-native-windows` and the parent workstation changes.
