@@ -1,10 +1,11 @@
 import { isUtf8 } from "node:buffer";
-import { spawn } from "node:child_process";
+import { type ChildProcessByStdio, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
+import type { Readable } from "node:stream";
 import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent";
 
 const STATUS_KEY = "plannotator";
@@ -65,23 +66,170 @@ interface AnnotationChild {
 	stop(): Promise<void>;
 }
 
+interface ProcessIdentity {
+	pid: number;
+	parentPid: number;
+	created: string;
+}
+
+export interface AnnotationBoundary {
+	platform: NodeJS.Platform;
+	environment(): NodeJS.ProcessEnv;
+	spawn: (
+		command: string,
+		args: string[],
+		options: {
+			cwd?: string;
+			env?: NodeJS.ProcessEnv;
+			detached: boolean;
+			windowsHide: boolean;
+			stdio: ["ignore", "pipe", "pipe"];
+		},
+	) => ChildProcessByStdio<null, Readable, Readable>;
+	kill(pid: number, signal: NodeJS.Signals): void;
+	sleep(milliseconds: number): Promise<void>;
+	processes(): Promise<ProcessIdentity[]>;
+	taskkill(pid: number, force: boolean): Promise<{ code: number | null; output: string }>;
+	readDocument(path: string): Promise<Uint8Array>;
+	resolveLocal(
+		target: string,
+		cwd: string,
+		artifactsDir: string | null,
+		sessionId: string | null,
+	): Promise<string | null>;
+}
+
+async function utility(
+	command: string,
+	args: string[],
+): Promise<{ code: number | null; output: string }> {
+	const child = spawn(command, args, {
+		windowsHide: true,
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+	let output = "";
+	for (const stream of [child.stdout, child.stderr]) {
+		stream.setEncoding("utf8");
+		stream.on("data", (chunk: string) => {
+			output += chunk;
+		});
+	}
+	const {
+		promise,
+		resolve: resolveUtility,
+		reject,
+	} = Promise.withResolvers<{ code: number | null; output: string }>();
+	child.once("error", reject);
+	child.once("close", code => resolveUtility({ code, output }));
+	return promise;
+}
+
+async function windowsProcesses(): Promise<ProcessIdentity[]> {
+	const system = process.env.SystemRoot ?? "C:\\Windows";
+	const result = await utility(
+		join(system, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+		[
+			"-NoProfile",
+			"-NonInteractive",
+			"-Command",
+			"$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; @(Get-CimInstance Win32_Process | Select-Object @{n='pid';e={$_.ProcessId}},@{n='parentPid';e={$_.ParentProcessId}},@{n='created';e={$_.CreationDate.ToUniversalTime().ToString('o')}}) | ConvertTo-Json -Compress",
+		],
+	);
+	if (result.code !== 0)
+		throw new Error(`Windows process inspection failed: ${result.output.trim()}`);
+	const identities: unknown = JSON.parse(result.output.replace(/^\uFEFF/u, ""));
+	if (
+		!Array.isArray(identities) ||
+		identities.some(
+			item =>
+				!item ||
+				!Number.isInteger(item.pid) ||
+				!Number.isInteger(item.parentPid) ||
+				typeof item.created !== "string",
+		)
+	)
+		throw new Error("Windows process inspection returned invalid identities.");
+	return identities;
+}
+
+function defaultBoundary(): AnnotationBoundary {
+	return {
+		platform: process.platform,
+		environment: () => process.env,
+		spawn,
+		kill: (pid, signal) => process.kill(pid, signal),
+		sleep: milliseconds => {
+			const { promise, resolve: resolveSleep } = Promise.withResolvers<void>();
+			setTimeout(resolveSleep, milliseconds);
+			return promise;
+		},
+		processes: windowsProcesses,
+		taskkill: (pid, force) =>
+			utility(join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe"), [
+				"/PID",
+				String(pid),
+				"/T",
+				...(force ? ["/F"] : []),
+			]),
+		readDocument: readDocumentBytes,
+		resolveLocal: async (target, cwd, artifactsDir, sessionId) => {
+			// This host-only module is absent during standalone payload discovery.
+			const { resolveLocalUrlToFile } = await import(
+				"@oh-my-pi/pi-coding-agent/internal-urls/local-protocol"
+			);
+			const file = await resolveLocalUrlToFile(target, {
+				cwd,
+				localProtocolOptions: {
+					getArtifactsDir: () => artifactsDir,
+					getSessionId: () => sessionId,
+				},
+			});
+			return file?.path ?? null;
+		},
+	};
+}
+
+function ownedTree(root: ProcessIdentity, processes: ProcessIdentity[]): ProcessIdentity[] {
+	const owned = [root];
+	for (let index = 0; index < owned.length; index++) {
+		const parent = owned[index];
+		if (!parent) continue;
+		for (const candidate of processes) {
+			if (
+				candidate.parentPid === parent.pid &&
+				candidate.created >= parent.created &&
+				!owned.some(identity => identity.pid === candidate.pid)
+			)
+				owned.push(candidate);
+		}
+	}
+	return owned;
+}
+
+function surviving(owned: ProcessIdentity[], processes: ProcessIdentity[]): ProcessIdentity[] {
+	return owned.filter(identity =>
+		processes.some(current => current.pid === identity.pid && current.created === identity.created),
+	);
+}
+
 function hash(bytes: Uint8Array): string {
 	return createHash("sha256").update(bytes).digest("hex");
 }
 
-function localEnvironment(ctx: ExtensionContext): NodeJS.ProcessEnv {
-	if (ctx.mode !== "tui" || !ctx.hasUI || process.platform === "win32") {
-		throw new Error("Plannotator requires a local interactive OMP session on Linux or macOS.");
+function localEnvironment(ctx: ExtensionContext, boundary: AnnotationBoundary): NodeJS.ProcessEnv {
+	if (ctx.mode !== "tui" || !ctx.hasUI) {
+		throw new Error("Plannotator requires a local interactive OMP session.");
 	}
+	const inherited = boundary.environment();
 	if (
-		process.env.SSH_CONNECTION ||
-		process.env.SSH_CLIENT ||
-		process.env.SSH_TTY ||
-		/^(1|true)$/iu.test(process.env.PLANNOTATOR_REMOTE ?? "")
+		inherited.SSH_CONNECTION ||
+		inherited.SSH_CLIENT ||
+		inherited.SSH_TTY ||
+		/^(1|true)$/iu.test(inherited.PLANNOTATOR_REMOTE ?? "")
 	) {
 		throw new Error("Plannotator annotation is unavailable in remote sessions.");
 	}
-	const env = { ...process.env };
+	const env = { ...inherited };
 	for (const key of Object.keys(env)) {
 		if (key.startsWith("PLANNOTATOR_") && key !== "PLANNOTATOR_DATA_DIR") delete env[key];
 	}
@@ -106,7 +254,11 @@ async function readDocumentBytes(path: string): Promise<Uint8Array> {
 	}
 }
 
-async function documentSnapshot(target: string, ctx: ExtensionContext): Promise<Snapshot> {
+async function documentSnapshot(
+	target: string,
+	ctx: ExtensionContext,
+	boundary: AnnotationBoundary,
+): Promise<Snapshot> {
 	let path: string;
 	if (target.startsWith("local://")) {
 		const options = ctx.localProtocolOptions;
@@ -114,31 +266,22 @@ async function documentSnapshot(target: string, ctx: ExtensionContext): Promise<
 		const artifactsDir = options.getArtifactsDir?.() ?? null;
 		const sessionId = options.getSessionId?.() ?? null;
 		if (!artifactsDir && !sessionId) throw new Error("This session has no native local:// identity.");
-		// This host-only module is absent during standalone payload discovery.
-		const { resolveLocalUrlToFile } = await import(
-			"@oh-my-pi/pi-coding-agent/internal-urls/local-protocol"
-		);
-		const file = await resolveLocalUrlToFile(target, {
-			cwd: ctx.cwd,
-			localProtocolOptions: {
-				getArtifactsDir: () => artifactsDir,
-				getSessionId: () => sessionId,
-			},
-		});
+		const file = await boundary.resolveLocal(target, ctx.cwd, artifactsDir, sessionId);
 		if (!file) throw new Error("The local:// target is not a document in this session.");
-		path = file.path;
+		path = file;
 	} else {
-		if (/^[a-z][a-z\d+.-]*:/iu.test(target)) {
+		const nativeWindowsPath = /^(?:[a-z]:[\\/]|\\\\[^\\]+\\[^\\]+(?:\\|$))/iu.test(target);
+		if (!nativeWindowsPath && /^[a-z][a-z\d+.-]*:/iu.test(target)) {
 			throw new Error("Unsupported target scheme. Use a filesystem path or local:// document.");
 		}
-		path = resolve(ctx.cwd, target);
+		path = nativeWindowsPath ? target : resolve(ctx.cwd, target);
 	}
 	if (UNSUPPORTED_EXTENSIONS[extname(path).toLowerCase()]) {
 		throw new Error(
 			"Unsupported document. Use a UTF-8 text or Markdown file, not HTML or binary data.",
 		);
 	}
-	const bytes = await readDocumentBytes(path);
+	const bytes = await boundary.readDocument(path);
 	if (!isUtf8(bytes)) throw new Error("The document is not valid UTF-8 text.");
 	if (bytes.some(byte => byte < 9 || (byte > 13 && byte < 32))) {
 		throw new Error("The document contains binary control characters.");
@@ -170,13 +313,24 @@ function responseSnapshot(ctx: ExtensionContext): Snapshot {
 	throw new Error("No completed visible assistant response is available on this branch.");
 }
 
-function startChild(snapshot: string, cwd: string, env: NodeJS.ProcessEnv): AnnotationChild {
-	const child = spawn("plannotator", ["annotate", snapshot, "--json"], {
+function startChild(
+	snapshot: string,
+	cwd: string,
+	env: NodeJS.ProcessEnv,
+	boundary: AnnotationBoundary,
+): AnnotationChild {
+	const child = boundary.spawn("plannotator", ["annotate", snapshot, "--json"], {
 		cwd,
 		env,
-		detached: true,
+		detached: boundary.platform !== "win32",
+		windowsHide: boundary.platform === "win32",
 		stdio: ["ignore", "pipe", "pipe"],
 	});
+	// Capture creation identity while the root is alive, including fast successful exits.
+	const initialProcesses =
+		boundary.platform === "win32" && child.pid ? boundary.processes() : Promise.resolve([]);
+	// Observation failure is surfaced by stop(), not as an unhandled rejection.
+	void initialProcesses.catch(() => {});
 	let stdout = "";
 	let stderr = "";
 	child.stdout.setEncoding("utf8");
@@ -188,27 +342,31 @@ function startChild(snapshot: string, cwd: string, env: NodeJS.ProcessEnv): Anno
 		stderr += chunk;
 	});
 	let closed = false;
-	const result = new Promise<{ code: number | null; stdout: string; stderr: string }>(
-		(resolveResult, reject) => {
-			child.once("error", error => {
-				if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-					reject(
-						new Error(
-							"Plannotator is not available. Use the managed OMP wrapper with its declared Plannotator package.",
-						),
-					);
-				} else reject(error);
-			});
-			child.once("close", code => {
-				closed = true;
-				resolveResult({ code, stdout, stderr });
-			});
-		},
-	);
+	const completion = Promise.withResolvers<{
+		code: number | null;
+		stdout: string;
+		stderr: string;
+	}>();
+	const closure = Promise.withResolvers<void>();
+	const result = completion.promise;
+	child.once("error", error => {
+		completion.reject(
+			(error as NodeJS.ErrnoException).code === "ENOENT"
+				? new Error(
+						"Plannotator is not available. The host must supply the native Plannotator executable on PATH.",
+					)
+				: error,
+		);
+	});
+	child.once("close", code => {
+		closed = true;
+		completion.resolve({ code, stdout, stderr });
+		closure.resolve();
+	});
 	function signalGroup(signal: NodeJS.Signals): boolean {
 		if (!child.pid) return false;
 		try {
-			process.kill(-child.pid, signal);
+			boundary.kill(-child.pid, signal);
 			return true;
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
@@ -218,16 +376,63 @@ function startChild(snapshot: string, cwd: string, env: NodeJS.ProcessEnv): Anno
 	let stopping: Promise<void> | undefined;
 	function stop(): Promise<void> {
 		stopping ??= (async () => {
-			if (!signalGroup("SIGTERM")) return;
-			await new Promise<void>(resolveStop => {
-				const timer = setTimeout(resolveStop, 1000);
-				if (!closed)
-					child.once("close", () => {
-						clearTimeout(timer);
-						resolveStop();
-					});
-			});
-			signalGroup("SIGKILL");
+			if (boundary.platform === "win32" && child.pid) {
+				const initial = await initialProcesses;
+				const current = await boundary.processes();
+				const root = initial.find(identity => identity.pid === child.pid);
+				if (!root) {
+					if (current.some(identity => identity.pid === child.pid || identity.parentPid === child.pid))
+						throw new Error("Cannot establish the owned Windows process creation identity.");
+				} else {
+					// Never discover new descendants below a PID now owned by another root.
+					const observedRoot = current.find(identity => identity.pid === root.pid);
+					const owned = ownedTree(
+						root,
+						observedRoot && observedRoot.created !== root.created ? initial : [...initial, ...current],
+					);
+					let live = surviving(owned, current);
+					if (live.some(identity => identity.pid === root.pid)) {
+						const request = await boundary.taskkill(root.pid, false);
+						if (request.code !== 0) {
+							const reasons = [...request.output.matchAll(/Reason:\s*([^\r\n]+)/giu)].map(
+								match => match[1] ?? "",
+							);
+							const expectedReasons = reasons.length ? reasons : [request.output];
+							const expected =
+								expectedReasons.every(reason =>
+									/can only be terminated forcefully|child processes of this process were still running/iu.test(
+										reason,
+									),
+								) && !/denied/iu.test(request.output);
+							if (!expected) {
+								const remaining = surviving(owned, await boundary.processes());
+								if (remaining.length || !/not found|no running instance/iu.test(request.output))
+									throw new Error(`Windows termination failed: ${request.output.trim()}`);
+							}
+						}
+					}
+					if (live.length) await boundary.sleep(1000);
+					live = surviving(owned, await boundary.processes());
+					for (const identity of live) {
+						// Re-query each target: a preceding /T may already have stopped it.
+						if (!surviving([identity], await boundary.processes()).length) continue;
+						const forced = await boundary.taskkill(identity.pid, true);
+						if (forced.code !== 0) {
+							const remaining = surviving([identity], await boundary.processes());
+							if (remaining.length || !/not found|no running instance/iu.test(forced.output))
+								throw new Error(`Windows force termination failed: ${forced.output.trim()}`);
+						}
+					}
+					if (surviving(owned, await boundary.processes()).length)
+						throw new Error("Owned Windows processes survived force termination.");
+				}
+			} else if (boundary.platform !== "win32" && signalGroup("SIGTERM")) {
+				// Root close is not group close: descendants receive the full grace.
+				await boundary.sleep(1000);
+				signalGroup("SIGKILL");
+			}
+			// Child close includes stdout/stderr closure; do not remove a live snapshot.
+			if (!closed) await closure.promise;
 		})();
 		return stopping;
 	}
@@ -295,7 +500,11 @@ async function feedbackEnvelope(
 	].join("\n");
 }
 
-export default function plannotator(pi: ExtensionAPI): void {
+export default function plannotator(
+	pi: ExtensionAPI,
+	injected: Partial<AnnotationBoundary> = {},
+): void {
+	const boundary = { ...defaultBoundary(), ...injected };
 	const reviews = new Map<string, Review>();
 
 	async function run(
@@ -307,13 +516,13 @@ export default function plannotator(pi: ExtensionAPI): void {
 		let directory: string | undefined;
 		try {
 			const snapshot =
-				target === undefined ? responseSnapshot(ctx) : await documentSnapshot(target, ctx);
+				target === undefined ? responseSnapshot(ctx) : await documentSnapshot(target, ctx, boundary);
 			if (!stillOwned(review, ctx)) return;
 			directory = await mkdtemp(join(tmpdir(), "omp-plannotator-"));
 			const path = join(directory, "snapshot.md");
 			await writeFile(path, snapshot.bytes, { mode: 0o600, flag: "wx" });
 			if (!stillOwned(review, ctx)) return;
-			review.child = startChild(path, ctx.cwd, env);
+			review.child = startChild(path, ctx.cwd, env, boundary);
 			ctx.ui.setStatus(STATUS_KEY, `Reviewing ${review.label} · /plannotator-cancel`);
 			const result = await review.child.result;
 			if (!stillOwned(review, ctx)) return;
@@ -347,11 +556,8 @@ export default function plannotator(pi: ExtensionAPI): void {
 		} finally {
 			review.settled = true;
 			try {
-				try {
-					await review.child?.stop();
-				} finally {
-					if (directory) await rm(directory, { recursive: true, force: true });
-				}
+				await review.child?.stop();
+				if (directory) await rm(directory, { recursive: true, force: true });
 			} catch (error) {
 				ctx.ui.notify(
 					`Plannotator cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -377,7 +583,7 @@ export default function plannotator(pi: ExtensionAPI): void {
 			return;
 		}
 		try {
-			const env = localEnvironment(ctx);
+			const env = localEnvironment(ctx, boundary);
 			const review: Review = {
 				sessionId,
 				anchor: ctx.sessionManager.getLeafId(),
@@ -401,9 +607,16 @@ export default function plannotator(pi: ExtensionAPI): void {
 			return;
 		}
 		review.cancelled = true;
-		await review.child?.stop();
-		await review.done;
-		if (explicit) ctx.ui.notify("Plannotator review cancelled.", "info");
+		try {
+			await review.child?.stop();
+			await review.done;
+			if (explicit) ctx.ui.notify("Plannotator review cancelled.", "info");
+		} catch (error) {
+			ctx.ui.notify(
+				`Plannotator cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
+				"error",
+			);
+		}
 	}
 
 	pi.registerCommand("plannotator-annotate", {

@@ -3,22 +3,20 @@ pre-commit:
   commands:
     biome:
       glob: "*.{ts,js,json,md}"
-      run: nix develop --command bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      run: bunx --no-install biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
     typecheck:
       glob: "*.ts"
-      run: nix develop --command bunx tsc --noEmit
+      run: bunx --no-install tsc --noEmit
 
 pre-push:
   commands:
     lockfile:
-      run: nix develop --command bun install --frozen-lockfile
+      run: bun scripts/hooks.ts bun install --frozen-lockfile
     ci:
-      run: |
-        unset $(git rev-parse --local-env-vars)
-        nix develop --command bun run ci
+      run: bun scripts/hooks.ts bun run ci
 
 commit-msg:
   commands:
     commitlint:
-      run: nix develop --command bunx commitlint --edit {1}
+      run: bunx --no-install commitlint --edit "{1}"

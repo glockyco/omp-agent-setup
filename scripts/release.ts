@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /** The marketplace, plugin and payload identity that every host installs. */
@@ -103,7 +103,7 @@ function walk(root: string, relative = ""): string[] {
  * declared capabilities and the development boundary. Each finding names the
  * lost capability or file, so a failure says what users would lose.
  */
-export function validateReleaseTree(root: string): string[] {
+export function validateReleaseTree(root: string, platform = process.platform): string[] {
 	const findings: string[] = [];
 	let catalog: Catalog;
 	try {
@@ -157,8 +157,16 @@ export function validateReleaseTree(root: string): string[] {
 		if (!existsSync(join(payload, asset))) findings.push(`skill asset missing: ${asset}`);
 	}
 	const helper = join(payload, SKILL_ASSETS[0] as string);
-	if (existsSync(helper) && (statSync(helper).mode & 0o111) === 0) {
-		findings.push(`skill asset is not executable: ${SKILL_ASSETS[0]}`);
+	if (existsSync(helper)) {
+		try {
+			accessSync(helper, constants.R_OK);
+			if (!statSync(helper).isFile()) throw new Error("not a regular file");
+		} catch (error) {
+			findings.push(`skill asset is not readable: ${SKILL_ASSETS[0]} (${reason(error)})`);
+		}
+		if (platform !== "win32" && (statSync(helper).mode & 0o111) === 0) {
+			findings.push(`skill asset is not executable: ${SKILL_ASSETS[0]}`);
+		}
 	}
 	for (const rule of RULES) {
 		if (!existsSync(join(payload, rule))) findings.push(`rule missing: ${rule}`);

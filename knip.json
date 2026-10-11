@@ -1,7 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["plugin/extensions/*.ts", "tests/*.test.ts", "scripts/*.ts"],
+  "entry": ["plugin/extensions/*.ts", "tests/*.test.ts", "tests/fixtures/*.ts", "scripts/*.ts"],
   "project": ["plugin/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "types/**/*.d.ts"],
-  "ignoreDependencies": ["@oh-my-pi/pi-coding-agent", "@commitlint/cli"],
-  "ignoreBinaries": ["plannotator"]
+  "ignoreDependencies": ["@oh-my-pi/pi-coding-agent", "@fission-ai/openspec"]
 }

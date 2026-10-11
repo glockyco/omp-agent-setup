@@ -1,0 +1,67 @@
+name: OpenSpec
+
+on:
+  workflow_call:
+    inputs:
+      openspec-root:
+        description: Repository-relative directory containing openspec/
+        required: false
+        type: string
+        default: .
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Install centrally pinned CLI in scratch
+        env:
+          CI: '1'
+          OPENSPEC_TELEMETRY: '0'
+        run: npm install --prefix "$RUNNER_TEMP/openspec-cli" --no-audit --no-fund --ignore-scripts --save-exact @fission-ai/openspec@1.14.0
+      - name: Validate active and archived artifacts
+        env:
+          OPENSPEC_ROOT: ${{ inputs.openspec-root }}
+          OPENSPEC_CLI: ${{ runner.temp }}/openspec-cli/node_modules/@fission-ai/openspec/bin/openspec.js
+          CI: '1'
+          OPENSPEC_TELEMETRY: '0'
+        shell: bash
+        run: |
+          node --input-type=module <<'OPENSPEC_GATE'
+          import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+          import { tmpdir } from 'node:os';
+          import { isAbsolute, join, relative, resolve, sep, win32 } from 'node:path';
+          import { spawnSync } from 'node:child_process';
+          const input = process.env.OPENSPEC_ROOT ?? '.';
+          const checkout = realpathSync(process.env.GITHUB_WORKSPACE);
+          if (isAbsolute(input) || win32.isAbsolute(input)) throw new Error('OpenSpec root must be repository-relative.');
+          const root = realpathSync(resolve(checkout, input));
+          const within = path => { const rel = relative(checkout, path); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
+          if (!within(root)) throw new Error('OpenSpec root escapes the checkout.');
+          if (!existsSync(join(root, 'openspec'))) throw new Error('OpenSpec root contains no openspec/ directory.');
+          const artifacts = realpathSync(join(root, 'openspec'));
+          if (!within(artifacts)) throw new Error('OpenSpec artifacts escape the checkout.');
+          const scratch = mkdtempSync(join(tmpdir(), 'fleet-openspec-artifacts-'));
+          try {
+            cpSync(artifacts, join(scratch, 'openspec'), { recursive: true });
+            const run = args => {
+              const result = spawnSync(process.execPath, [process.env.OPENSPEC_CLI, ...args], { cwd: scratch, env: { ...process.env, CI: '1', OPENSPEC_TELEMETRY: '0' }, encoding: 'utf8' });
+              if (result.error) throw result.error;
+              if (result.status !== 0) throw new Error(`OpenSpec ${args.join(' ')} failed (${result.status}):\n${result.stdout}${result.stderr}`);
+              return result.stdout;
+            };
+            if (!run(['validate', '--help']).includes('--archived')) throw new Error('OpenSpec CLI lacks validate --archived; cannot verify archived task completion.');
+            const active = run(['validate', '--all', '--strict', '--no-interactive']);
+            if (active.trim() === 'No items found to validate.') throw new Error('OpenSpec root has no artifacts to validate.');
+            console.log(active);
+            console.log(run(['validate', '--archived', '--strict', '--no-interactive']));
+          } finally {
+            rmSync(scratch, { recursive: true, force: true });
+          }
+          OPENSPEC_GATE

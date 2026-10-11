@@ -4,13 +4,17 @@ Source repository for the personal [Oh My Pi](https://github.com/can1357/oh-my-p
 
 ## Setup
 
-Use the pinned shell:
+Use host-owned Git, Bun 1.3.13 (`.bun-version`), Node 24 and Python 3.13. Native Windows uses Git for Windows and does not require Nix or WSL:
 
-```bash
-nix develop --command bun install --frozen-lockfile
+```sh
+bun run check:toolchain
+bun install --frozen-lockfile
+bunx --no-install lefthook install
+python3.13 -m venv .venv
+.venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```
 
-Do not require a globally installed Bun, npm, Python, .NET SDK, or language server.
+In PowerShell, use `py -3.13 -m venv .venv` and `& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt` for the last two commands. Check `$LASTEXITCODE` after native commands. `PYTHON_BIN` can select an explicit interpreter; otherwise launchers use the platform's `.venv` interpreter. Windows-only pywinpty 3.0.5 is development ConPTY tooling. Nothing installs global tools or changes user PATH; .NET SDK and actual language servers are host prerequisites only for relevant runtime capabilities.
 
 ## Source layout
 
@@ -19,7 +23,7 @@ Do not require a globally installed Bun, npm, Python, .NET SDK, or language serv
 - `plugin/package.json`: the OMP extension manifest. Its version must equal the catalog entry's.
 - `plugin/extensions/`: dependency-free runtime extension source.
 - `plugin/skills/` and `plugin/rules/`: personal behavior loaded by OMP.
-- `plugin/commands/` and `plugin/skills/openspec-*/`: the generated OpenSpec workflow. Every repository loads this one copy; the marketplace exposes the commands as `/personal:opsx-*`. Write it only with `nix run .#sync-openspec-adapters`. `biome.json` excludes it because the freshness check reproduces it byte for byte. Do not rename the generated files or add bare-name aliases.
+- `plugin/commands/` and `plugin/skills/openspec-*/`: the generated OpenSpec workflow. Every repository loads this one copy; the marketplace exposes the commands as `/personal:opsx-*`. Write it only with `bun run sync:openspec-adapters`. `biome.json` excludes it because the freshness check reproduces it byte for byte. Do not rename the generated files or add bare-name aliases.
 - `plugin/lsp/lsp.json`: minimal differences from the pinned OMP defaults.
 - `tests/`: Bun and Python behavior tests, the release-tree tests, and `release_gate.py`, the isolated install, discovery, and upgrade gate.
 - `scripts/`: release-tree validation and the release-version check.
@@ -33,23 +37,20 @@ Use OpenSpec for permanent behavior changes. Read `openspec/specs/` before chang
 
 Do not restore `omp-plans`, a global planning hook, or repository-level instructions that call one.
 
-This repository owns the generated OpenSpec workflow for every repository on the workstation. Regenerate it with `nix run .#sync-openspec-adapters`, review the diff, and commit it. Do not run `openspec init` in a consuming repository, and do not track adapters there. A consuming repository keeps its own `openspec/` directory, because specifications and changes are repository content.
+This repository owns the generated OpenSpec workflow for every repository on the workstation. Regenerate with `bun run sync:openspec-adapters`, review and commit the generated diff; `bun run check:openspec-adapters` checks exact bytes and missing/extra adapters without changing the checkout. Both use a disposable root, this repository's config and `openspec init --tools oh-my-pi`. Do not hand-edit/format adapters, run `openspec init` in consuming repositories, or track adapters there. Consumers keep their own `openspec/` artifacts.
 
-It also owns how those artifacts are verified. `lib.openspecCheck` is the one definition of that check, and every repository holding an `openspec/` directory consumes it:
+The portable artifact-validation definition is `.github/workflows/openspec.yml`. Consumers call it at the job level as `glockyco/omp-agent-setup/.github/workflows/openspec.yml@<reviewed full release SHA>`, optionally with repository-relative `openspec-root` (default `.`). They do not select a CLI version, copy its CI implementation, add a consumer CLI dependency or check this repository's adapters. README contains the exact YAML and offline POSIX/PowerShell host-local hook commands, including version parity, archive guard, telemetry disablement and exit propagation. Local hooks may contain that documented host-owned CLI sequence, not a private validator or downloader.
+
+The retained `lib.openspecCheck` remains usable through existing locks:
 
 ```nix
 inputs.fleet.url = "github:glockyco/omp-agent-setup";
 checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
 ```
 
-Do not write the validation commands into a consuming repository, and do not pin the OpenSpec CLI there. Both live here. Nothing detects a repository that gains `openspec/` later and never adopts the check, so list the roots and their adoption when one appears:
+Adoption owners are nix-config's Windows-native/WSL-retirement integration owner and the respective phd-thesis and test-generalization maintainers. Each must record the reviewed full workflow SHA, migration evidence and removal of external adapter-freshness wiring. Flake/input removal and central-target deregistration require all three completed migrations in a later change; do not delete the interface here.
 
-```bash
-for r in ~/src/github.com/glockyco/*/ ~/.config/nix-darwin; do
-  [ -d "$r/openspec" ] && printf '%s %s\n' "$(basename "$r")" \
-    "$(grep -ql openspecCheck "$r/flake.nix" 2>/dev/null && echo consumes || echo UNVERIFIED)"
-done
-```
+`retire-legacy-planning-archive` independently owns disposition/deletion of the 17 historical records. Native setup changes do not broaden that scope. Preserve the writing skill's support assets, upstream MIT license and `add-research-paper-writing-skill` rights record; its archival ownership remains independent.
 
 ## Runtime boundaries
 
@@ -82,31 +83,35 @@ OMP's built-in catalog is the base. Add an override only when a representative s
 
 ## Checks
 
-Run both gates before release:
+Run the complete native gate before release:
 
-```bash
-nix develop --command bun run ci
-nix flake check
+```sh
+bun run ci
 ```
 
-`bun run ci` covers formatting, types, dead code, dependency advisories, the release tree and release-version signal, extension behavior, real Git hooks, and deterministic retrieval fixtures. `nix flake check` runs `tests/release_gate.py` with the locked OMP: real marketplace installation into a disposable profile, a fresh session's commands, skills, rule, tools, and language-server selection, the behavior tests against the installed cache, negative controls, and upgrades. It also checks adapter freshness and OpenSpec contracts. CI repeats both gates on `aarch64-darwin` and `x86_64-linux`.
+It retains formatting, types, dead code, production audit, release tree/version, coverage, extension behavior, real Git hooks and deterministic retrieval checks, and adds the Bun/mirror and OpenSpec generator/workflow parity checks, adapter freshness, strict active/archive artifact validation and installed-release gate. Native CI runs equivalent gates on `ubuntu-latest`, `macos-15`, `windows-latest`, plus the shared OpenSpec context. Required contexts must cover all actors, including administrators and automation; keep force-push/deletion disabled.
 
-Entering the devshell installs the hooks in `lefthook.yml`: formatting and types on commit, commitlint on the message, and the lockfile check plus `bun run ci` on push. Each job reaches its tool through `nix develop`, so a commit works from an editor or a GUI client.
+The Python installed-release gate uses an absolute OMP v18.8.7 downloaded into scratch and verified against its published SHA-256 digest, without an installer script or user PATH/registry changes. Every HOME/USERPROFILE/APPDATA/LOCALAPPDATA/temp/XDG root is isolated. It tests real marketplace install, fresh commands/skills/rules/tools, terminal-observed LSP selection, installed-cache Bun/Python behavior, damaged candidates, upgrades, disabled/settings state and forward rollback. CI's official binary never replaces Korolev's Tern-managed OMP; fixture evidence proves selection/behavior, not real LSP protocol or native browser acceptance.
+
+`nix flake check` remains an independent compatibility check for retained flake consumers, not a prerequisite for native development or publication. Keep `lib.openspecCheck` operational.
+
+Install hooks explicitly with `bunx --no-install lefthook install` after frozen installation. Hooks run installed native tools without Nix or downloads: staged formatting/types on commit, authoritative commitlint on the message, frozen install/full CI on push. The Bun hook runner strips `git rev-parse --local-env-vars` names only from its child environment, never the parent.
 
 A permanent behavior change needs an observable test that fails for a plausible regression. Do not test source text when the behavior can be executed.
 
 ## Dependency updates
 
-Renovate owns JavaScript dependencies, `bun.lock`, and GitHub Actions. The protected `glockyco/dependency-automation` control plane owns all Nix flake inputs and uses a short-lived token from the dependency-updater GitHub App. This repository stores no App key and runs no local Nix scheduler. Renovate's Nix manager stays disabled. Neither updater merges changes. Renovate's `constraints.bun` in `renovate.json` names the Bun that the locked development shell provides, so the lockfiles Renovate writes stay readable by that Bun; raise it when a flake update moves the shell's Bun.
+Renovate owns JS dependencies, lockfiles, actions, Bun/mirror, OMP release tag, npm OpenSpec/workflow, Python setup and Windows terminal-support pins. `.bun-version` is the sole runtime selection; `constraints.bun` is a checked lockfile-writing mirror. A Bun bump must update both and regenerate `bun.lock` with the selected Bun. OpenSpec generator and reusable-workflow pins move together, and generator-only adapter differences require review. Updates remain review-only and do not merge, publish or upgrade a host.
 
-Use native commands for a manual update:
+The protected `glockyco/dependency-automation` control plane owns retained Nix inputs through its short-lived GitHub App token. No App key or competing scheduler belongs here; Renovate's Nix manager stays disabled until a separately accepted flake removal deregisters the central target.
 
-```bash
-nix flake update
-CI=1 OPENSPEC_TELEMETRY=0 nix develop --command openspec update . --force
-nix develop --command bun install --frozen-lockfile
-nix develop --command bun run ci
-nix flake check
+For native manual updates, edit reviewed pins, use the selected Bun to regenerate the lockfile, regenerate adapters when the generator changes, then run:
+
+```sh
+bun run check:toolchain
+bun install --frozen-lockfile
+bun run sync:openspec-adapters
+bun run ci
 ```
 
 The workstation repository's [dependency-update runbook](https://github.com/glockyco/nix-config/blob/main/docs/operations/dependency-updates.md) owns the cross-repository schedule and GitHub App credentials.
@@ -114,7 +119,7 @@ The workstation repository's [dependency-update runbook](https://github.com/gloc
 ## Release
 
 1. Raise the version in `.omp-plugin/marketplace.json`, `plugin/package.json`, and the root `package.json` in the same commit as any runtime change.
-2. Run both local gates.
+2. Run the full native gate and obtain Linux/macOS/Windows and shared OpenSpec CI contexts, plus actual fresh Tern-managed Korolev/macbook-pro browser acceptance for changed visual behavior.
 3. With explicit owner authorization, merge the reviewed release and create the immutable tag `vX.Y.Z`.
 4. Install the published release into a disposable OMP profile and confirm its version and capabilities.
 5. Upgrade hosts with `omp plugin marketplace update glockyco` and `omp plugin upgrade --scope user personal@glockyco`, then verify the changed capability in a fresh OMP session in Tern.

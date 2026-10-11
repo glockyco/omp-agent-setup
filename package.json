@@ -1,25 +1,36 @@
 {
   "name": "omp-agent-setup",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Personal Oh My Pi plugin source and release checks.",
   "scripts": {
-    "ci": "bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:release && bun run check:test",
+    "ci": "bun run check:toolchain && bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:release && bun run check:test && bun run check:openspec-adapters && bun run check:openspec && bun run check:installed-release",
     "check:lint": "biome ci .",
     "check:types": "tsc --noEmit",
     "check:dead": "knip",
     "check:audit": "bun audit --prod --audit-level=moderate",
     "check:release": "bun scripts/check-release-version.ts",
     "check:test": "bun test --coverage",
+    "check:toolchain": "bun scripts/check-toolchain.ts",
+    "check:openspec-adapters": "bun scripts/openspec-adapters.ts check",
+    "sync:openspec-adapters": "bun scripts/openspec-adapters.ts sync",
+    "check:openspec": "bun scripts/check-openspec.ts",
+    "check:installed-release": "bun scripts/check-installed-release.ts",
+    "setup:release-omp": "bun scripts/setup-release-omp.ts",
     "fix": "biome check --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
+    "@fission-ai/openspec": "1.14.0",
     "@types/bun": "1.3.14",
     "knip": "6.39.0",
+    "lefthook": "2.2.1",
     "typescript": "7.0.2"
-  }
+  },
+  "trustedDependencies": [
+    "lefthook"
+  ]
 }
