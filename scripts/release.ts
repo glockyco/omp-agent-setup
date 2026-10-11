@@ -5,7 +5,8 @@ import { join } from "node:path";
 export const MARKETPLACE = "glockyco";
 export const PLUGIN = "personal";
 export const PAYLOAD = "plugin";
-export const CATALOG = join(".omp-plugin", "marketplace.json");
+// Git tree paths use forward slashes; join with the root for native filesystem access.
+export const CATALOG = ".omp-plugin/marketplace.json";
 
 export const EXTENSIONS = ["./extensions/personal-commit.ts", "./extensions/plannotator.ts"];
 export const SKILLS = [
