@@ -9,7 +9,7 @@ Use host-owned Git, Bun 1.3.13 (`.bun-version`), Node 24 and Python 3.13. Native
 ```sh
 bun run check:toolchain
 bun install --frozen-lockfile
-bunx --no-install lefthook install
+bun x --no-install lefthook install
 python3.13 -m venv .venv
 .venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```
@@ -95,7 +95,7 @@ The Python installed-release gate uses an absolute OMP v18.8.7 downloaded from i
 
 `nix flake check` remains an independent compatibility check for retained flake consumers, not a prerequisite for native development or publication. Keep `lib.openspecCheck` operational.
 
-Install hooks explicitly with `bunx --no-install lefthook install` after frozen installation. Hooks run installed native tools without Nix or downloads: staged formatting/types on commit, authoritative commitlint on the message, and frozen install plus `bun run check:local` on push. The fast local gate covers toolchain, lint, types, dead code, release version, unit tests, adapter freshness and strict OpenSpec validation; it omits network audit and installed-release download/terminal checks. Every PR's three-host CI runs the complete `bun run ci`, including both omitted checks. The Bun hook runner strips `git rev-parse --local-env-vars` names only from its child environment, never the parent.
+Install hooks explicitly with `bun x --no-install lefthook install` after frozen installation. Use Bun's built-in `x` subcommand, not an optional `bunx` executable alias. Hooks run installed native tools without Nix or downloads: staged formatting/types on commit, authoritative commitlint on the message, and frozen install plus `bun run check:local` on push. The fast local gate covers toolchain, lint, types, dead code, release version, unit tests, adapter freshness and strict OpenSpec validation; it omits network audit and installed-release download/terminal checks. Every PR's three-host CI runs the complete `bun run ci`, including both omitted checks. The Bun hook runner strips `git rev-parse --local-env-vars` names only from its child environment, never the parent.
 
 A permanent behavior change needs an observable test that fails for a plausible regression. Do not test source text when the behavior can be executed.
 

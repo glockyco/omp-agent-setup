@@ -142,7 +142,7 @@ Install host-owned Git (Git for Windows on Windows), Bun **1.3.13** from `.bun-v
 ```sh
 bun run check:toolchain
 bun install --frozen-lockfile
-bunx --no-install lefthook install
+bun x --no-install lefthook install
 python3.13 -m venv .venv
 .venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```

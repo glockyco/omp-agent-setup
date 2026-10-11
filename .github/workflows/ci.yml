@@ -44,7 +44,7 @@ jobs:
       - name: Install development Python wheels (Windows)
         if: runner.os == 'Windows'
         run: '.venv/Scripts/python.exe -m pip install --only-binary=:all: -r requirements-dev.txt'
-      - run: bunx --no-install lefthook install
+      - run: bun x --no-install lefthook install
       - run: bun run setup:release-omp
         id: omp_setup
       - run: bun run ci

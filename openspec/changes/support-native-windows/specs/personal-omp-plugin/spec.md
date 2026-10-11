@@ -106,6 +106,12 @@ Repository development and Git hooks SHALL run the pinned native toolchain on Li
 - **THEN** formatting/type checks and commit-message validation run without a Nix shell or WSL
 - **AND** a failed applicable hook prevents the Git operation
 
+#### Scenario: Native Bun has no optional executable alias
+
+- **WHEN** the installed pinned Bun is available as `bun.exe` or `bun` without a separate `bunx` alias
+- **THEN** hook installation and npm-bin hook commands use Bun's built-in `x --no-install` subcommand without fetching a tool or adding a host alias
+- **AND** real commit-message validation remains authoritative and missing required native tools stay visible failures
+
 #### Scenario: Push runs from a Git hook environment
 
 - **WHEN** the pre-push hook inherits Git's repository-local environment variables

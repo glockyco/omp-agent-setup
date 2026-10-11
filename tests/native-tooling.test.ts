@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import {
 	cpSync,
+	existsSync,
 	mkdirSync,
 	mkdtempSync,
 	readdirSync,
@@ -9,7 +10,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { checkOpenSpec, workflowGate } from "../scripts/check-openspec.ts";
 import { checkToolchain } from "../scripts/check-toolchain.ts";
 import { runHook } from "../scripts/hooks.ts";
@@ -232,6 +233,42 @@ test("local gate separates expensive CI checks and stops on a local failure", as
 		"bun scripts/hooks.ts bun run check:local",
 	]);
 });
+
+test("configured message hook uses native Bun without an optional executable alias", async () => {
+	const root = fixture();
+	const message = join(root, "commit message with spaces");
+	const hooks = Bun.YAML.parse(readFileSync(join(repository, "lefthook.yml"), "utf8")) as {
+		"commit-msg": { commands: { commitlint: { run: string } } };
+	};
+	const command = hooks["commit-msg"].commands.commitlint.run.split(/\s+/);
+	expect(command.shift()).toBe("bun");
+	const args = command.map(arg => (arg === '"{1}"' ? message : arg));
+	const env = { ...process.env };
+	const path = Object.entries(env).find(([key]) => key.toUpperCase() === "PATH")?.[1] ?? "";
+	for (const key of Object.keys(env)) if (key.toUpperCase() === "PATH") delete env[key];
+	env.PATH = path
+		.split(delimiter)
+		.filter(
+			directory => !["bunx", "bunx.exe", "bunx.cmd"].some(name => existsSync(join(directory, name))),
+		)
+		.join(delimiter);
+	async function validate(contents: string): Promise<number> {
+		writeFileSync(message, contents);
+		const child = Bun.spawn([process.execPath, ...args], {
+			cwd: repository,
+			env,
+			stdout: "ignore",
+			stderr: "ignore",
+		});
+		return child.exited;
+	}
+	expect(
+		await validate(
+			"test(hooks): use the installed native tool\n\nValidate without an alias or download.\n",
+		),
+	).toBe(0);
+	expect(await validate("not a conventional commit\n")).not.toBe(0);
+}, 30_000);
 
 test("native hook child strips Git-local variables without mutating parent and propagates failures", async () => {
 	const root = fixture();
