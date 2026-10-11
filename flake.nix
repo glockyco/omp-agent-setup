@@ -235,6 +235,7 @@
           default = pkgs.mkShellNoCC {
             packages = [
               pkgs.bun
+              pkgs.nodejs_24
               pkgs.git
               pkgs.lefthook
               llm-agents.packages.${system}.openspec
