@@ -70,6 +70,12 @@ Each session SHALL allow one pending review, while separate sessions SHALL opera
 - **WHEN** the host denies termination or owned-tree inspection during cleanup
 - **THEN** the adapter identifies the cleanup failure without delivering cancellation feedback or claiming resources were released
 
+#### Scenario: Windows console requires force termination
+
+- **WHEN** the non-force Windows tree request reports that a console process can only be terminated forcefully or that its child processes are still running
+- **THEN** cleanup waits the bounded grace and force-terminates matching surviving owned identities
+- **AND** other utility errors and access-denied remain visible rather than being treated as these expected refusal reasons
+
 ### Requirement: Annotation-only local subprocess
 
 The adapter SHALL invoke only the stock `plannotator annotate <private snapshot.md> --json` CLI using an argument array. The host SHALL supply the version-selected vendor executable. The adapter SHALL NOT require a downstream client-lease patch, gate mode, review timeout, or fallback. Only non-empty `annotated` feedback SHALL reach OMP. `dismissed` and empty annotations SHALL produce notices without model turns. Failed processes, malformed output, and unexpected decisions, including `approved`, SHALL report errors without feedback. Invocation SHALL require a local interactive OMP TUI session with UI availability on Linux, macOS, or native Windows; diagnostics SHALL NOT claim that only Linux/macOS are supported. SSH markers and explicit remote Plannotator invocation SHALL be refused identically on every OS before review launch. The child SHALL use random loopback ports and the platform-native browser, with sharing disabled regardless of inherited Plannotator settings.
