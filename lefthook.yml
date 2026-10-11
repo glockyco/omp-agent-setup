@@ -13,8 +13,8 @@ pre-push:
   commands:
     lockfile:
       run: bun scripts/hooks.ts bun install --frozen-lockfile
-    ci:
-      run: bun scripts/hooks.ts bun run ci
+    local:
+      run: bun scripts/hooks.ts bun run check:local
 
 commit-msg:
   commands:

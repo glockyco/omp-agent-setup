@@ -174,7 +174,7 @@ bun run check:openspec-adapters
 
 Both use a disposable root with the repository config and `openspec init --tools oh-my-pi`; the checker compares all bytes and missing/extra commands/skills without changing the working tree. Never hand-edit or format these generated paths; Biome exclusions remain authoritative. Never copy adapters into consumers.
 
-Hooks use installed native tools without downloads: staged formatting and types on commit, authoritative commitlint on the message, frozen installation and full CI on push. The Bun hook runner strips Git-local environment variables only in its child environment.
+Hooks use installed native tools without downloads: staged formatting and types on commit, authoritative commitlint on the message, and frozen installation plus `bun run check:local` on push. That fast local gate runs toolchain parity, lint, types, dead code, release version, unit tests, OpenSpec adapter freshness and strict artifact validation. It omits the network audit and OMP download/installed-release terminal tests; every PR runs the complete `bun run ci` on all three CI hosts. The Bun hook runner strips Git-local environment variables only in its child environment.
 
 Renovate owns JS/lockfiles/actions and native Bun/constraint-mirror, OMP release tag, OpenSpec generator/workflow, Python setup and Windows terminal pins. Bun bumps regenerate the lockfile with the selected Bun; generator/workflow OpenSpec pins update together and generated differences require review. The central `glockyco/dependency-automation` control plane owns retained Nix inputs; Renovate's Nix manager stays disabled. Neither updater merges, publishes or upgrades a host.
 

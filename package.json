@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Personal Oh My Pi plugin source and release checks.",
   "scripts": {
-    "ci": "bun run check:toolchain && bun run check:lint && bun run check:types && bun run check:dead && bun run check:audit && bun run check:release && bun run check:test && bun run check:openspec-adapters && bun run check:openspec && bun run check:installed-release",
+    "ci": "bun run check:local && bun run check:audit && bun run check:installed-release",
+    "check:local": "bun run check:toolchain && bun run check:lint && bun run check:types && bun run check:dead && bun run check:release && bun run check:test && bun run check:openspec-adapters && bun run check:openspec",
     "check:lint": "biome ci .",
     "check:types": "tsc --noEmit",
     "check:dead": "knip",
