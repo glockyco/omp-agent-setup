@@ -25,7 +25,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^\\.omp-version$/"],
-      "matchStrings": ["^(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\s*$"],
+      "matchStrings": ["\"tag\":\\s*\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
       "depNameTemplate": "can1357/oh-my-pi",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
@@ -47,6 +47,11 @@
     }
   ],
   "packageRules": [
+    {
+      "matchPackageNames": ["can1357/oh-my-pi"],
+      "enabled": false,
+      "description": "OMP tags and all six reviewed asset digests must move together via sync:release-omp."
+    },
     {
       "matchPackageNames": ["bun", "oven-sh/bun"],
       "groupName": "native Bun toolchain"

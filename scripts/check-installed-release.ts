@@ -26,27 +26,38 @@ export function pythonExecutable(
 	);
 }
 
-export async function checkInstalledRelease(): Promise<void> {
+export async function checkInstalledRelease(
+	options: {
+		provision?: typeof setupReleaseOmp;
+		env?: NodeJS.ProcessEnv;
+		scratchDirectory?: string;
+	} = {},
+): Promise<void> {
+	const source = { ...(options.env ?? process.env) };
+	const temporary = options.scratchDirectory ?? tmpdir();
 	let setup: { root: string; binary: string } | undefined;
 	let scratch: string | undefined;
 	try {
-		const configured = process.env.OMP_BIN;
+		const configured = source.OMP_BIN;
 		if (configured && !isAbsolute(configured))
 			throw new Error("OMP_BIN must be an absolute pinned official binary path");
 		let binary = configured;
 		if (!binary) {
-			setup = await setupReleaseOmp();
+			setup = await (options.provision ?? setupReleaseOmp)({
+				env: source,
+				scratchDirectory: temporary,
+			});
 			binary = setup.binary;
 		}
-		scratch = await mkdtemp(join(tmpdir(), "personal release launcher "));
+		scratch = await mkdtemp(join(temporary, "personal release launcher "));
 		const env = {
-			...(await isolatedEnvironment(scratch)),
+			...(await isolatedEnvironment(scratch, source)),
 			OMP_BIN: binary,
 			PYTHONDONTWRITEBYTECODE: "1",
 			PYTHONUTF8: "1",
 		};
 		await checkOmpVersion(binary, env);
-		const python = pythonExecutable();
+		const python = pythonExecutable(source);
 		const version = Bun.spawnSync([python, "--version"], {
 			env,
 			stdout: "pipe",

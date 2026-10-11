@@ -46,11 +46,12 @@ jobs:
         run: '.venv/Scripts/python.exe -m pip install --only-binary=:all: -r requirements-dev.txt'
       - run: bunx --no-install lefthook install
       - run: bun run setup:release-omp
+        id: omp_setup
       - run: bun run ci
         env:
           RELEASE_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
           CI: '1'
           OPENSPEC_TELEMETRY: '0'
       - name: Remove isolated official binary
-        if: always()
+        if: always() && steps.omp_setup.outcome == 'success'
         run: bun run setup:release-omp --cleanup

@@ -163,9 +163,11 @@ Run the complete native gate:
 bun run ci
 ```
 
-It retains formatting, types, dead-code, production advisories, release tree/version, coverage, extension behavior, real Git hooks and deterministic retrieval fixtures, plus Bun/mirror and OpenSpec pin parity, adapter freshness, strict active/archive validation and installed-release verification. The installed-release launcher downloads the exact `.omp-version` **v18.8.7** platform asset into scratch, verifies its published SHA-256 before execution, and uses an absolute executable; it runs no installer and never changes user PATH/registry or Korolev's Tern OMP. The Python gate isolates every home/app-data/temp root, installs the candidate with the real manager, observes fresh capabilities and terminal-started LSP probes, exercises the installed-cache Bun/Python suite and damaged-candidate/upgrade/disabled/settings/forward-rollback controls, then removes scratch profiles. `OMP_BIN` can explicitly select the absolute pinned binary; do not point it at a mutable host/Tern installation.
+It retains formatting, types, dead-code, production advisories, release tree/version, coverage, extension behavior, real Git hooks and deterministic retrieval fixtures, plus Bun/mirror and OpenSpec pin parity, adapter freshness, strict active/archive validation and installed-release verification. The installed-release launcher reads the exact **v18.8.7** tag and six reviewed platform SHA-256 digests from `.omp-version` JSON, downloads only its fixed host-asset URL into scratch, verifies the pinned digest before execution, and uses an absolute executable. It fetches no runtime release metadata, requires no token, runs no installer and never changes user PATH/registry or Korolev's Tern OMP. The Python gate isolates every home/app-data/temp root, installs the candidate with the real manager, observes fresh capabilities and terminal-started LSP probes, exercises the installed-cache Bun/Python suite and damaged-candidate/upgrade/disabled/settings/forward-rollback controls, then removes scratch profiles. Partial setup removes its own state; CI final cleanup runs after successful setup even if later checks fail. `OMP_BIN` can explicitly select the absolute pinned binary; do not point it at a mutable host/Tern installation.
 
 Native CI runs equivalent gates on `ubuntu-latest`, `macos-15` and `windows-latest`, plus the shared OpenSpec context. ConPTY, executable probes and injected process tests do **not** establish actual language-server protocol or native-browser acceptance. The compatibility flake remains independently checkable with `nix flake check` but is not required to develop or publish.
+
+The optional retained Nix development shell includes Node 24 for the repository-native npm hooks; CI and ordinary native development do not require that shell.
 
 Only the generator writes workflow payload adapters:
 
@@ -178,7 +180,15 @@ Both use a disposable root with the repository config and `openspec init --tools
 
 Hooks use installed native tools without downloads: staged formatting and types on commit, authoritative commitlint on the message, and frozen installation plus `bun run check:local` on push. That fast local gate runs toolchain parity, lint, types, dead code, release version, unit tests, OpenSpec adapter freshness and strict artifact validation. It omits the network audit and OMP download/installed-release terminal tests; every PR runs the complete `bun run ci` on all three CI hosts. The Bun hook runner strips Git-local environment variables only in its child environment.
 
-Renovate owns JS/lockfiles/actions and native Bun/constraint-mirror, OMP release tag, OpenSpec generator/workflow, Python setup and Windows terminal pins. Bun bumps regenerate the lockfile with the selected Bun; generator/workflow OpenSpec pins update together and generated differences require review. The central `glockyco/dependency-automation` control plane owns retained Nix inputs; Renovate's Nix manager stays disabled. Neither updater merges, publishes or upgrades a host.
+Renovate owns JS/lockfiles/actions and native Bun/constraint-mirror, OpenSpec generator/workflow, Python setup and Windows terminal pins. Bun bumps regenerate the lockfile with the selected Bun; generator/workflow OpenSpec pins update together and generated differences require review. The central `glockyco/dependency-automation` control plane owns retained Nix inputs; Renovate's Nix manager stays disabled. Neither updater merges, publishes or upgrades a host.
+
+OMP tag-only automation is disabled: its six trusted digests must change with the tag. A maintainer updates the complete pin from the explicit official release's `SHA256SUMS.txt`:
+
+```sh
+bun run sync:release-omp -- vX.Y.Z
+```
+
+Review the tag and every platform digest in `.omp-version`, then run the complete three-host gate. The command uses no API, token, installer or mutable `latest`; a missing/duplicate/malformed required checksum or download failure leaves the previous pin unchanged.
 
 ## Release flow
 

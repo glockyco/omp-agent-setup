@@ -14,7 +14,7 @@ const renovate = JSON.parse(readFileSync(join(repository, "renovate.json"), "utf
 	customManagers: Manager[];
 	nix: { enabled: boolean };
 	automerge: boolean;
-	packageRules: { matchPackageNames?: string[]; groupName: string }[];
+	packageRules: { matchPackageNames?: string[]; groupName?: string; enabled?: boolean }[];
 };
 function extract(
 	path: string,
@@ -46,7 +46,7 @@ test("Renovate extracts native pins under their actual upstream identities and k
 	expect(extract("renovate.json", '"bun": "1.3.13"')).toEqual([
 		{ dependency: "oven-sh/bun", datasource: "github-tags", value: "1.3.13" },
 	]);
-	expect(extract(".omp-version", "v18.8.7\n")).toEqual([
+	expect(extract(".omp-version", JSON.stringify({ tag: "v18.8.7", assets: {} }))).toEqual([
 		{ dependency: "can1357/oh-my-pi", datasource: "github-tags", value: "v18.8.7" },
 	]);
 	expect(extract(".github/workflows/openspec.yml", "@fission-ai/openspec@1.14.0")).toEqual([
@@ -60,6 +60,27 @@ test("Renovate extracts native pins under their actual upstream identities and k
 	expect(
 		renovate.packageRules.find(rule => rule.matchPackageNames?.includes("pywinpty"))?.groupName,
 	).toBe("native Python terminal tooling");
+});
+
+test("OMP retains JSON extraction identity but requires manual whole-pin updates", () => {
+	const record = readFileSync(join(repository, ".omp-version"), "utf8");
+	expect(extract(".omp-version", record)).toEqual([
+		{ dependency: "can1357/oh-my-pi", datasource: "github-tags", value: JSON.parse(record).tag },
+	]);
+	expect(extract(".omp-version", '{ "tag": "v18.8.8", "assets": {} }')).toEqual([
+		{ dependency: "can1357/oh-my-pi", datasource: "github-tags", value: "v18.8.8" },
+	]);
+	expect(extract(".omp-version", "v18.8.7\n")).toEqual([]);
+	expect(extract(".omp-version", '{ "tag": "latest" }')).toEqual([]);
+	const ompRule = renovate.packageRules.find(rule =>
+		rule.matchPackageNames?.includes("can1357/oh-my-pi"),
+	);
+	expect(ompRule?.enabled).toBe(false);
+	for (const rule of renovate.packageRules.filter(rule => rule !== ompRule))
+		expect(rule.enabled).not.toBe(false);
+	expect(renovate.automerge).toBe(false);
+	const scripts = JSON.parse(readFileSync(join(repository, "package.json"), "utf8")).scripts;
+	expect(scripts["sync:release-omp"]).toBe("bun scripts/sync-release-omp.ts");
 });
 
 test("candidate Bun/OpenSpec updates share groups and extract coherently at both boundaries", () => {
@@ -104,7 +125,13 @@ test("reusable gate exposes only optional root and native CI selects all require
 	const matrix = Bun.YAML.parse(
 		readFileSync(join(repository, ".github/workflows/ci.yml"), "utf8"),
 	) as {
-		jobs: { check: { strategy: { matrix: { os: string[] } } }; openspec: { uses: string } };
+		jobs: {
+			check: {
+				strategy: { matrix: { os: string[] } };
+				steps: Array<{ run?: string; id?: string; if?: string }>;
+			};
+			openspec: { uses: string };
+		};
 	};
 	expect(matrix.jobs.check.strategy.matrix.os).toEqual([
 		"ubuntu-latest",
@@ -112,4 +139,9 @@ test("reusable gate exposes only optional root and native CI selects all require
 		"windows-latest",
 	]);
 	expect(matrix.jobs.openspec.uses).toBe("./.github/workflows/openspec.yml");
+	const steps = matrix.jobs.check.steps;
+	expect(steps.find(step => step.run === "bun run setup:release-omp")?.id).toBe("omp_setup");
+	expect(steps.find(step => step.run === "bun run setup:release-omp --cleanup")?.if).toBe(
+		"always() && steps.omp_setup.outcome == 'success'",
+	);
 });

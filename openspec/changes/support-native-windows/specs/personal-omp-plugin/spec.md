@@ -29,7 +29,7 @@ Verification SHALL compare the payload rather than any repository-level adapter 
 
 ### Requirement: Isolated complete release verification
 
-The release gate SHALL validate the catalog and demonstrate actual install, runtime discovery, and upgrade under a temporary HOME with isolated configuration, data and cache roots on Linux, macOS, and native Windows. It SHALL use no provider credentials or model request, SHALL leave real OMP state unchanged, and SHALL remove its temporary profiles. The gate SHALL provision the selected exact OMP release by downloading its platform release asset into scratch, verifying the published SHA-256 digest before execution, and using its absolute executable; it SHALL NOT run an installer that changes PATH or registry state, and SHALL NOT depend on Nix or a contributor's host OMP installation. Windows home, application-data, and temporary roots SHALL remain isolated as well.
+The release gate SHALL validate the catalog and demonstrate actual install, runtime discovery, and upgrade under a temporary HOME with isolated configuration, data and cache roots on Linux, macOS, and native Windows. It SHALL use no provider credentials or model request, SHALL leave real OMP state unchanged, and SHALL remove its temporary profiles. The gate SHALL keep the selected exact OMP tag and all six platform SHA-256 digests in one reviewed repository pin record, download only the host asset from the fixed release URL, verify its pinned digest before execution, and use its absolute executable. Runtime setup SHALL NOT fetch release metadata, require a GitHub token, run an installer that changes PATH or registry state, or depend on Nix or a contributor's host OMP installation. Failed partial setup SHALL remove everything it created; final CI cleanup SHALL run after successful setup even when later gates fail. Windows home, application-data, and temporary roots SHALL remain isolated as well.
 
 Verification SHALL observe both declared extension factories, the commit tool, all three annotation command registrations, all declared skills and their support assets, the always-applied personal policy, each workflow command exactly once, and every declared LSP override. A list or doctor result alone SHALL NOT satisfy runtime verification. Deterministic executable probes MAY prove configuration selection but SHALL NOT be reported as real language-server protocol or native-browser acceptance. No platform SHALL skip an existing positive or negative capability/upgrade control because its Unix process or terminal fixture is unavailable.
 
@@ -55,6 +55,38 @@ Verification SHALL observe both declared extension factories, the commit tool, a
 - **WHEN** CI runs the selected official OMP binary and candidate personal release on Windows
 - **THEN** actual installation, fresh capability discovery, terminal-observed LSP selection, installed-cache behavior tests, damaged-candidate controls, and upgrade/state preservation execute without WSL or Nix
 - **AND** temporary HOME, USERPROFILE, APPDATA, LOCALAPPDATA, and temp roots contain the test's state and are cleaned afterward
+
+#### Scenario: Scratch lies beneath an already configured ancestor
+
+- **WHEN** the gate's scratch directory is nested beneath a directory with its own `.omp` registry
+- **THEN** candidate projects and working directories remain beneath the redirected fake HOME so ancestor discovery stops before that foreign registry
+- **AND** native version probes execute from the redirected home, the pre-install manager list is empty, and every installed or discovered plugin path belongs to the gate's scratch root
+- **AND** no extra configuration marker or environment override is needed and real user plugin state remains unchanged
+
+#### Scenario: ConPTY output has already drained
+
+- **WHEN** the owned native tree has stopped and its ConPTY reader has already completed
+- **THEN** cleanup closes its sockets and terminal handles without cancelling nonexistent I/O
+- **AND** cancellation errors on a still-live reader and a reader that cannot join within its bound remain visible failures
+
+#### Scenario: Runtime provisioning uses reviewed platform digests
+
+- **WHEN** the native release gate provisions its selected OMP binary
+- **THEN** it reads the tag and host digest from the reviewed six-platform pin and downloads only the fixed asset URL, without a release-metadata request or authentication token
+- **AND** a missing or malformed digest fails before download, and a checksum mismatch fails before execution
+- **AND** failed setup removes all owned partial state without requiring a success-only final-cleanup step
+
+#### Scenario: Asset stream fails during setup
+
+- **WHEN** the selected asset body is initially errored or fails after delivering binary bytes
+- **THEN** setup reports the original stream failure, closes its owned binary handle, and removes every partial binary and disposable profile
+- **AND** it does not hang in a stream adapter or attempt to execute the incomplete asset
+
+#### Scenario: A delayed fixture case cannot corrupt another case
+
+- **WHEN** a native launcher fixture is delayed or fails after another case has completed
+- **THEN** its owned scratch and captured environment/request/provision inputs remain independent, and it cannot remove or change the other case's profile, executable identity, or evidence log
+- **AND** compiled executable fixtures are prepared once per test file and reused through per-case hardlinks with explicit 30 s case bounds
 
 #### Scenario: Isolated gate fails during a terminal probe
 
