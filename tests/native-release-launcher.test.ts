@@ -7,7 +7,9 @@ import {
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
+	realpathSync,
 	rmSync,
+	symlinkSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
@@ -137,6 +139,27 @@ test(
 				checkOmpVersion(value.omp, { ...env, NATIVE_GATE_FIXTURE_OMP_VERSION: wrongVersion }),
 			).rejects.toThrow(`expected ${expectedVersion}, observed omp/${wrongVersion}`);
 			await expect(checkOmpVersion("relative-omp", env)).rejects.toThrow("absolute");
+		}),
+	30000,
+);
+
+test(
+	"owned profile paths canonicalize a real filesystem alias before redirecting HOME",
+	() =>
+		withFixture(async value => {
+			const root = join(value.root, "physical profile");
+			const alias = join(value.root, "profile alias");
+			mkdirSync(root);
+			symlinkSync(root, alias, process.platform === "win32" ? "junction" : "dir");
+			const log = join(value.root, "alias.log");
+			const env = await isolatedEnvironment(alias, {
+				...value.env,
+				NATIVE_GATE_FIXTURE_LOG: log,
+			});
+			expect(env.HOME).toBe(join(realpathSync(root), "home"));
+			expect(env.TEMP).toBe(join(realpathSync(root), "temp"));
+			await checkOmpVersion(value.omp, env);
+			expect(JSON.parse(readFileSync(log, "utf8").trim()).cwd).toBe(env.HOME);
 		}),
 	30000,
 );

@@ -1,5 +1,15 @@
 import { createHash } from "node:crypto";
-import { appendFile, chmod, mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
+import {
+	appendFile,
+	chmod,
+	mkdir,
+	mkdtemp,
+	open,
+	readFile,
+	realpath,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { type OmpAsset, readPin, validatePin } from "./omp-pin.ts";
@@ -52,6 +62,8 @@ export async function isolatedEnvironment(
 		)
 			env[key] = value;
 	}
+	await mkdir(root, { recursive: true });
+	root = await realpath(root);
 	const home = join(root, "home");
 	const paths = {
 		HOME: home,
