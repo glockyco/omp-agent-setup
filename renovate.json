@@ -7,7 +7,58 @@
   "nix": {
     "enabled": false
   },
+  "automerge": false,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.bun-version$/", "/^renovate\\.json$/"],
+      "matchStrings": [
+        "^(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s*$",
+        "\"bun\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "bun",
+      "packageNameTemplate": "oven-sh/bun",
+      "datasourceTemplate": "github-tags",
+      "extractVersionTemplate": "^bun-v(?<version>.*)$",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.omp-version$/"],
+      "matchStrings": ["^(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\s*$"],
+      "depNameTemplate": "can1357/oh-my-pi",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/openspec\\.yml$/"],
+      "matchStrings": ["@fission-ai/openspec@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "@fission-ai/openspec",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/.*\\.yml$/"],
+      "matchStrings": ["python-version: '(?<currentValue>\\d+\\.\\d+)'"],
+      "depNameTemplate": "python",
+      "datasourceTemplate": "python-version",
+      "versioningTemplate": "python"
+    }
+  ],
   "packageRules": [
+    {
+      "matchPackageNames": ["bun", "oven-sh/bun"],
+      "groupName": "native Bun toolchain"
+    },
+    {
+      "matchPackageNames": ["@fission-ai/openspec"],
+      "groupName": "OpenSpec generator and fleet gate"
+    },
+    {
+      "matchPackageNames": ["python", "pywinpty"],
+      "groupName": "native Python terminal tooling"
+    },
     {
       "matchPackageNames": ["@types/**"],
       "groupName": "types"

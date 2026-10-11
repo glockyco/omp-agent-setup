@@ -53,69 +53,136 @@ The plugin selects language servers but does not install them. OMP starts a serv
 
 ## Visual annotation
 
-Use a local interactive OMP session on macOS or Linux/WSL:
+Use a local interactive OMP TUI session with UI on native Windows, macOS, or Linux/WSL:
 
 ```text
 /plannotator-annotate docs/design.md
 /plannotator-annotate "docs/design notes.md"
+/plannotator-annotate "C:\Documents\design notes.md"
+/plannotator-annotate "\\server\share\design notes.md"
 /plannotator-annotate local://draft.md
 /plannotator-last
 /plannotator-cancel
 ```
 
-Relative paths use the session's working directory. `local://` uses that session's native OMP mapping. Document inputs must be UTF-8 text or Markdown files; URLs, HTML, binary files, and directories are unsupported.
+Relative paths use the session's working directory. Drive-qualified and UNC paths are filesystem paths, not URLs. `local://` uses that session's native OMP mapping. Document inputs must be UTF-8 text or Markdown files; URLs, HTML, binary files, directories and unavailable documents fail without substitution.
 
 `/plannotator-last` selects the latest completed visible assistant response on the active branch. It excludes thinking, tool data, and hidden messages. Both commands open a private snapshot, not an editable source file.
 
 Submitted annotations return once as follow-up user feedback, with the source identity and snapshot hash. A changed or unavailable source produces a warning. Feedback waits while OMP is busy and starts a conversation turn when OMP is idle. The adapter does not apply replacement suggestions or treat feedback as approval.
 
-One review can run per session. Separate sessions have independent reviews. The command interface remains available while the footer shows a pending review. Use `/plannotator-cancel` if the browser does not open or a closed tab leaves the review pending. Navigation and shutdown also cancel the review. Cancellation removes only the owned process and temporary snapshot, not Plannotator preferences or history.
+One review can run per session. Separate sessions have independent reviews. The command interface remains available while the footer shows a pending review. Use `/plannotator-cancel` if the browser does not open or a closed tab leaves the review pending. Navigation and shutdown also cancel the review. Cancellation removes only the owned subprocess tree and temporary snapshot, not Plannotator preferences or history. Unix uses TERM/KILL on the owned process group. Windows uses creation-qualified CIM identities and built-in `taskkill /T`, then `/T /F` for survivors after a one-second grace, including recorded descendants whose original root exited. Query/termination failures are reported; they are not evidence of successful cleanup.
 
-Reviews use random loopback ports and the platform-native browser, including the Windows browser on WSL. SSH and noninteractive invocation are unsupported. The child disables sharing and ignores inherited browser, port, and operational Plannotator overrides. It preserves `PLANNOTATOR_DATA_DIR`. Native Windows hosting is not yet an accepted platform: its process cleanup has its own open acceptance gate.
+Reviews use random loopback ports and the platform-native browser. SSH (`SSH_CONNECTION`, `SSH_CLIENT` or `SSH_TTY`), explicit remote invocation and noninteractive/no-UI sessions are refused before preparing a snapshot or listener. The child disables sharing and ignores inherited browser, port, and operational Plannotator overrides. It preserves `PLANNOTATOR_DATA_DIR`. The host supplies the native vendor executable on PATH; a missing command reports that prerequisite and never installs a wrapper or fallback. Real Korolev/macbook-pro browser acceptance is a separate release gate, not implied by process fixtures.
 
 The adapter supports the stock `plannotator annotate <snapshot.md> --json` CLI, without `--gate` or a downstream client-lease patch. Automatic browser-tab-close dismissal is not guaranteed.
 
 This adapter adds no planner, approval gate, automatic edits, code-review or PR commands, installer, updater, publisher, or full Pi extension.
 
-## Fleet outputs
+## Fleet verification
 
-Beside the plugin, this flake exposes the check that every repository holding OpenSpec artifacts runs. It is not part of the plugin, and installing the plugin does not need Nix.
+The reusable artifact gate is separate from the plugin. Consumers use a job-level call, replacing the placeholder with the reviewed **full release commit SHA**, not mutable `main`:
 
-| Output | Purpose |
-|---|---|
-| `lib.openspecCheck { pkgs, src }` | Validates a repository's OpenSpec artifacts strictly and rejects a change archived with unfinished tasks |
+```yaml
+jobs:
+  openspec:
+    uses: glockyco/omp-agent-setup/.github/workflows/openspec.yml@<reviewed full release SHA>
+    with:
+      openspec-root: . # optional; a repository-relative directory containing openspec/
+```
 
-A consuming repository adds the input and references the output, and says nothing about which commands run or which CLI version validates:
+The workflow checks the caller's triggering checkout on Ubuntu with read-only contents permission. It installs its centrally pinned npm OpenSpec **1.14.0** in scratch, requires archive support, and strictly checks active and archived artifacts. It needs no caller dependencies, secrets, Bun or Nix. Absolute, escaping and missing roots fail. Consumers do not copy the CI implementation, select CLI versions or run this repository's adapter-freshness check. Workflow-reference updates are review-only GitHub Actions dependency PRs using a full immutable SHA with a reviewed release-tag annotation; the actual release SHA is supplied at publication.
+
+Local hooks may contain this host-owned CLI sequence. Fetch the matching CLI once through host provisioning; these commands then run offline. Version mismatch is corrected by the host tool owner, never hidden by hook downloads.
+
+POSIX:
+
+```sh
+set -eu
+version="$(openspec --version)"
+test "$version" = "1.14.0" || { echo "Expected OpenSpec 1.14.0, observed $version; ask the host tool owner to correct it." >&2; exit 1; }
+help="$(openspec validate --help)"
+printf '%s\n' "$help" | grep -q -- --archived || { echo "OpenSpec lacks validate --archived." >&2; exit 1; }
+export CI=1 OPENSPEC_TELEMETRY=0
+openspec validate --all --strict --no-interactive
+openspec validate --archived --strict --no-interactive
+```
+
+PowerShell:
+
+```powershell
+$version = & openspec --version
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ($version.Trim() -ne '1.14.0') { Write-Error "Expected OpenSpec 1.14.0, observed $version; ask the host tool owner to correct it."; exit 1 }
+$help = & openspec validate --help
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not ($help -match '--archived')) { Write-Error 'OpenSpec lacks validate --archived.'; exit 1 }
+$env:CI = '1'; $env:OPENSPEC_TELEMETRY = '0'
+& openspec validate --all --strict --no-interactive
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& openspec validate --archived --strict --no-interactive
+exit $LASTEXITCODE
+```
+
+The retained `lib.openspecCheck { pkgs, src }` remains available with its existing pinned inputs and artifact-only Nix caching:
 
 ```nix
 inputs.fleet.url = "github:glockyco/omp-agent-setup";
 checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
 ```
 
+Adoption ownership: the nix-config owner integrates the released workflow through its Windows-native/WSL-retirement changes; the phd-thesis and test-generalization repository owners review their own workflow-reference migrations. Each removes its external adapter-freshness wiring when adopting. Dates and evidence belong to those owners. Flake/input deletion and central Nix-target deregistration are a **later change**, gated on completed migrations of all three repositories; nothing here removes the interface for an unmigrated consumer.
+
 ## Development
 
-Enter the pinned shell and install JavaScript development dependencies:
+Install host-owned Git (Git for Windows on Windows), Bun **1.3.13** from `.bun-version`, Node **24**, and Python **3.13**. Nix and WSL are not prerequisites. Development dependencies are repository-only:
 
-```bash
-nix develop --command bun install --frozen-lockfile
+```sh
+bun run check:toolchain
+bun install --frozen-lockfile
+bunx --no-install lefthook install
+python3.13 -m venv .venv
+.venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```
 
-Run the release gates:
+PowerShell uses the same Bun commands, then:
 
-```bash
-nix develop --command bun run ci
-nix flake check
+```powershell
+py -3.13 -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 ```
 
-`bun run ci` covers formatting, types, dead code, dependency advisories, the release tree, the release-version signal, extension behavior, real Git hooks, and deterministic retrieval fixtures. `nix flake check` runs the release gate: it installs the candidate catalog with the locked OMP's real plugin manager into a disposable profile, observes the commands, skills, rules, tools, and language-server selection that a fresh session gets, runs the behavior tests against the installed cache, and checks negative controls and upgrades. It also validates the generated OpenSpec adapters and archived task completeness. Run the gate by hand with `OMP_BIN=$(command -v omp) python3 tests/release_gate.py`. CI runs both gates on Apple Silicon macOS and x86-64 Linux.
+The Windows-only pywinpty **3.0.5** wheel supplies ConPTY for development tests, never for plugin loading. `PYTHON_BIN` may select an explicit interpreter instead of the platform's `.venv` default.
 
-Renovate owns JavaScript dependencies and GitHub Actions. A separate weekly workflow owns Nix flake inputs. Both create review-only pull requests; required Darwin and Linux checks must pass before merge.
+Run the complete native gate:
+
+```sh
+bun run ci
+```
+
+It retains formatting, types, dead-code, production advisories, release tree/version, coverage, extension behavior, real Git hooks and deterministic retrieval fixtures, plus Bun/mirror and OpenSpec pin parity, adapter freshness, strict active/archive validation and installed-release verification. The installed-release launcher downloads the exact `.omp-version` **v18.8.7** platform asset into scratch, verifies its published SHA-256 before execution, and uses an absolute executable; it runs no installer and never changes user PATH/registry or Korolev's Tern OMP. The Python gate isolates every home/app-data/temp root, installs the candidate with the real manager, observes fresh capabilities and terminal-started LSP probes, exercises the installed-cache Bun/Python suite and damaged-candidate/upgrade/disabled/settings/forward-rollback controls, then removes scratch profiles. `OMP_BIN` can explicitly select the absolute pinned binary; do not point it at a mutable host/Tern installation.
+
+Native CI runs equivalent gates on `ubuntu-latest`, `macos-15` and `windows-latest`, plus the shared OpenSpec context. ConPTY, executable probes and injected process tests do **not** establish actual language-server protocol or native-browser acceptance. The compatibility flake remains independently checkable with `nix flake check` but is not required to develop or publish.
+
+Only the generator writes workflow payload adapters:
+
+```sh
+bun run sync:openspec-adapters
+bun run check:openspec-adapters
+```
+
+Both use a disposable root with the repository config and `openspec init --tools oh-my-pi`; the checker compares all bytes and missing/extra commands/skills without changing the working tree. Never hand-edit or format these generated paths; Biome exclusions remain authoritative. Never copy adapters into consumers.
+
+Hooks use installed native tools without downloads: staged formatting and types on commit, authoritative commitlint on the message, frozen installation and full CI on push. The Bun hook runner strips Git-local environment variables only in its child environment.
+
+Renovate owns JS/lockfiles/actions and native Bun/constraint-mirror, OMP release tag, OpenSpec generator/workflow, Python setup and Windows terminal pins. Bun bumps regenerate the lockfile with the selected Bun; generator/workflow OpenSpec pins update together and generated differences require review. The central `glockyco/dependency-automation` control plane owns retained Nix inputs; Renovate's Nix manager stays disabled. Neither updater merges, publishes or upgrades a host.
 
 ## Release flow
 
 1. Change the plugin and its observable tests together.
 2. When the change touches anything under `plugin/` or the catalog's delivery fields, raise the version in `.omp-plugin/marketplace.json` and `plugin/package.json` together (and the root `package.json` to match). `bun run check:release` rejects a runtime change that keeps or lowers the version. Documentation-only changes need no bump.
-3. Run `nix develop --command bun run ci` and `nix flake check`.
+3. Run `bun run ci` and obtain the three native matrix contexts plus shared OpenSpec context. Require actual browser acceptance in fresh Tern-managed Korolev and macbook-pro sessions separately.
 4. With the owner's explicit authorization, merge the reviewed release and tag it `vX.Y.Z`. Never move a published tag.
 5. Re-install the published release into a disposable OMP profile and confirm its version and capabilities before any host upgrades.
 6. Upgrade each host with the commands above and verify the changed capability in a fresh OMP session.

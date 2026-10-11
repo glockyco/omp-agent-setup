@@ -59,13 +59,26 @@ Use this order:
 
 The published version precedes a repository manuscript. arXiv is a source for genuine preprints or a last resort.
 
-Run the bundled helper:
+Run the readable bundled script explicitly with host-owned Python 3. Resolve
+`skill://research-evidence/scripts/fetch_pdf.py` to its installed filesystem path
+first, and quote that path (including spaces):
 
 ```bash
-skill://research-evidence/scripts/fetch_pdf.py <key> --doi <doi> [--arxiv <id>] --out <path>
+python3 "/installed cache/personal/skills/research-evidence/scripts/fetch_pdf.py" <key> --doi <doi> [--arxiv <id>] --out <path>
 ```
 
-Set `UNPAYWALL_EMAIL` to a real contact address before DOI acquisition. The helper has a Nix-patched Python shebang and needs no ambient Python package installation.
+In native Windows PowerShell, use an explicit Python executable and the call operator:
+
+```powershell
+& "C:\path to Python\python.exe" "C:\installed cache\personal\skills\research-evidence\scripts\fetch_pdf.py" <key> --doi <doi> --out <path>
+```
+
+Use the actual resolved interpreter and script paths, not the example paths.
+Python is an acquisition prerequisite supplied by the host; plugin discovery
+does not require or install it. The helper uses only the Python standard library,
+needs no ambient Python packages, and does not depend on a patched shebang or
+Windows executable mode bits. Unix release assets retain their executable bits.
+Set `UNPAYWALL_EMAIL` to a real contact address before DOI acquisition.
 
 Sci-Hub returns an HTML viewer. The helper extracts `citation_pdf_url` or an embedded PDF URL, resolves relative paths, and accepts bytes only when they start with `%PDF-`.
 
