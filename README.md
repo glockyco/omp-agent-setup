@@ -39,6 +39,7 @@ The refresh is what makes a newer release visible: OMP offers an upgrade only wh
 | `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
 | `plugin/skills/research-paper-writing/` | Master-cai's outline-first paper drafting, section guides, examples, and skeptical self-review. Source verification remains with `research-evidence` |
 | `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults, always applied |
+| `plugin/rules/plain-prose.md` | Plain punctuation in the prose agents write, always applied. Code, grammars, quotations and manuscripts are exempt |
 | `plugin/lsp/lsp.json` | Markdown Oxide selection, Marksman disablement, and the Roslyn and Svelte overrides, delivered by the catalog's `lspServers` field |
 | `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
 
@@ -106,7 +107,7 @@ nix develop --command bun run ci
 nix flake check
 ```
 
-`bun run ci` covers formatting, types, dead code, dependency advisories, the release tree, the release-version signal, extension behavior, real Git hooks, and deterministic retrieval fixtures. `nix flake check` runs the release gate: it installs the candidate catalog with the locked OMP's real plugin manager into a disposable profile, observes the commands, skills, rule, tools, and language-server selection that a fresh session gets, runs the behavior tests against the installed cache, and checks negative controls and upgrades. It also validates the generated OpenSpec adapters and archived task completeness. Run the gate by hand with `OMP_BIN=$(command -v omp) python3 tests/release_gate.py`. CI runs both gates on Apple Silicon macOS and x86-64 Linux.
+`bun run ci` covers formatting, types, dead code, dependency advisories, the release tree, the release-version signal, extension behavior, real Git hooks, and deterministic retrieval fixtures. `nix flake check` runs the release gate: it installs the candidate catalog with the locked OMP's real plugin manager into a disposable profile, observes the commands, skills, rules, tools, and language-server selection that a fresh session gets, runs the behavior tests against the installed cache, and checks negative controls and upgrades. It also validates the generated OpenSpec adapters and archived task completeness. Run the gate by hand with `OMP_BIN=$(command -v omp) python3 tests/release_gate.py`. CI runs both gates on Apple Silicon macOS and x86-64 Linux.
 
 Renovate owns JavaScript dependencies and GitHub Actions. A separate weekly workflow owns Nix flake inputs. Both create review-only pull requests; required Darwin and Linux checks must pass before merge.
 

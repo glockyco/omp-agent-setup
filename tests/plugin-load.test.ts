@@ -51,7 +51,7 @@ describe("packaged plugin", () => {
 		]);
 	});
 
-	test("contains exactly the selected skills, policy, and LSP overrides", async () => {
+	test("contains exactly the selected skills, rules, and LSP overrides", async () => {
 		const skills = readdirSync(join(pluginRoot, "skills")).filter(
 			skill => !skill.startsWith("openspec-"),
 		);
@@ -63,7 +63,10 @@ describe("packaged plugin", () => {
 		]) {
 			expect(existsSync(join(pluginRoot, "skills", "research-paper-writing", relative))).toBe(true);
 		}
-		expect(existsSync(join(pluginRoot, "rules", "personal-policy.md"))).toBe(true);
+		expect(readdirSync(join(pluginRoot, "rules")).sort()).toEqual([
+			"personal-policy.md",
+			"plain-prose.md",
+		]);
 		const lsp = await Bun.file(join(pluginRoot, "lsp", "lsp.json")).json();
 		expect(Object.keys(lsp.servers).sort()).toEqual([
 			"markdown-oxide",

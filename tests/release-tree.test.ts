@@ -102,9 +102,14 @@ describe("release tree", () => {
 			/not executable/,
 		],
 		[
-			"missing rule",
+			"missing personal policy",
 			(root: string) => rmSync(join(root, PAYLOAD, "rules", "personal-policy.md")),
-			/rule missing/,
+			/rule missing: rules\/personal-policy\.md/,
+		],
+		[
+			"missing plain-prose rule",
+			(root: string) => rmSync(join(root, PAYLOAD, "rules", "plain-prose.md")),
+			/rule missing: rules\/plain-prose\.md/,
 		],
 		[
 			"development files in the payload",
@@ -181,10 +186,14 @@ describe("release version signal", () => {
 
 	test("an older version fails and a newer matching version passes", async () => {
 		const root = releasedRepository();
+		// Pin the base so that the test does not depend on the current release.
+		await setVersion(root, "1.4.0");
+		git(root, "commit", "-q", "-am", "base release");
+		git(root, "branch", "-f", "released");
 		writeFileSync(join(root, PAYLOAD, "rules", "personal-policy.md"), "changed\n");
-		await setVersion(root, "0.1.9");
+		await setVersion(root, "1.3.9");
 		expect(checkReleaseVersion(root, "released").ok).toBe(false);
-		await setVersion(root, "0.2.1");
+		await setVersion(root, "1.4.1");
 		expect(checkReleaseVersion(root, "released")).toMatchObject({ ok: true });
 	});
 
