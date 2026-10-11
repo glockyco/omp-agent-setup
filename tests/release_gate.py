@@ -42,7 +42,7 @@ SKILLS = [
     "research-evidence",
     "research-paper-writing",
 ]
-POLICY_HEADING = "# Personal policy"
+RULE_HEADINGS = {"personal-policy": "# Personal policy", "plain-prose": "# Plain prose"}
 LANGUAGE_SERVERS = ["marksman", "markdown-oxide", "Microsoft.CodeAnalysis.LanguageServer", "svelteserver"]
 
 # Variables that would select another profile, agent directory or provider.
@@ -253,8 +253,9 @@ def capability_findings(commands, prompt, errors):
     for skill in SKILLS:
         if f"- {skill}:" not in skills_block:
             findings.append(f"skill {skill} not discovered")
-    if POLICY_HEADING not in prompt:
-        findings.append("always-applied rule personal-policy not in the system prompt")
+    for rule, heading in RULE_HEADINGS.items():
+        if heading not in prompt:
+            findings.append(f"always-applied rule {rule} not in the system prompt")
     findings.extend(f"extension error: {error}" for error in errors)
     return findings
 
@@ -471,6 +472,11 @@ class LostCapabilities(unittest.TestCase):
     def test_missing_rule(self):
         findings = self.findings_after(lambda release: (release / PAYLOAD / "rules" / "personal-policy.md").unlink())
         self.assertIn("always-applied rule personal-policy not in the system prompt", findings)
+
+    def test_missing_plain_prose_rule(self):
+        findings = self.findings_after(lambda release: (release / PAYLOAD / "rules" / "plain-prose.md").unlink())
+        self.assertIn("always-applied rule plain-prose not in the system prompt", findings)
+        self.assertNotIn("always-applied rule personal-policy not in the system prompt", findings)
 
     def test_missing_skill_asset_is_visible_in_the_cache(self):
         asset = Path("skills/research-paper-writing/references/introduction.md")

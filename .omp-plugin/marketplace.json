@@ -10,9 +10,9 @@
   "plugins": [
     {
       "name": "personal",
-      "description": "Personal policy, skills, OpenSpec workflow commands, commit tool, Plannotator commands, and LSP overrides.",
+      "description": "Personal policy, plain-prose rule, skills, OpenSpec workflow commands, commit tool, Plannotator commands, and LSP overrides.",
       "source": "./plugin",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "lspServers": "./lsp/lsp.json",
       "repository": "https://github.com/glockyco/omp-agent-setup",
       "homepage": "https://github.com/glockyco/omp-agent-setup",

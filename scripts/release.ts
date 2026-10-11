@@ -34,7 +34,7 @@ export const SKILL_ASSETS = [
 	"skills/research-paper-writing/references/introduction.md",
 	"skills/research-paper-writing/references/examples/index.md",
 ];
-export const RULE = "rules/personal-policy.md";
+export const RULES = ["rules/personal-policy.md", "rules/plain-prose.md"];
 export const LSP_CONFIG = "./lsp/lsp.json";
 /** Entries that belong to development, never to the installed payload. */
 const DEVELOPMENT_ENTRIES: Record<string, true> = {
@@ -160,7 +160,9 @@ export function validateReleaseTree(root: string): string[] {
 	if (existsSync(helper) && (statSync(helper).mode & 0o111) === 0) {
 		findings.push(`skill asset is not executable: ${SKILL_ASSETS[0]}`);
 	}
-	if (!existsSync(join(payload, RULE))) findings.push(`rule missing: ${RULE}`);
+	for (const rule of RULES) {
+		if (!existsSync(join(payload, rule))) findings.push(`rule missing: ${rule}`);
+	}
 	try {
 		const lsp = readJson(join(payload, LSP_CONFIG)) as { servers?: Record<string, unknown> };
 		if (!lsp.servers || typeof lsp.servers !== "object") findings.push("LSP config has no servers");
