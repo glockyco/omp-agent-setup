@@ -42,6 +42,15 @@ async function hook(kind: "matching" | "mismatch" | "unsupported" | "invalid") {
 		);
 	}
 	const separator = windows ? ";" : ":";
+	const env: NodeJS.ProcessEnv = {
+		...process.env,
+		CI: "1",
+		OPENSPEC_TELEMETRY: "0",
+	};
+	// Windows treats Path/PATH alike, but a copied JS object can contain both.
+	// Remove the inherited spelling before adding the fixture's search path.
+	if (windows) for (const key of Object.keys(env)) if (key.toUpperCase() === "PATH") delete env[key];
+	env.PATH = [bin, join(repository, "node_modules/.bin"), process.env.PATH ?? ""].join(separator);
 	const child = Bun.spawn(
 		windows
 			? [
@@ -57,12 +66,7 @@ async function hook(kind: "matching" | "mismatch" | "unsupported" | "invalid") {
 			: ["sh", "-c", commandText],
 		{
 			cwd: root,
-			env: {
-				...process.env,
-				PATH: [bin, join(repository, "node_modules/.bin"), process.env.PATH ?? ""].join(separator),
-				CI: "1",
-				OPENSPEC_TELEMETRY: "0",
-			},
+			env,
 			stdout: "pipe",
 			stderr: "pipe",
 		},
