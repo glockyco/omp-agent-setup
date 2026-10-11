@@ -3,11 +3,11 @@ pre-commit:
   commands:
     biome:
       glob: "*.{ts,js,json,md}"
-      run: bunx --no-install biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      run: bun x --no-install biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
     typecheck:
       glob: "*.ts"
-      run: bunx --no-install tsc --noEmit
+      run: bun x --no-install tsc --noEmit
 
 pre-push:
   commands:
@@ -19,4 +19,4 @@ pre-push:
 commit-msg:
   commands:
     commitlint:
-      run: bunx --no-install commitlint --edit "{1}"
+      run: bun x --no-install commitlint --edit "{1}"
