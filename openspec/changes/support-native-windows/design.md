@@ -1,0 +1,129 @@
+# Design
+
+## Context
+
+See `proposal.md` for motivation. Inspection at the assigned checkout establishes:
+
+- The runtime adapter is `plugin/extensions/plannotator.ts`, not a root `extensions/` directory. `localEnvironment()` rejects `win32` before preparing a review; `startChild()` detaches a piped child and signals its negative PID with TERM/KILL. The document scheme check also rejects a drive-qualified Windows path as a URL. Tests use Unix shebang fixtures, mode-bit assertions, a PATH containing only the fixture directory, and a signal-resistant descendant.
+- The main-spec inventory contains five capabilities and no `omp-visual-feedback`. Its active owning change adds `Owned review lifecycle` and `Annotation-only local subprocess`; its design explicitly excludes native Windows because cleanup uses POSIX groups. Task 3.4 is still open. This change cannot silently treat that delta as an accepted main spec.
+- CI has Linux and `macos-15` jobs, installs Determinate Nix, and runs flake checks, frozen installation, and `bun run ci` through Nix. The latter covers Biome, TypeScript, Knip, production audit, release-version validation, and covered Bun tests. Lefthook also has a POSIX `unset $(git rev-parse --local-env-vars)` pre-push fragment.
+- The flake owns Bun version checking, the Python installed-release gate, adapter regeneration/freshness, and `lib.openspecCheck`. The shared check isolates `openspec/`, rejects a CLI lacking `--archived`, and runs both strict commands. Renovate currently constrains Bun to 1.3.13; central automation owns the residual Nix inputs.
+- `tests/release_gate.py` uses Unix `pty`, `select`, process groups, shell-script LSP probes, and HOME/XDG isolation. Its real OMP install/discovery, damaged-candidate controls, cache behavior tests, and upgrade/state checks must survive the cutover. RPC discovery alone does not prove LSP selection.
+- The bundled `fetch_pdf.py` is standard-library Python, but its skill still claims a Nix-patched shebang. Release-tree checks require its executable bits; those are not a native Windows execution contract. The structured commit implementation already invokes Git by argv, but the hook test is a chmod-ed `/bin/sh` fixture.
+
+## Goals / Non-Goals
+
+**Goals:** Native host commands and equivalent gates across Linux, macOS and Windows; owned-tree cleanup without runtime npm dependencies; reusable strict fleet validation with no consumer-selected CLI; preserve real installed-release observations and existing failure controls.
+
+**Non-Goals:** No host installer or WSL retirement, no universal OMP installation policy, no changes to acquisition or citation semantics, no remote annotation, no approval/gate mode, no automatic tab-close dismissal, no adapter aliases, no runtime Python dependency at plugin load, and no deletion of the flake while consumers still need it.
+
+## Decisions
+
+### 1. Resolve active-change ownership before applying visual deltas
+
+The `omp-visual-feedback` delta here is MODIFIED against the original change's complete requirement blocks. Apply it only after `add-plannotator-visual-feedback` has its outstanding stock/native-browser acceptance completed and its spec synchronized and archived. Preserve its old-platform evidence as historical; this change supersedes its Windows exclusion, not its evidence or unfinished gates. Re-read the accepted blocks at that boundary and retain their exact names and complete scenarios.
+
+`retire-legacy-planning-archive` owns the 17-record disposition and deletion. Updating current AGENTS setup/check guidance here must preserve that independent scope and avoid introducing another archive. `add-research-paper-writing-skill` remains responsible for its unarchived completion and rights record; native release checks keep all its linked assets but no longer reproduce historical wrapper/store delivery. These changes need no edits to each other's planning artifacts.
+
+**Alternative:** Re-add the visual capability here or edit the original active design in place. Rejected: either creates competing owners or rewrites acceptance history.
+
+### 2. Keep annotation at a native executable boundary
+
+Remove only the Windows platform refusal. Require `mode === "tui"`, UI availability, and the same SSH/explicit-remote refusals on every OS. Use `Plannotator requires a local interactive OMP session.` for the mode/UI refusal and preserve the existing remote diagnostic. A missing executable names the host prerequisite, not a retired managed wrapper. Preserve environment stripping, random loopback ports, native browser selection, sharing disabled, and user data-directory selection.
+
+Continue direct `plannotator annotate <snapshot> --json` argv execution, piped output, no shell and no unref. Use `detached: true` on Unix for the owned process group. On Windows use `detached: false` and `windowsHide: true`: Windows has no negative-PID group contract, and a detached console is unnecessary for an OMP-owned child with piped streams. Invoke the official minimal install's native executable; do not manufacture a batch wrapper or shell fallback.
+
+Distinguish a native absolute filesystem path before URL-scheme rejection, so drive-qualified and UNC paths work without permitting arbitrary schemes. Keep relative/session-local resolution and unsupported-input rules unchanged.
+
+**Alternative:** Merely remove `win32` from the guard. Rejected: it exposes a cleanup path that cannot terminate a Windows tree and still rejects ordinary drive paths.
+
+### 3. Use Windows-owned taskkill termination, with orphan-safe escalation
+
+Keep Unix TERM then KILL group cleanup. On Windows use the built-in System32 `taskkill.exe` with an argument array: `/PID <owned pid> /T`, allow at most the existing one-second grace, then `/PID <owned pid> /T /F` for survivors. Hide utility windows, drain output, and await utility and child stream closure before deleting snapshots. The non-force request is best-effort Windows termination, not a claim that Windows delivers POSIX SIGTERM. Access-denied and other real cleanup failures produce an error, not fabricated success; an already-absent owned tree is idempotent success.
+
+A root can exit during the grace while a descendant remains. Before the first request, snapshot the owned root/descendant identities using built-in Windows PowerShell's `Get-CimInstance Win32_Process` (PID, parent PID, creation time); retain those identities through escalation. If the original root is gone, force-stop still-live recorded descendant roots with `/T /F`, only after their creation identities still match. Do not kill by executable name, kill a reused PID, or treat root `close` alone as tree completion. The adapter's process boundary owns this narrow tree snapshot/termination operation; it is not a host service or general process manager. Utility/query failure remains visible. Real cancellation acceptance must demonstrate the race and that another session is untouched.
+
+Add a dependency-free injectable boundary for platform, spawn, signals, Windows tree observation/termination, and the grace timer, with production defaults and per-extension-instance test injection. Do not mutate global `process.platform` or export an alternate runtime command surface. Deterministic Windows tests assert options, argv, grace/escalation, root-exit/surviving-descendant behavior, PID-identity mismatch, absent-process handling, error propagation, once-only stop, cleanup ordering, and suppressed late feedback. Native Windows CI also runs a real fixture child plus descendant; test injection is not substituted for actual tree acceptance.
+
+**Alternatives:** A Job Object would give stronger kernel ownership but requires new native bindings; killing only the root loses the existing lifecycle guarantee. Built-in taskkill/CIM keeps the payload dependency-free and standard-user compatible. Its extra Windows query is limited to review cleanup and protects the root-exit case rather than introducing broad telemetry.
+
+### 4. Select native tools independently of Nix
+
+Use `.bun-version` as the sole Bun version source, initially **1.3.13**, matching the current Renovate constraint. `oven-sh/setup-bun` reads it; a repository-only Bun version check rejects local/CI mismatch before installation/checks. Renovate's required `constraints.bun` is a checked mirror, never an independently selected runtime. Update its custom manager and grouping so a Bun bump, mirror, and regenerated `bun.lock` arrive together. Installed OMP's embedded Bun is independent of this development pin.
+
+Use ordinary `bun install --frozen-lockfile`, `bun run ci`, and locally installed lefthook/commitlint commands. Add lefthook as a pinned development dependency and document `bunx --no-install lefthook install` after frozen installation. Replace the shell `unset` fragment with a repository-only Bun hook runner which obtains Git's local environment variable names, removes them only from the child environment, and invokes the native CI command. Keep formatting/typecheck on commit, authoritative commit-message linting, and frozen install/full CI on push; no hook invokes Nix or downloads a missing tool.
+
+Retain all existing `bun run ci` checks and add native Bun-pin parity, adapter freshness, and the installed-release gate to the documented full gate. Python fixtures still run against the installed cache. Rewrite shell/shebang-only test launch boundaries to portable executable fixtures; retain true Git-for-Windows hooks through its supplied hook shell rather than requiring WSL. Assert Unix permission bits only where they are real, while Windows asserts readability and explicit Python execution. Normalize path separators only in inventory identities, not in user content or Git messages.
+
+**Alternative:** Keep Linux/macOS on Nix and special-case Windows. Rejected: it establishes two authoritative development contracts and lets regressions hide behind different gates.
+
+### 5. Keep the real release gate in Python and preserve terminal observation
+
+Keep `tests/release_gate.py` rather than porting its 549-line unittest/upgrade harness. Provision Python **3.13** explicitly with `actions/setup-python` instead of assuming every runner image ships a compatible command. Add repository-only `requirements-dev.txt` with **pywinpty==3.0.5; sys_platform == "win32"**; install binary wheels into a development venv. It provides native ConPTY on Windows; Unix keeps standard-library PTYs behind the same terminal-observation boundary. Import Unix-only modules conditionally. PyPI metadata confirms 3.0.5 supports Python >=3.10 and has a CPython 3.13 Windows x64 wheel; this is development tooling, never payload content.
+
+Windows LSP fixture executables must resolve through OMP's actual native executable lookup, log the exact selected argv, and stay alive long enough to be observed. Generate tiny native executable probes from the pinned development Bun (rather than relying on POSIX shebangs or assuming a `.cmd` is accepted by OMP's direct spawner); keep Unix executable probes. Drain PTY/ConPTY output, bound waits, and release the entire fixture tree and terminal handles on failure. Preserve positive/negative LSP selection, missing-executable/root-marker checks, all damaged-candidate controls, complete assets, disabled/settings state, and forward rollback. No Windows scenario is skipped because Unix `pty` is absent.
+
+Provision **OMP v18.8.7** into isolated CI scratch using the official installer: Unix `curl -fsSL https://omp.sh/install | sh -s -- --binary --ref v18.8.7`; Windows `install.ps1 -Binary -Ref v18.8.7`. Set its install root and HOME/USERPROFILE/LOCALAPPDATA/APPDATA and XDG/temp roots under scratch before invoking the installer; use the resulting absolute binary as `OMP_BIN`, verify its advertised version, and never resolve Korolev's Tern OMP for CI. For every disposable test profile, similarly redirect Windows home/app-data/temp variables and remove provider/profile overrides. Installed cache paths and cleanup assertions must reflect the actual selected host roots.
+
+Use npm **@fission-ai/openspec 1.14.0**, with a lockfile, as the repository's exact dev generator dependency. Provision Node 24 for the npm CLI; its published engine is >=20.19.0. Check archive support and freshness before accepting this initial version. The reusable workflow owns the same explicit OpenSpec pin; a repository CI parity check rejects drift between its version and the dev generator. These are one reviewed CLI selection represented at two execution boundaries, not consumer pins.
+
+**Alternative:** Port to Bun and introduce a new cross-platform terminal binding. Rejected: it replaces working negative/upgrade controls while still needing ConPTY support. Keeping Python also matches the existing evidence helper's host prerequisite.
+
+### 6. Define a small reusable fleet contract
+
+Public path: **`glockyco/omp-agent-setup/.github/workflows/openspec.yml`**. Trigger: **`on: workflow_call`**. Single optional string input: **`openspec-root`**, default **`.`**, a repository-relative directory containing `openspec/`. No version, commands, flags, archive-disable, arbitrary ref, runner, or secret input. Reject an absolute/outside-checkout root and a missing `openspec/`; pass the root as data, not interpolated shell source.
+
+The called job runs on Ubuntu with `contents: read`, checks out the caller's triggering revision (including PR merge semantics), provisions Node and exactly `@fission-ai/openspec@1.14.0` from npm in a scratch prefix, and validates that caller checkout. It needs no caller package.json, Bun, Nix, host OpenSpec, provider credentials, or inherited secrets. Run `openspec validate --help` and fail if `--archived` is absent; then execute exactly `openspec validate --all --strict --no-interactive` and `openspec validate --archived --strict --no-interactive`, with `CI=1` and `OPENSPEC_TELEMETRY=0`. Do not turn missing artifacts or unsupported flags into an empty success. A workflow revision may change the centrally tested pin, not consumer-selected flags.
+
+Consumers use a job-level `uses: glockyco/omp-agent-setup/.github/workflows/openspec.yml@<full reviewed release commit SHA>` and `with: openspec-root: .` (or omit the default). The eventual SHA is a publication artifact, not a value that can be named before the release exists. Update it through a review-only GitHub Actions dependency PR with an immutable release-tag annotation; do not use mutable `main` or copy commands into consumer CI. nix-config's `retire-korolev-wsl-host` must use this exact path/input after release.
+
+Locally, document POSIX and PowerShell hook forms using the host's `openspec`: fail if help lacks `--archived`, then run the same two strict commands, propagating every exit code. Local hooks are expressly permitted to contain those documented commands; no consuming repository implements a second validator or installs its own CI CLI pin. Once the host CLI is fetched, local validation needs no network. Result parity is promised only when the host CLI matches the shared workflow's advertised version; a mismatch is reported and corrected by the host's tool owner, not hidden by a hook download.
+
+Run this reusable workflow from this repository's CI too. Native matrix jobs independently exercise artifact validation and adapter generation on all three hosts, since the shared workflow's single Ubuntu runner is sufficient for consumer artifact contracts but cannot prove native development portability. Adapter freshness belongs only to this repository, not to caller checkouts.
+
+**Alternative:** Ship copied workflow commands or a required Nix validator. Rejected: the former forks the shared contract and the latter excludes native Windows consumers. Do not claim GitHub Actions reproduces Nix content-addressed caching: validation reads artifacts only, but a job may rerun for unrelated caller changes.
+
+### 7. Retain the flake as a temporary consumer interface, remove it separately
+
+Leave `lib.openspecCheck` and its pinned Nix inputs operational; the central Nix updater still owns them. Stop treating its devshell, `bun-runtime`, release-gate and adapter apps as the authoritative contributor/CI path. New native scripts share generator semantics internally; the retained flake may continue exposing its existing compatibility-period checks, but documentation no longer requires them to develop or release.
+
+A follow-up removal change is gated on migration evidence for **nix-config, phd-thesis, and test-generalization**, including their independent adapter-freshness wiring. Each consumer moves artifact validation to the reusable workflow and removes dependency on this repository's flake adapter check, because this repo checks its own payload. Only then remove unused outputs and inputs and deregister this repository's Nix update target in its owning control plane. No final task here conditionally deletes the flake: fleet timing must not block this native runtime release or break an unmigrated Mac/Nix consumer.
+
+Renovate owns native Bun/OMP/OpenSpec/Python-terminal pins and existing JS/actions; its Nix manager stays disabled. Custom OMP release-tag extraction must target can1357/oh-my-pi. Native-pin updates remain review-only, run all three matrix contexts and the shared validation context, and do not publish or update either host. Branch protection adds the Windows and shared-workflow contexts without weakening Linux/macOS requirements, including for admins and automation.
+
+## Risks / Trade-offs
+
+- [Non-force taskkill behavior differs from POSIX signals; root exits first] → Retain creation-qualified descendant ownership, force survivors after the same grace, and require deterministic and real descendant cleanup acceptance. Do not equate parent closure with success.
+- [Intune policy restricts process-query/termination utilities] → Run standard-user Korolev acceptance with built-in utilities; an access-denied result is a release blocker, not a request to elevate or bypass management.
+- [Official binary differs from Tern-managed runtime] → CI uses the pinned official binary, but host acceptance separately exercises Korolev's actual Tern 18.8.7 session and macbook-pro. Neither success implies the other.
+- [Published npm CLI may differ from the Nix-packaged generator or lack archive support] → Reject unsupported versions, compare generated payload without edits, and review any generator changes before a runtime version bump. No validation was run during planning.
+- [Windows isolation falls back to real USERPROFILE/LOCALAPPDATA] → Assert scratch-resolved state paths, all capability/upgrade controls, and cleanup; never install test tools into Tern's directory.
+- [ConPTY and permission/path differences hide a weakened gate] → Keep observable LSP and Git-hook tests on Windows, explicit Python helper invocation, and equivalent negative controls. Fixture selection evidence is not a real LSP/browser smoke.
+- [Bun npm package dependencies are newer than the selected runtime] → Keep 1.3.13 as the explicit initial development selection and exercise the complete native matrix before release; any required pin bump is a reviewed toolchain update, not silent CI auto-selection.
+
+## Migration Plan
+
+1. Finish and synchronize/archive the visual owner with its existing native/stock acceptance; leave other active changes and historical records unchanged.
+2. Implement native annotation/process/path behavior and portable tests; preserve Unix cleanup and all refusal/feedback invariants.
+3. Add the native toolchain, release-gate terminal boundary, adapter writer/checker, hooks, update configuration, and three-host CI together; prove every existing gate survives.
+4. Publish the reusable validation interface and update current docs; retain the flake for unmigrated consumers. Establish reviewed workflow adoption tracking for the three named consumers.
+5. Exercise actual browser annotation/last/cancel, closed-tab cancel, navigation and shutdown in fresh Tern-managed Korolev and macbook-pro sessions. Release with a newer consistent catalog/payload/root version only after owner-authorized publication; this planning change publishes nothing.
+6. nix-config consumes that released workflow and plugin support through its two separate Windows-native/WSL-retirement changes. Other consumers migrate independently; flake removal has a separate gate.
+
+Rollback publishes known-good runtime content as a newer plugin release and restores a reviewed prior shared-workflow SHA where needed; never rewrite tags or remove `lib.openspecCheck` during the rollback. Preserve host state and Tern ownership.
+
+## Assumptions for Owner Review
+
+- Initial native pins are Bun 1.3.13 (existing Renovate constraint), OMP v18.8.7 (matches the supplied Korolev runtime version), npm OpenSpec 1.14.0 (matches the observed WSL CLI and published npm package), Python 3.13, and Windows-only pywinpty 3.0.5. No native compatibility or archive/freshness result is claimed yet.
+- Windows standard-user policy permits built-in PowerShell CIM process queries and taskkill for the user's owned processes; pywinpty is repository development tooling installed into a venv, not a host-wide managed application.
+- Consumers pin the reusable workflow to a reviewed full release commit SHA, with no custom CLI/version controls; local host CLI parity is established by host provisioning rather than consumer package dependencies.
+- The original visual change can be completed and synchronized before applying this MODIFIED delta. Its unrun platform gates cannot be treated as completed merely because this proposal exists.
+
+## Open Questions
+
+- Which owner-authorized immutable plugin release tag and corresponding full workflow commit SHA will be published after implementation acceptance? These release identifiers are intentionally not invented during planning.
+- What dates will phd-thesis and test-generalization record their workflow/adapter-check migrations? Those dates gate the separate flake-removal change, not this release.
+
+## External Evidence
+
+Read on 2026-10-11: [official Windows OMP installer](https://omp.sh/install.ps1) documents `-Binary -Ref`, `PI_INSTALL_DIR`, default LOCALAPPDATA installation and user-profile shell configuration; [npm OpenSpec 1.14.0 metadata](https://registry.npmjs.org/@fission-ai/openspec/1.14.0) identifies the CLI and Node engine; [pywinpty 3.0.5 metadata](https://pypi.org/pypi/pywinpty/3.0.5/json) documents ConPTY and Windows CPython wheels. Package availability is evidence for this design, not executed release acceptance.
