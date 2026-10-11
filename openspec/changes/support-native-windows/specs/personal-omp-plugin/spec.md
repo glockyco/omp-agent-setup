@@ -66,7 +66,7 @@ Verification SHALL observe both declared extension factories, the commit tool, a
 
 ### Requirement: Native repository hooks
 
-Repository development and Git hooks SHALL run the pinned native toolchain on Linux, macOS, and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen dependency installation, and full pre-push CI; they SHALL use installed development tools without fetching a missing executable.
+Repository development and Git hooks SHALL run the pinned native toolchain on Linux, macOS, and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen dependency installation, and the fast `bun run check:local` pre-push gate covering toolchain, lint, types, dead code, release version, unit tests, OpenSpec adapter freshness and strict artifact validation; they SHALL use installed development tools without fetching a missing executable. Pre-push SHALL omit network audit and installed-release download/terminal checks. Every PR's Linux, macOS and Windows CI SHALL run the complete `bun run ci`, including those checks.
 
 #### Scenario: Commit from a native Windows client
 
@@ -77,5 +77,6 @@ Repository development and Git hooks SHALL run the pinned native toolchain on Li
 #### Scenario: Push runs from a Git hook environment
 
 - **WHEN** the pre-push hook inherits Git's repository-local environment variables
-- **THEN** its native CI child receives the correctly sanitized environment and runs frozen installation plus the full gate
+- **THEN** its native child receives the correctly sanitized environment and runs frozen installation plus the fast local gate, without network audit or installed-release download/terminal checks
 - **AND** sanitization does not depend on POSIX shell substitution or mutate the parent environment
+- **AND** every PR still runs the complete gate, including audit and installed-release checks, on all three CI hosts

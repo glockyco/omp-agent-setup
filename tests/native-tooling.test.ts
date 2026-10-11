@@ -180,6 +180,59 @@ test("archive-support guard fails before either validation and propagates CLI fa
 	expect(workflowGate(repository)).toContain("'--archived', '--strict', '--no-interactive'");
 });
 
+test("local gate separates expensive CI checks and stops on a local failure", async () => {
+	const root = fixture();
+	const { scripts } = JSON.parse(readFileSync(join(repository, "package.json"), "utf8"));
+	const local = [
+		"check:toolchain",
+		"check:lint",
+		"check:types",
+		"check:dead",
+		"check:release",
+		"check:test",
+		"check:openspec-adapters",
+		"check:openspec",
+	];
+	const complete = [...local, "check:audit", "check:installed-release"];
+	put(
+		root,
+		"package.json",
+		JSON.stringify({
+			scripts: {
+				"check:local": scripts["check:local"],
+				ci: scripts.ci,
+				...Object.fromEntries(complete.map(name => [name, `bun gate-probe.ts ${name}`])),
+			},
+		}),
+	);
+	put(
+		root,
+		"gate-probe.ts",
+		"import { appendFileSync } from 'node:fs'; const name=process.argv[2]; appendFileSync('gate.log', name+'\\n'); if(process.env.LOCAL_GATE_FAIL===name) process.exit(23);\n",
+	);
+	async function run(name: string, fail?: string): Promise<string[]> {
+		put(root, "gate.log", "");
+		const child = Bun.spawn([process.execPath, "run", name], {
+			cwd: root,
+			env: { ...process.env, LOCAL_GATE_FAIL: fail ?? "" },
+			stdout: "ignore",
+			stderr: "ignore",
+		});
+		expect(await child.exited).toBe(fail ? 23 : 0);
+		return readFileSync(join(root, "gate.log"), "utf8").trim().split("\n");
+	}
+	expect(await run("check:local")).toEqual(local);
+	expect(await run("ci")).toEqual(complete);
+	expect(await run("ci", "check:types")).toEqual(local.slice(0, 3));
+	const hooks = Bun.YAML.parse(readFileSync(join(repository, "lefthook.yml"), "utf8")) as {
+		"pre-push": { commands: Record<string, { run: string }> };
+	};
+	expect(Object.values(hooks["pre-push"].commands).map(command => command.run)).toEqual([
+		"bun scripts/hooks.ts bun install --frozen-lockfile",
+		"bun scripts/hooks.ts bun run check:local",
+	]);
+});
+
 test("native hook child strips Git-local variables without mutating parent and propagates failures", async () => {
 	const root = fixture();
 	const init = Bun.spawn(["git", "init", root], { stdout: "ignore", stderr: "ignore" });
