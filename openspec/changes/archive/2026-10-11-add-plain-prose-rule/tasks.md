@@ -11,4 +11,4 @@
 
 - [x] 3.1 List `plugin/rules/plain-prose.md` in the payload table of `README.md`. Verify that the table names every file under `plugin/rules/`.
 - [x] 3.2 Run `nix develop --command bun run ci` and `nix flake check`, and validate the change with `openspec validate add-plain-prose-rule --strict`. Verify that all three pass.
-- [ ] 3.3 With owner authorization, merge, tag and upgrade the hosts. Verify in a fresh OMP session in Tern that the system prompt carries the plain-prose rule.
+- [x] 3.3 With owner authorization, merge, tag and upgrade the hosts. Verify in a fresh OMP session in Tern that the system prompt carries the plain-prose rule.
