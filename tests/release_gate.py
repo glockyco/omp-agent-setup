@@ -299,6 +299,7 @@ class Profile:
     def __init__(self):
         self.root = Path(tempfile.mkdtemp(prefix="personal release gate "))
         try:
+            self.root = self.root.resolve()
             self._prepare()
         except BaseException:
             self.close()
@@ -632,9 +633,19 @@ class InstalledRelease(unittest.TestCase):
             registry = ancestor / ".omp" / "plugins" / "installed_plugins.json"
             registry.parent.mkdir(parents=True)
             shutil.copyfile(self.profile.home / ".omp" / "plugins" / "installed_plugins.json", registry)
-            root = ancestor / "nested scratch"
+            root = ancestor / "physical scratch"
             root.mkdir()
-            with patch.object(tempfile, "mkdtemp", return_value=str(root)):
+            alias = ancestor / "nested scratch alias"
+            subprocess.run(
+                [self.profile.bun, "-e",
+                 'import {symlinkSync} from "node:fs"; '
+                 'symlinkSync(process.argv[1], process.argv[2], '
+                 'process.platform === "win32" ? "junction" : "dir");',
+                 str(root), str(alias)],
+                cwd=self.profile.home, env=self.profile.environment(),
+                check=True, capture_output=True, text=True,
+            )
+            with patch.object(tempfile, "mkdtemp", return_value=str(alias)):
                 profile = Profile()
             try:
                 self.assertTrue(profile.work.is_relative_to(profile.home))

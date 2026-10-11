@@ -268,6 +268,11 @@ class TerminalTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "candidate copy failed"):
                     Profile()
             self.assertFalse(failed.exists())
+            failed.mkdir()
+            with patch("release_gate.tempfile.mkdtemp", return_value=str(failed)), patch.object(Path, "resolve", side_effect=OSError("scratch resolution failed")):
+                with self.assertRaisesRegex(OSError, "scratch resolution failed"):
+                    Profile()
+            self.assertFalse(failed.exists())
 
 
 # Run the actual helper's __main__ through explicitly addressed Python, with only

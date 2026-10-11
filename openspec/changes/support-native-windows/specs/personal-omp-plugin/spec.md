@@ -63,6 +63,13 @@ Verification SHALL observe both declared extension factories, the commit tool, a
 - **AND** native version probes execute from the redirected home, the pre-install manager list is empty, and every installed or discovered plugin path belongs to the gate's scratch root
 - **AND** no extra configuration marker or environment override is needed and real user plugin state remains unchanged
 
+#### Scenario: Owned scratch has a filesystem alias
+
+- **WHEN** Windows TEMP uses an NTFS short name or a scratch directory is addressed through a symlink or Windows junction
+- **THEN** owned profile roots are canonicalized through filesystem realpath before deriving redirected home, work, release and state paths
+- **AND** actual cwd matches the redirected home boundary and the real manager discovers the installed candidate exactly once without output deduplication
+- **AND** failed canonicalization remains visible and partial setup cleans its owned state
+
 #### Scenario: ConPTY output has already drained
 
 - **WHEN** the owned native tree has stopped and its ConPTY reader has already completed
