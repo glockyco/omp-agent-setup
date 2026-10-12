@@ -147,10 +147,10 @@ python3.13 -m venv .venv
 .venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```
 
-PowerShell uses the same Bun commands, then:
+PowerShell uses the same Bun commands, with the host's Python 3.13 selected as `python` (no separate `py` launcher is required), then:
 
 ```powershell
-py -3.13 -m venv .venv
+python -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 ```
