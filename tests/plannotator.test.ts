@@ -20,7 +20,8 @@ import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@oh-my-pi/pi-
 import type { AnnotationBoundary } from "../plugin/extensions/plannotator";
 
 // Real Windows CIM/termination utilities and compiled fixtures are external processes.
-setDefaultTimeout(60000);
+const nativeCaseTimeout = 30_000;
+setDefaultTimeout(nativeCaseTimeout);
 const pluginRoot = process.env.PERSONAL_PLUGIN_DIR ?? join(import.meta.dir, "..", "plugin");
 // Exercise the manifest payload selected by the source run or the installed-release check.
 const { default: plannotator } = await import(
@@ -167,7 +168,7 @@ async function host(id: string, boundary: Partial<AnnotationBoundary> = {}): Pro
 }
 
 async function until(condition: () => boolean | Promise<boolean>): Promise<void> {
-	const deadline = Date.now() + 5000;
+	const deadline = Date.now() + nativeCaseTimeout;
 	while (!(await condition())) {
 		if (Date.now() > deadline) throw new Error("Timed out waiting for annotation state.");
 		await Bun.sleep(10);
@@ -792,6 +793,22 @@ describe("visual annotation", () => {
 		expect(second.feedback[0]?.content).toContain("Session: second");
 		expect(second.feedback[0]?.content).not.toContain("First session");
 		expect(await readFile(join(first.ctx.cwd, "note.md"), "utf8")).toBe("First session");
+	});
+
+	test("publishes complete readiness atomically before session-tree cleanup", async () => {
+		const instance = await host("readiness-publication");
+		await writeFile(join(instance.ctx.cwd, "mode"), "staged-ready");
+		await writeFile(join(instance.ctx.cwd, "note.md"), "Complete ready snapshot");
+		await instance.command("plannotator-annotate", "note.md");
+		await until(() => Bun.file(join(instance.ctx.cwd, "ready.pending.json")).exists());
+		expect(await Bun.file(join(instance.ctx.cwd, "ready.json")).exists()).toBe(false);
+		await writeFile(join(instance.ctx.cwd, "publish-ready"), "publish");
+		const review = await ready(instance);
+		expect(review.text).toBe("Complete ready snapshot");
+		await instance.event("session_before_tree");
+		expect(instance.feedback).toEqual([]);
+		expect(await Bun.file(review.path).exists()).toBe(false);
+		expect(processExists(review.pid)).toBe(false);
 	});
 
 	for (const event of [
