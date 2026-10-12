@@ -14,7 +14,7 @@ python3.13 -m venv .venv
 .venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```
 
-In PowerShell, use `py -3.13 -m venv .venv` and `& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt` for the last two commands. Check `$LASTEXITCODE` after native commands. `PYTHON_BIN` can select an explicit interpreter; otherwise launchers use the platform's `.venv` interpreter. Windows-only pywinpty 3.0.5 is development ConPTY tooling. Nothing installs global tools or changes user PATH; .NET SDK and actual language servers are host prerequisites only for relevant runtime capabilities.
+In PowerShell, select the host's Python 3.13 as `python`, then use `python -m venv .venv` and `& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt` for the last two commands; no separate `py` launcher is required. Check `$LASTEXITCODE` after native commands. `PYTHON_BIN` can select an explicit interpreter; otherwise launchers use the platform's `.venv` interpreter. Windows-only pywinpty 3.0.5 is development ConPTY tooling. Nothing installs global tools or changes user PATH; .NET SDK and actual language servers are host prerequisites only for relevant runtime capabilities.
 
 ## Source layout
 
