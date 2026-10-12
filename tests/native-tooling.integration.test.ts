@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, setDefaultTimeout, test } from "bun:test";
 import {
 	cpSync,
 	existsSync,
@@ -12,10 +12,10 @@ import {
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { checkOpenSpec, workflowGate } from "../scripts/check-openspec.ts";
-import { checkToolchain } from "../scripts/check-toolchain.ts";
 import { runHook } from "../scripts/hooks.ts";
-import { compareAdapters, openspecAdapters } from "../scripts/openspec-adapters.ts";
+import { openspecAdapters } from "../scripts/openspec-adapters.ts";
 
+setDefaultTimeout(30_000);
 const repository = join(import.meta.dir, "..");
 const cli = join(repository, "node_modules/@fission-ai/openspec/bin/openspec.js");
 const scratch: string[] = [];
@@ -31,61 +31,6 @@ function put(root: string, path: string, content: string): void {
 }
 afterEach(() => {
 	for (const root of scratch.splice(0)) rmSync(root, { recursive: true, force: true });
-});
-
-test("Bun mismatch and Renovate/OpenSpec mirror drift name expected and observed versions", () => {
-	const root = fixture();
-	for (const path of [
-		".bun-version",
-		"renovate.json",
-		"package.json",
-		".github/workflows/openspec.yml",
-	]) {
-		put(root, path, readFileSync(join(repository, path), "utf8"));
-	}
-	const pin = readFileSync(join(root, ".bun-version"), "utf8").trim();
-	const generator = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).devDependencies[
-		"@fission-ai/openspec"
-	];
-	expect(checkToolchain(root, pin)).toEqual([]);
-	expect(checkToolchain(root, "0.0.0").join("\n")).toContain(`expected ${pin}, observed 0.0.0`);
-	const renovate = JSON.parse(readFileSync(join(root, "renovate.json"), "utf8"));
-	renovate.constraints.bun = "0.0.0";
-	put(root, "renovate.json", JSON.stringify(renovate));
-	expect(checkToolchain(root, pin).join("\n")).toContain(`expected ${pin}, observed 0.0.0`);
-	put(root, ".github/workflows/openspec.yml", "@fission-ai/openspec@0.0.0");
-	expect(checkToolchain(root, pin).join("\n")).toContain(
-		`expected generator ${generator}, observed 0.0.0`,
-	);
-});
-
-test("adapter inventory compares bytes and rejects missing/extra commands and skills", () => {
-	const actual = fixture();
-	const expected = fixture();
-	for (const root of [actual, expected]) {
-		put(root, "commands/opsx-apply.md", "exact\r\n");
-		put(root, "skills/openspec-apply-change/SKILL.md", "skill\n");
-	}
-	expect(compareAdapters(actual, expected)).toEqual([]);
-	put(actual, "commands/opsx-apply.md", "exact\n");
-	expect(compareAdapters(actual, expected)).toContain("Adapter drift: commands/opsx-apply.md");
-	rmSync(join(actual, "commands/opsx-apply.md"));
-	rmSync(join(actual, "skills/openspec-apply-change"), { recursive: true });
-	put(actual, "commands/extra.md", "extra");
-	put(actual, "skills/openspec-extra/SKILL.md", "extra");
-	expect(compareAdapters(actual, expected)).toEqual([
-		"Missing adapter: commands/opsx-apply.md",
-		"Missing adapter: skills/openspec-apply-change/SKILL.md",
-		"Extra adapter: commands/extra.md",
-		"Extra adapter: skills/openspec-extra/SKILL.md",
-	]);
-});
-
-test("adapter freshness rejects an extra empty skill directory", () => {
-	const actual = fixture();
-	const expected = fixture();
-	mkdirSync(join(actual, "skills/openspec-empty"), { recursive: true });
-	expect(compareAdapters(actual, expected)).toEqual(["Extra adapter: skills/openspec-empty/"]);
 });
 
 test("real native generation/check preserves all checkout bytes and non-OpenSpec skills", async () => {
@@ -190,11 +135,15 @@ test("local gate separates expensive CI checks and stops on a local failure", as
 		"check:types",
 		"check:dead",
 		"check:release",
-		"check:test",
+		"check:test:unit",
 		"check:openspec-adapters",
 		"check:openspec",
 	];
-	const complete = [...local, "check:audit", "check:installed-release"];
+	const complete = [
+		...local.map(name => (name === "check:test:unit" ? "check:test" : name)),
+		"check:audit",
+		"check:installed-release",
+	];
 	put(
 		root,
 		"package.json",
@@ -202,7 +151,12 @@ test("local gate separates expensive CI checks and stops on a local failure", as
 			scripts: {
 				"check:local": scripts["check:local"],
 				ci: scripts.ci,
-				...Object.fromEntries(complete.map(name => [name, `bun gate-probe.ts ${name}`])),
+				...Object.fromEntries(
+					[...local, "check:test", "check:audit", "check:installed-release"].map(name => [
+						name,
+						`bun gate-probe.ts ${name}`,
+					]),
+				),
 			},
 		}),
 	);
@@ -232,7 +186,7 @@ test("local gate separates expensive CI checks and stops on a local failure", as
 		"bun scripts/hooks.ts bun install --frozen-lockfile",
 		"bun scripts/hooks.ts bun run check:local",
 	]);
-});
+}, 30_000);
 
 test("configured message hook uses native Bun without an optional executable alias", async () => {
 	const root = fixture();

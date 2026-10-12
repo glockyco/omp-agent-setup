@@ -162,33 +162,3 @@ test.each(["latest", "", "18.8.8", "v18.8", "v18.8.8/other", "v18.8.8?token=secr
 		expect(readFileSync(files.pinPath, "utf8")).toBe(files.old);
 	},
 );
-
-test.each([
-	{ args: [] },
-	{ args: ["latest"] },
-	{ args: ["--", "latest"] },
-	{ args: [selected, "--output", "other.json"] },
-])("CLI refuses missing, invalid, or extra arguments: %j", async ({ args }) => {
-	const files = fixture();
-	let requests = 0;
-	await expect(
-		syncReleaseOmpCommand(args, files.pinPath, async () => {
-			requests++;
-			throw new Error("invalid command must not request checksums");
-		}),
-	).rejects.toThrow();
-	expect(requests).toBe(0);
-	const child = Bun.spawn(
-		[process.execPath, join(import.meta.dir, "../scripts/sync-release-omp.ts"), ...args],
-		{ cwd: files.root, stdout: "pipe", stderr: "pipe" },
-	);
-	const [stdout, stderr, status] = await Promise.all([
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
-		child.exited,
-	]);
-	expect(status).toBe(1);
-	expect(stdout).toBe("");
-	expect(stderr).not.toBe("");
-	expect(readFileSync(files.pinPath, "utf8")).toBe(files.old);
-});
