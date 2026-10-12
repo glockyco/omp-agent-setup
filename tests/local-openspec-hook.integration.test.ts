@@ -1,7 +1,9 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, setDefaultTimeout, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+setDefaultTimeout(30_000);
 
 const repository = join(import.meta.dir, "..");
 const readme = readFileSync(join(repository, "README.md"), "utf8");

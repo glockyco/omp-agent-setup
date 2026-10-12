@@ -29,7 +29,7 @@ None. `omp-visual-feedback` is now an accepted main capability after the authori
 
 ## Impact
 
-Implementation targets are `plugin/extensions/plannotator.ts`, `tests/plannotator.test.ts`, `tests/release_gate.py`, `tests/personal-commit.test.ts`, `tests/release-tree.test.ts`, `scripts/release.ts`, `package.json`, `bun.lock`, `lefthook.yml`, `renovate.json`, `.github/workflows/ci.yml`, the new reusable workflow and repository-only native gate/adapter scripts, README, AGENTS, and research-helper guidance. Runtime changes require a newer synchronized personal plugin release version.
+Implementation targets are `plugin/extensions/plannotator.ts`, paired unit/integration annotation, personal-commit, release-tree and native-tooling suites, `tests/release_gate.py`, `scripts/release.ts`, `package.json`, `bun.lock`, `lefthook.yml`, `renovate.json`, `.github/workflows/ci.yml`, the new reusable workflow and repository-only native gate/adapter scripts, README, AGENTS, and research-helper guidance. Runtime changes require a newer synchronized personal plugin release version.
 
 `nix-config/retire-korolev-wsl-host` consumes the reviewed shared-workflow release; `nix-config/make-korolev-windows-native` depends on this plugin release for Windows Plannotator acceptance. Neither host installation is implemented here: Korolev keeps Tern-managed OMP (`%LOCALAPPDATA%\Tern\omp\bin\omp.exe`, currently 18.8.7), while CI uses an isolated official binary. Docker Desktop, TeX Live/TexLab and other Windows tooling, WSL retirement, OMP memory migration, and the private booking marketplace have separate owners.
 

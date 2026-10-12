@@ -726,8 +726,9 @@ class InstalledRelease(unittest.TestCase):
         path = self.install_path()
         env = {**self.profile.environment(), "PERSONAL_PLUGIN_DIR": str(path), "PYTHONDONTWRITEBYTECODE": "1"}
         bun = subprocess.run(
-            [self.profile.bun, "test", *(str(REPOSITORY / "tests" / name) for name in (
-                "plugin-load.test.ts", "personal-commit.test.ts", "plannotator.test.ts"))],
+            [self.profile.bun, "test", "--coverage", *(str(REPOSITORY / "tests" / name) for name in (
+                "plugin-load.unit.test.ts", "personal-commit.unit.test.ts", "personal-commit.integration.test.ts",
+                "plannotator.unit.test.ts", "plannotator.integration.test.ts"))],
             cwd=REPOSITORY,
             env=env,
             capture_output=True,

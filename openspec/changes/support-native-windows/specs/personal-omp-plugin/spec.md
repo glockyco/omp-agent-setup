@@ -106,7 +106,7 @@ Verification SHALL observe both declared extension factories, the commit tool, a
 
 ### Requirement: Native repository hooks
 
-Repository development and Git hooks SHALL run the pinned native toolchain on Linux, macOS, and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen dependency installation, and the fast `bun run check:local` pre-push gate covering toolchain, lint, types, dead code, release version, unit tests, OpenSpec adapter freshness and strict artifact validation; they SHALL use installed development tools without fetching a missing executable. Pre-push SHALL omit network audit and installed-release download/terminal checks. Every PR's Linux, macOS and Windows CI SHALL run the complete `bun run ci`, including those checks.
+Repository development and Git hooks SHALL run the pinned native toolchain on Linux, macOS, and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen dependency installation, and the fast `bun run check:local` pre-push gate covering toolchain, lint, types, dead code, release version, deterministic unit tests, OpenSpec adapter freshness and strict artifact validation; they SHALL use installed development tools without fetching a missing executable. Real external-toolchain and process-lifecycle tests SHALL be classified as integration tests, retain explicit 30 s case budgets and run in complete CI rather than pre-push's unit set. Pre-push SHALL omit network audit and installed-release download/terminal checks. Every PR's Linux, macOS and Windows CI SHALL run the complete `bun run ci`, including both test sets with the unchanged complete-suite coverage floor and those checks.
 
 #### Scenario: Commit from a native Windows client
 
@@ -126,3 +126,10 @@ Repository development and Git hooks SHALL run the pinned native toolchain on Li
 - **THEN** its native child receives the correctly sanitized environment and runs frozen installation plus the fast local gate, without network audit or installed-release download/terminal checks
 - **AND** sanitization does not depend on POSIX shell substitution or mutate the parent environment
 - **AND** every PR still runs the complete gate, including audit and installed-release checks, on all three CI hosts
+- **AND** the local unit selector excludes real OpenSpec/commitlint/lefthook/Git command fixtures, compiled executable launchers and actual annotation process lifecycle, while preserving their complete CI and installed-cache coverage
+
+#### Scenario: A loaded native workstation pushes a change
+
+- **WHEN** the standard-user host has an endpoint scanner or other live sessions affecting external-toolchain timing
+- **THEN** pre-push runs the deterministic unit set without executing real-toolchain integration fixtures
+- **AND** the same PR still exercises every integration fixture with explicit 30 s case budgets and unchanged complete-suite coverage on Linux, macOS and Windows
