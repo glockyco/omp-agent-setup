@@ -299,7 +299,7 @@ class Profile:
     def __init__(self):
         self.root = Path(tempfile.mkdtemp(prefix="personal release gate "))
         try:
-            self.root = self.root.resolve()
+            self.root = Path(os.path.realpath(self.root, strict=True))
             self._prepare()
         except BaseException:
             self.close()

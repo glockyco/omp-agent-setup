@@ -17,6 +17,7 @@ import { checkReleaseVersion } from "../scripts/check-release-version.ts";
 import { readPin } from "../scripts/omp-pin.ts";
 import { CATALOG, PAYLOAD, validateReleaseTree } from "../scripts/release.ts";
 import {
+	canonicalScratchRoot,
 	cleanupReleaseOmp,
 	isolatedEnvironment,
 	setupReleaseOmp,
@@ -31,7 +32,7 @@ afterEach(() => {
 
 /** Copies the candidate release tree (catalog plus payload) into a disposable root. */
 function candidate(): string {
-	const root = mkdtempSync(join(tmpdir(), "personal-release-tree-"));
+	const root = canonicalScratchRoot(mkdtempSync(join(tmpdir(), "personal-release-tree-")));
 	scratch.push(root);
 	cpSync(join(repository, ".omp-plugin"), join(root, ".omp-plugin"), { recursive: true });
 	cpSync(join(repository, PAYLOAD), join(root, PAYLOAD), { recursive: true });
@@ -251,7 +252,7 @@ describe("native release provisioning", () => {
 	});
 
 	test("setup redirects every state root and removes inherited provider/profile selectors", async () => {
-		const root = mkdtempSync(join(tmpdir(), "release setup with spaces "));
+		const root = canonicalScratchRoot(mkdtempSync(join(tmpdir(), "release setup with spaces ")));
 		scratch.push(root);
 		const saved = {
 			OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -290,7 +291,7 @@ describe("native release provisioning", () => {
 	});
 
 	test("cleanup refuses an unowned directory", async () => {
-		const root = mkdtempSync(join(tmpdir(), "not release setup "));
+		const root = canonicalScratchRoot(mkdtempSync(join(tmpdir(), "not release setup ")));
 		scratch.push(root);
 		await expect(cleanupReleaseOmp(root)).rejects.toThrow();
 		expect(existsSync(root)).toBe(true);

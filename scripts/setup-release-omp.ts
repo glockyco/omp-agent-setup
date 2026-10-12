@@ -1,15 +1,6 @@
 import { createHash } from "node:crypto";
-import {
-	appendFile,
-	chmod,
-	mkdir,
-	mkdtemp,
-	open,
-	readFile,
-	realpath,
-	rm,
-	writeFile,
-} from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { appendFile, chmod, mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { type OmpAsset, readPin, validatePin } from "./omp-pin.ts";
@@ -31,6 +22,11 @@ const providerPrefixes = [
 	"COHERE_",
 	"DEEPSEEK_",
 ];
+
+/** Expand filesystem aliases before deriving any owned profile paths. */
+export function canonicalScratchRoot(root: string): string {
+	return realpathSync.native(root);
+}
 
 /** Both setup and version probes stay outside host/Tern state. */
 export async function isolatedEnvironment(
@@ -63,7 +59,7 @@ export async function isolatedEnvironment(
 			env[key] = value;
 	}
 	await mkdir(root, { recursive: true });
-	root = await realpath(root);
+	root = canonicalScratchRoot(root);
 	const home = join(root, "home");
 	const paths = {
 		HOME: home,
@@ -136,8 +132,9 @@ export async function setupReleaseOmp(
 	const temporary = options.scratchDirectory ?? tmpdir();
 	const request = options.request ?? fetch;
 	const pin = options.pin === undefined ? await readPin() : validatePin(options.pin);
-	const root = await mkdtemp(join(temporary, "personal release omp "));
+	let root = await mkdtemp(join(temporary, "personal release omp "));
 	try {
+		root = canonicalScratchRoot(root);
 		await writeFile(join(root, marker), "personal release OMP scratch\n");
 		const env = await isolatedEnvironment(root, source);
 		if (

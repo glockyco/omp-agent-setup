@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import {
+	canonicalScratchRoot,
 	checkOmpVersion,
 	cleanupReleaseOmp,
 	isolatedEnvironment,
@@ -50,6 +51,7 @@ export async function checkInstalledRelease(
 			binary = setup.binary;
 		}
 		scratch = await mkdtemp(join(temporary, "personal release launcher "));
+		scratch = canonicalScratchRoot(scratch);
 		const env = {
 			...(await isolatedEnvironment(scratch, source)),
 			OMP_BIN: binary,

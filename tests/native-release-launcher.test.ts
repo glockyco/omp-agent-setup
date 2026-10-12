@@ -7,7 +7,6 @@ import {
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
-	realpathSync,
 	rmSync,
 	symlinkSync,
 } from "node:fs";
@@ -16,6 +15,7 @@ import { isAbsolute, join } from "node:path";
 import { checkInstalledRelease } from "../scripts/check-installed-release.ts";
 import { type OmpAsset, readPin } from "../scripts/omp-pin.ts";
 import {
+	canonicalScratchRoot,
 	checkOmpVersion,
 	cleanupReleaseOmp,
 	isolatedEnvironment,
@@ -46,6 +46,7 @@ beforeAll(async () => {
 	const pin = await readPin();
 	expectedVersion = pin.tag.slice(1);
 	root = mkdtempSync(join(tmpdir(), "native release boundary with spaces "));
+	root = canonicalScratchRoot(root);
 	const compiled = join(root, process.platform === "win32" ? "compiled.exe" : "compiled");
 	const compile = Bun.spawn(
 		[
@@ -83,7 +84,7 @@ afterAll(() => {
 });
 
 function fixture() {
-	const directory = mkdtempSync(join(root, "case "));
+	const directory = canonicalScratchRoot(mkdtempSync(join(root, "case ")));
 	const omp = join(directory, process.platform === "win32" ? "omp.exe" : "omp");
 	const python = join(directory, process.platform === "win32" ? "python.exe" : "python");
 	linkSync(cached.binary, omp);
@@ -156,8 +157,8 @@ test(
 				...value.env,
 				NATIVE_GATE_FIXTURE_LOG: log,
 			});
-			expect(env.HOME).toBe(join(realpathSync(root), "home"));
-			expect(env.TEMP).toBe(join(realpathSync(root), "temp"));
+			expect(env.HOME).toBe(join(canonicalScratchRoot(root), "home"));
+			expect(env.TEMP).toBe(join(canonicalScratchRoot(root), "temp"));
 			await checkOmpVersion(value.omp, env);
 			expect(JSON.parse(readFileSync(log, "utf8").trim()).cwd).toBe(env.HOME);
 		}),
