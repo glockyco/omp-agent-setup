@@ -46,7 +46,11 @@ SKILLS = [
     "research-evidence",
     "research-paper-writing",
 ]
-RULE_HEADINGS = {"personal-policy": "# Personal policy", "plain-prose": "# Plain prose"}
+RULE_HEADINGS = {
+    "personal-policy": "# Personal policy",
+    "plain-prose": "# Plain prose",
+    "documentation": "# Documentation",
+}
 LANGUAGE_SERVERS = ["marksman", "markdown-oxide", "Microsoft.CodeAnalysis.LanguageServer", "svelteserver"]
 
 # Variables that would select another profile, agent directory or provider.
@@ -797,6 +801,11 @@ class LostCapabilities(unittest.TestCase):
         findings = self.findings_after(lambda release: (release / PAYLOAD / "rules" / "plain-prose.md").unlink())
         self.assertIn("always-applied rule plain-prose not in the system prompt", findings)
         self.assertNotIn("always-applied rule personal-policy not in the system prompt", findings)
+
+    def test_missing_documentation_rule(self):
+        findings = self.findings_after(lambda release: (release / PAYLOAD / "rules" / "documentation.md").unlink())
+        self.assertIn("always-applied rule documentation not in the system prompt", findings)
+        self.assertNotIn("always-applied rule plain-prose not in the system prompt", findings)
 
     def test_missing_skill_asset_is_visible_in_the_cache(self):
         asset = Path("skills/research-paper-writing/references/introduction.md")

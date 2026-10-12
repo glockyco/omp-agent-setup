@@ -139,6 +139,11 @@ describe("release tree", () => {
 			/rule missing: rules\/plain-prose\.md/,
 		],
 		[
+			"missing documentation rule",
+			(root: string) => rmSync(join(root, PAYLOAD, "rules", "documentation.md")),
+			/rule missing: rules\/documentation\.md/,
+		],
+		[
 			"development files in the payload",
 			(root: string) => {
 				mkdirSync(join(root, PAYLOAD, "tests"));
