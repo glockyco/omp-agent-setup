@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { statSync } from "node:fs";
+import { rename } from "node:fs/promises";
 import { dirname } from "node:path";
 
 if (process.argv[2] === "--descendant") {
@@ -21,7 +22,7 @@ if (process.argv[2] === "--descendant") {
 		process.exit(0);
 	});
 	await Bun.write(
-		"ready.json",
+		"ready.pending.json",
 		JSON.stringify({
 			pid: process.pid,
 			descendant,
@@ -36,6 +37,10 @@ if (process.argv[2] === "--descendant") {
 			),
 		}),
 	);
+	if (mode === "staged-ready") {
+		while (!(await Bun.file("publish-ready").exists())) await Bun.sleep(10);
+	}
+	await rename("ready.pending.json", "ready.json");
 	if (mode === "startup-error") {
 		console.error("fixture startup failure");
 		process.exit(2);
