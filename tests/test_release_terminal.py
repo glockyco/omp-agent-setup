@@ -269,7 +269,7 @@ class TerminalTests(unittest.TestCase):
                     Profile()
             self.assertFalse(failed.exists())
             failed.mkdir()
-            with patch("release_gate.tempfile.mkdtemp", return_value=str(failed)), patch.object(Path, "resolve", side_effect=OSError("scratch resolution failed")):
+            with patch("release_gate.tempfile.mkdtemp", return_value=str(failed)), patch("release_gate.os.path.realpath", side_effect=OSError("scratch resolution failed")):
                 with self.assertRaisesRegex(OSError, "scratch resolution failed"):
                     Profile()
             self.assertFalse(failed.exists())

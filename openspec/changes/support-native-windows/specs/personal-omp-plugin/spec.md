@@ -68,6 +68,7 @@ Verification SHALL observe both declared extension factories, the commit tool, a
 - **WHEN** Windows TEMP uses an NTFS short name or a scratch directory is addressed through a symlink or Windows junction
 - **THEN** owned profile roots are canonicalized through filesystem realpath before deriving redirected home, work, release and state paths
 - **AND** actual cwd matches the redirected home boundary and the real manager discovers the installed candidate exactly once without output deduplication
+- **AND** fixture ownership assertions use native filesystem canonical identities rather than raw TEMP spellings, retaining strict containment and case independence
 - **AND** failed canonicalization remains visible and partial setup cleans its owned state
 
 #### Scenario: ConPTY output has already drained
