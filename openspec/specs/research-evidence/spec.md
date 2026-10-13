@@ -2,7 +2,9 @@
 
 ## Purpose
 Define one evidence workflow that finds, acquires, reads, verifies, and registers literature without fabricated metadata or unsupported characterization.
+
 ## Requirements
+
 ### Requirement: Ordered evidence workflow
 
 For a paper search or evidence request, the skill SHALL guide `search -> screen -> acquire -> read -> verify metadata -> register` and SHALL require relevant full-text reading before characterizing a paper.
@@ -92,3 +94,24 @@ The skill SHALL optimize its default sources and guidance for computer science a
 - **WHEN** the user requests evidence for a computer-science topic
 - **THEN** the workflow uses its computer-science search and citation sources without introducing unrelated domain databases or systematic-review procedures
 
+### Requirement: Host-native acquisition helper invocation
+
+The bundled PDF acquisition helper SHALL be invocable explicitly through host-owned Python 3 on Linux, macOS, and native Windows, including an installed-cache path containing spaces. Its guidance SHALL NOT require Nix, a patched shebang, executable Unix mode bits on Windows, or ambient Python packages. Loading the plugin SHALL not require Python or install the interpreter.
+
+#### Scenario: Run an installed helper on Windows
+
+- **WHEN** a native Windows user invokes the installed helper using host Python and a correctly quoted path containing spaces
+- **THEN** deterministic acquisition fixtures execute with the same source precedence, explicit Unpaywall identity, PDF-byte validation, and source metadata as on Linux/macOS
+- **AND** invocation requires neither WSL nor Nix
+
+#### Scenario: Python is unavailable at plugin discovery
+
+- **WHEN** OMP loads the personal plugin with no Python executable on PATH
+- **THEN** the research-evidence skill remains discoverable without installation
+- **AND** guidance identifies Python as an explicit acquisition prerequisite rather than claiming the payload supplies it
+
+#### Scenario: Installed helper loses its asset
+
+- **WHEN** the release no longer contains a readable bundled acquisition script
+- **THEN** release verification fails on the missing or unreadable support asset
+- **AND** Unix release verification additionally retains its executable-mode check without imposing that mode contract on Windows

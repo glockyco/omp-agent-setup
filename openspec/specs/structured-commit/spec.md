@@ -73,7 +73,7 @@ given, resolved against the session working directory when relative, and the ses
 otherwise.
 
 The tool SHALL reject a `repo` that does not exist, is not a directory, or is not inside a Git work
-tree, and SHALL do so before writing a message file or invoking Git.
+tree, and SHALL do so before writing a message file or invoking Git. This transport SHALL work with native Windows Git and filesystem paths as well as Linux/macOS, without requiring Nix or WSL, and SHALL keep repository hooks authoritative on every host.
 
 #### Scenario: Repository has a commit hook
 
@@ -97,6 +97,18 @@ tree, and SHALL do so before writing a message file or invoking Git.
 
 - **WHEN** the tool receives no `repo`
 - **THEN** it commits in the session working directory
+
+#### Scenario: Native Windows repository and message paths contain spaces
+
+- **WHEN** the tool commits or amends in a native Windows work tree with spaces in its path
+- **THEN** Git receives one correctly addressed message file and target without shell interpolation
+- **AND** the formatted message is preserved and the real Git hook runs
+
+#### Scenario: Native Windows hook rejects a commit
+
+- **WHEN** a native Windows repository's real Git hook rejects the proposed message
+- **THEN** the tool reports Git's failure and creates no commit
+- **AND** it does not bypass the hook, stage files, or retry through WSL
 
 ### Requirement: Repository authority
 
