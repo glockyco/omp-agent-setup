@@ -99,24 +99,30 @@ The manager installation SHALL deliver LSP overrides and extension modules witho
 
 ### Requirement: Generated adapter freshness
 
-The repository SHALL verify that the generated OpenSpec commands and skills in the plugin payload match the locked OpenSpec generator. An OpenSpec update SHALL fail the release gate until generated changes are reviewed and committed.
+The repository SHALL verify in its own native Linux, macOS, and Windows CI that the generated OpenSpec commands and skills in the plugin payload match the centrally pinned npm OpenSpec generator without requiring Nix. An OpenSpec update SHALL fail the release gate until generated changes are reviewed and committed.
 
-Verification SHALL compare the payload rather than any repository-level adapter directory, and SHALL leave the working tree unchanged.
+Verification SHALL compare the payload rather than any repository-level adapter directory, and SHALL leave the working tree unchanged. Consumers SHALL NOT run this repository's adapter-freshness check as their artifact-validation gate. The native regeneration command SHALL preserve the generator as the only writer of these payload paths.
 
 #### Scenario: OpenSpec changes generated instructions
 
-- **WHEN** the locked OpenSpec package would rewrite a generated command or skill in the payload
+- **WHEN** the pinned OpenSpec package would rewrite a generated command or skill in the payload
 - **THEN** the release gate fails and identifies the generated adapter drift
 
 #### Scenario: Payload is current
 
-- **WHEN** the locked generator reproduces the payload exactly
+- **WHEN** the pinned generator reproduces the payload exactly
 - **THEN** the release gate passes and the working tree is unchanged
 
 #### Scenario: A generated adapter is missing from the payload
 
 - **WHEN** the payload lacks a command or skill the generator produces
 - **THEN** the release gate fails
+
+#### Scenario: Native Windows adapter check
+
+- **WHEN** the native Windows contributor or runner checks adapter freshness with the pinned generator
+- **THEN** a disposable root reproduces and compares all generated commands and skills without Nix or WSL
+- **AND** extra payload adapters and missing generated adapters also fail
 
 ### Requirement: Archived change completeness
 
@@ -189,9 +195,9 @@ The documented installation SHALL use `omp plugin marketplace add glockyco/omp-a
 
 ### Requirement: Isolated complete release verification
 
-The release gate SHALL validate the catalog and demonstrate actual install, runtime discovery, and upgrade under a temporary HOME with isolated configuration, data and cache roots. It SHALL use no provider credentials or model request, SHALL leave real OMP state unchanged, and SHALL remove its temporary profiles.
+The release gate SHALL validate the catalog and demonstrate actual install, runtime discovery, and upgrade under a temporary HOME with isolated configuration, data and cache roots on Linux, macOS, and native Windows. It SHALL use no provider credentials or model request, SHALL leave real OMP state unchanged, and SHALL remove its temporary profiles. The gate SHALL keep the selected exact OMP tag and all six platform SHA-256 digests in one reviewed repository pin record, download only the host asset from the fixed release URL, verify its pinned digest before execution, and use its absolute executable. Runtime setup SHALL NOT fetch release metadata, require a GitHub token, run an installer that changes PATH or registry state, or depend on Nix or a contributor's host OMP installation. Failed partial setup SHALL remove everything it created; final CI cleanup SHALL run after successful setup even when later gates fail. Windows home, application-data, and temporary roots SHALL remain isolated as well.
 
-Verification SHALL observe both declared extension factories, the commit tool, all three annotation command registrations, all declared skills and their support assets, every always-applied rule, each workflow command exactly once, and every declared LSP override. A list or doctor result alone SHALL NOT satisfy runtime verification. Deterministic executable probes MAY prove configuration selection but SHALL NOT be reported as real language-server protocol or native-browser acceptance.
+Verification SHALL observe both declared extension factories, the commit tool, all three annotation command registrations, all declared skills and their support assets, the always-applied personal policy, each workflow command exactly once, and every declared LSP override. A list or doctor result alone SHALL NOT satisfy runtime verification. Deterministic executable probes MAY prove configuration selection but SHALL NOT be reported as real language-server protocol or native-browser acceptance. No platform SHALL skip an existing positive or negative capability/upgrade control because its Unix process or terminal fixture is unavailable.
 
 #### Scenario: Complete marketplace release is tested
 
@@ -209,6 +215,58 @@ Verification SHALL observe both declared extension factories, the commit tool, a
 
 - **WHEN** a candidate loses a declared extension, skill, rule, command, or required skill support asset
 - **THEN** the release gate fails and identifies the missing capability or asset
+
+#### Scenario: Native Windows complete gate
+
+- **WHEN** CI runs the selected official OMP binary and candidate personal release on Windows
+- **THEN** actual installation, fresh capability discovery, terminal-observed LSP selection, installed-cache behavior tests, damaged-candidate controls, and upgrade/state preservation execute without WSL or Nix
+- **AND** temporary HOME, USERPROFILE, APPDATA, LOCALAPPDATA, and temp roots contain the test's state and are cleaned afterward
+
+#### Scenario: Scratch lies beneath an already configured ancestor
+
+- **WHEN** the gate's scratch directory is nested beneath a directory with its own `.omp` registry
+- **THEN** candidate projects and working directories remain beneath the redirected fake HOME so ancestor discovery stops before that foreign registry
+- **AND** native version probes execute from the redirected home, the pre-install manager list is empty, and every installed or discovered plugin path belongs to the gate's scratch root
+- **AND** no extra configuration marker or environment override is needed and real user plugin state remains unchanged
+
+#### Scenario: Owned scratch has a filesystem alias
+
+- **WHEN** Windows TEMP uses an NTFS short name or a scratch directory is addressed through a symlink or Windows junction
+- **THEN** owned profile roots are canonicalized through filesystem realpath before deriving redirected home, work, release and state paths
+- **AND** actual cwd matches the redirected home boundary and the real manager discovers the installed candidate exactly once without output deduplication
+- **AND** fixture ownership assertions use native filesystem canonical identities rather than raw TEMP spellings, retaining strict containment and case independence
+- **AND** failed canonicalization remains visible and partial setup cleans its owned state
+
+#### Scenario: ConPTY output has already drained
+
+- **WHEN** the owned native tree has stopped and its ConPTY reader has already completed
+- **THEN** cleanup closes its sockets and terminal handles without cancelling nonexistent I/O
+- **AND** cancellation errors on a still-live reader and a reader that cannot join within its bound remain visible failures
+
+#### Scenario: Runtime provisioning uses reviewed platform digests
+
+- **WHEN** the native release gate provisions its selected OMP binary
+- **THEN** it reads the tag and host digest from the reviewed six-platform pin and downloads only the fixed asset URL, without a release-metadata request or authentication token
+- **AND** a missing or malformed digest fails before download, and a checksum mismatch fails before execution
+- **AND** failed setup removes all owned partial state without requiring a success-only final-cleanup step
+
+#### Scenario: Asset stream fails during setup
+
+- **WHEN** the selected asset body is initially errored or fails after delivering binary bytes
+- **THEN** setup reports the original stream failure, closes its owned binary handle, and removes every partial binary and disposable profile
+- **AND** it does not hang in a stream adapter or attempt to execute the incomplete asset
+
+#### Scenario: A delayed fixture case cannot corrupt another case
+
+- **WHEN** a native launcher fixture is delayed or fails after another case has completed
+- **THEN** its owned scratch and captured environment/request/provision inputs remain independent, and it cannot remove or change the other case's profile, executable identity, or evidence log
+- **AND** compiled executable fixtures are prepared once per test file and reused through per-case hardlinks with explicit 30 s case bounds
+
+#### Scenario: Isolated gate fails during a terminal probe
+
+- **WHEN** a capability or terminal observation fails or times out on any supported host
+- **THEN** the gate reports the failed capability and releases its owned terminal, subprocess tree, and disposable state
+- **AND** it does not declare that scenario skipped or leave a real user-profile installation
 
 ### Requirement: Plain prose rule
 
@@ -238,3 +296,33 @@ The plugin SHALL ship an always-applied documentation rule, separate from the pe
 
 - **WHEN** OMP starts with the manager-installed personal plugin
 - **THEN** the system prompt carries the documentation rule beside the personal policy and the plain-prose rule
+
+### Requirement: Native repository hooks
+
+Repository development and Git hooks SHALL run the pinned native toolchain on Linux, macOS, and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen dependency installation, and the fast `bun run check:local` pre-push gate covering toolchain, lint, types, dead code, release version, deterministic unit tests, OpenSpec adapter freshness and strict artifact validation; they SHALL use installed development tools without fetching a missing executable. Real external-toolchain and process-lifecycle tests SHALL be classified as integration tests, retain explicit 30 s case budgets and run in complete CI rather than pre-push's unit set. Pre-push SHALL omit network audit and installed-release download/terminal checks. Every PR's Linux, macOS and Windows CI SHALL run the complete `bun run ci`, including both test sets with the unchanged complete-suite coverage floor and those checks.
+
+#### Scenario: Commit from a native Windows client
+
+- **WHEN** a native Windows Git client invokes the installed repository hooks after documented setup
+- **THEN** formatting/type checks and commit-message validation run without a Nix shell or WSL
+- **AND** a failed applicable hook prevents the Git operation
+
+#### Scenario: Native Bun has no optional executable alias
+
+- **WHEN** the installed pinned Bun is available as `bun.exe` or `bun` without a separate `bunx` alias
+- **THEN** hook installation and npm-bin hook commands use Bun's built-in `x --no-install` subcommand without fetching a tool or adding a host alias
+- **AND** real commit-message validation remains authoritative and missing required native tools stay visible failures
+
+#### Scenario: Push runs from a Git hook environment
+
+- **WHEN** the pre-push hook inherits Git's repository-local environment variables
+- **THEN** its native child receives the correctly sanitized environment and runs frozen installation plus the fast local gate, without network audit or installed-release download/terminal checks
+- **AND** sanitization does not depend on POSIX shell substitution or mutate the parent environment
+- **AND** every PR still runs the complete gate, including audit and installed-release checks, on all three CI hosts
+- **AND** the local unit selector excludes real OpenSpec/commitlint/lefthook/Git command fixtures, compiled executable launchers and actual annotation process lifecycle, while preserving their complete CI and installed-cache coverage
+
+#### Scenario: A loaded native workstation pushes a change
+
+- **WHEN** the standard-user host has an endpoint scanner or other live sessions affecting external-toolchain timing
+- **THEN** pre-push runs the deterministic unit set without executing real-toolchain integration fixtures
+- **AND** the same PR still exercises every integration fixture with explicit 30 s case budgets and unchanged complete-suite coverage on Linux, macOS and Windows
