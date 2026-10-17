@@ -24,7 +24,7 @@ jobs:
         env:
           CI: '1'
           OPENSPEC_TELEMETRY: '0'
-        run: npm install --prefix "$RUNNER_TEMP/openspec-cli" --no-audit --no-fund --ignore-scripts --save-exact @fission-ai/openspec@1.14.0
+        run: npm install --prefix "$RUNNER_TEMP/openspec-cli" --no-audit --no-fund --ignore-scripts --save-exact @fission-ai/openspec@1.14.1
       - name: Validate active and archived artifacts
         env:
           OPENSPEC_ROOT: ${{ inputs.openspec-root }}
