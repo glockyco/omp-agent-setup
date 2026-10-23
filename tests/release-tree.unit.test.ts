@@ -121,6 +121,11 @@ describe("release tree", () => {
 			/skill missing: commit-policy/,
 		],
 		[
+			"missing notes skill",
+			(root: string) => rmSync(join(root, PAYLOAD, "skills", "notes"), { recursive: true }),
+			/skill missing: notes/,
+		],
+		[
 			"missing skill asset",
 			(root: string) =>
 				rmSync(

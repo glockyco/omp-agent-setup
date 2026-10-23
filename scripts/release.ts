@@ -11,6 +11,7 @@ export const CATALOG = ".omp-plugin/marketplace.json";
 export const EXTENSIONS = ["./extensions/personal-commit.ts", "./extensions/plannotator.ts"];
 export const SKILLS = [
 	"commit-policy",
+	"notes",
 	"openspec-apply-change",
 	"openspec-archive-change",
 	"openspec-explore",
@@ -19,6 +20,7 @@ export const SKILLS = [
 	"openspec-update-change",
 	"research-evidence",
 	"research-paper-writing",
+	"weekly-review",
 ];
 export const COMMANDS = [
 	"opsx-apply",
