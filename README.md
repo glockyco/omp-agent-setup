@@ -37,10 +37,12 @@ The refresh is what makes a newer release visible: OMP offers an upgrade only wh
 | `plugin/extensions/plannotator.ts` | Local browser annotation of document and assistant-response snapshots |
 | `plugin/skills/commit-policy/` | Atomic checkpoint, Conventional Commit, and causal body guidance |
 | `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
+| `plugin/skills/notes/` | Where the `notes` vault is, how to reach and change it from any session, and how to commit it. Points to the vault's conventions note |
+| `plugin/skills/weekly-review/` | Prepares and runs the weekly review that the vault's checklist note describes |
 | `plugin/skills/research-paper-writing/` | Master-cai's outline-first paper drafting, section guides, examples, and skeptical self-review. Source verification remains with `research-evidence` |
 | `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults, always applied |
 | `plugin/rules/plain-prose.md` | Plain punctuation in the prose agents write, always applied. Code, grammars, quotations and manuscripts are exempt |
-| `plugin/rules/documentation.md` | What repository documentation contains and where facts, evidence and rationale go instead, always applied |
+| `plugin/rules/documentation.md` | What repository documentation contains and where facts, evidence and rationale go instead, always applied. Notes in the `notes` vault are exempt |
 | `plugin/lsp/lsp.json` | Markdown Oxide selection, Marksman disablement, and the Roslyn and Svelte overrides, delivered by the catalog's `lspServers` field |
 | `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
 

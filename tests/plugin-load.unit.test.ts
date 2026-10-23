@@ -55,7 +55,13 @@ describe("packaged plugin", () => {
 		const skills = readdirSync(join(pluginRoot, "skills")).filter(
 			skill => !skill.startsWith("openspec-"),
 		);
-		expect(skills.sort()).toEqual(["commit-policy", "research-evidence", "research-paper-writing"]);
+		expect(skills.sort()).toEqual([
+			"commit-policy",
+			"notes",
+			"research-evidence",
+			"research-paper-writing",
+			"weekly-review",
+		]);
 		for (const relative of [
 			"SKILL.md",
 			"references/introduction.md",

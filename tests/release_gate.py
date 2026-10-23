@@ -37,6 +37,7 @@ COMMANDS = ["opsx-apply", "opsx-archive", "opsx-explore", "opsx-propose", "opsx-
 ANNOTATION_COMMANDS = ["plannotator-annotate", "plannotator-cancel", "plannotator-last"]
 SKILLS = [
     "commit-policy",
+    "notes",
     "openspec-apply-change",
     "openspec-archive-change",
     "openspec-explore",
@@ -45,6 +46,7 @@ SKILLS = [
     "openspec-update-change",
     "research-evidence",
     "research-paper-writing",
+    "weekly-review",
 ]
 RULE_HEADINGS = {
     "personal-policy": "# Personal policy",
@@ -792,6 +794,11 @@ class LostCapabilities(unittest.TestCase):
             lambda release: shutil.rmtree(release / PAYLOAD / "skills" / "commit-policy")
         )
         self.assertIn("skill commit-policy not discovered", findings)
+
+    def test_missing_notes_skill(self):
+        findings = self.findings_after(lambda release: shutil.rmtree(release / PAYLOAD / "skills" / "notes"))
+        self.assertIn("skill notes not discovered", findings)
+        self.assertNotIn("skill weekly-review not discovered", findings)
 
     def test_missing_rule(self):
         findings = self.findings_after(lambda release: (release / PAYLOAD / "rules" / "personal-policy.md").unlink())
