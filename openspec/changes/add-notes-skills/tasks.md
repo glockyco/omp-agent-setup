@@ -5,10 +5,10 @@
 ## 2. Verification
 
 - [x] 2.1 Add both skills to `SKILLS` in `scripts/release.ts`. Verify that `tests/release-tree.unit.test.ts` rejects a candidate without the `notes` skill.
-- [ ] 2.2 Add both skills to `SKILLS` in `tests/release_gate.py` with a negative control that removes the `notes` skill. Verify that the gate names the missing skill.
+- [x] 2.2 Add both skills to `SKILLS` in `tests/release_gate.py` with a negative control that removes the `notes` skill. Verify that the gate names the missing skill. `test_missing_notes_skill` runs in the release gate of every native CI context.
 
 ## 3. Documentation and release
 
 - [x] 3.1 List both skills in the payload table of `README.md`, and state the vault exemption in the documentation rule's row.
-- [ ] 3.2 Run the local checks and `openspec validate add-notes-skills --strict`, and obtain the three native CI contexts and the OpenSpec context.
+- [x] 3.2 Run the local checks and `openspec validate add-notes-skills --strict`, and obtain the three native CI contexts and the OpenSpec context. `bun run check:local` passed on Korolev, and PR #70 passed all four contexts.
 - [ ] 3.3 Merge, tag and upgrade Korolev and the Mac. Verify in a fresh OMP session on each host that both skills are discovered and that `vault://notes/Conventions.md` reads the conventions note.
