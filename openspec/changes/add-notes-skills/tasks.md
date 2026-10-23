@@ -11,4 +11,4 @@
 
 - [x] 3.1 List both skills in the payload table of `README.md`, and state the vault exemption in the documentation rule's row.
 - [x] 3.2 Run the local checks and `openspec validate add-notes-skills --strict`, and obtain the three native CI contexts and the OpenSpec context. `bun run check:local` passed on Korolev, and PR #70 passed all four contexts.
-- [ ] 3.3 Merge, tag and upgrade Korolev and the Mac. Verify in a fresh OMP session on each host that both skills are discovered and that `vault://notes/Conventions.md` reads the conventions note.
+- [x] 3.3 Merge, tag and upgrade Korolev and the Mac. Verify in a fresh OMP session on each host that both skills are discovered and that `vault://notes/Conventions.md` reads the conventions note. `v0.6.0` was tagged on 2026-10-23, and both hosts upgraded to 0.6.0. A fresh `omp -p` session from the SANER repository on Korolev and from the nix-config checkout on the Mac listed both skills, read the vault through `vault://notes/`, listed its tasks and wrote and read back a scratch note, which was then deleted.
