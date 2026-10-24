@@ -11,8 +11,8 @@ description: Prepare and run the owner's weekly review of the `notes` vault, or 
 
 Gather before proposing anything:
 
-- the daily notes of the past seven days, Home's task and milestone lists, the `Missing properties` base and the vault's unresolved links
-- the week's commits in the vault and in the repositories that open commitments link
+- the daily notes of the past seven days, and the views and checks that the checklist's steps name
+- the week's commits in the vault and in the repositories that open work links
 - the week's OMP sessions with their recaps, from the `archive` helper of the eval tool. Look for state and decisions that never reached a note, corrections the owner repeated, and sessions that ended with a next step nobody took.
 
 ## Run
