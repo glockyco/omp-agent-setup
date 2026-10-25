@@ -1,11 +1,11 @@
 ---
 name: notes
-description: Read, search, create or change notes, tasks, papers, projects, people, meetings or daily notes in the owner's Obsidian vault `notes`. Use when work needs where something stands, what comes next, a deadline or an earlier decision, and before ending work that changes the state of a paper or project.
+description: Read, search, create or change notes, tasks, papers, projects, people, meetings or daily notes in the Obsidian vault `notes`, which holds work and personal notes. Use when work needs where something stands, what comes next, a deadline or an earlier decision, and before ending work that changes the state of an item such as a paper or project.
 ---
 
 # Notes
 
-The `notes` vault holds the owner's work and personal notes, and you maintain them together with the owner. `Conventions.md` in the vault defines folders, names, properties, tasks and editing. Read it before changing the vault, and follow it where it differs from this skill.
+The `notes` vault holds work and personal notes. `Conventions.md` in the vault defines folders, names, properties, tasks and editing. Read it before changing the vault, and follow it where it differs from this skill.
 
 ## Reach the vault
 
