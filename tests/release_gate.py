@@ -54,6 +54,10 @@ RULE_HEADINGS = {
     "documentation": "# Documentation",
     "project-handoff": "# Project handoff",
 }
+DURABLE_WORK_RULE = (
+    "Write work that should outlive the session into its repository, the `notes` vault or a synced documents folder, "
+    "never into a temporary directory, because the system deletes files there."
+)
 LANGUAGE_SERVERS = ["marksman", "markdown-oxide", "Microsoft.CodeAnalysis.LanguageServer", "svelteserver"]
 
 # Variables that would select another profile, agent directory or provider.
@@ -548,6 +552,8 @@ def capability_findings(commands, prompt, errors):
     for rule, heading in RULE_HEADINGS.items():
         if heading not in prompt:
             findings.append(f"always-applied rule {rule} not in the system prompt")
+    if DURABLE_WORK_RULE not in prompt:
+        findings.append("durable work storage instruction not in the system prompt")
     findings.extend(f"extension error: {error}" for error in errors)
     return findings
 
@@ -804,6 +810,15 @@ class LostCapabilities(unittest.TestCase):
     def test_missing_rule(self):
         findings = self.findings_after(lambda release: (release / PAYLOAD / "rules" / "personal-policy.md").unlink())
         self.assertIn("always-applied rule personal-policy not in the system prompt", findings)
+
+    def test_missing_durable_work_instruction(self):
+        def remove_instruction(release):
+            policy = release / PAYLOAD / "rules" / "personal-policy.md"
+            policy.write_text(policy.read_text().replace(DURABLE_WORK_RULE, ""))
+
+        findings = self.findings_after(remove_instruction)
+        self.assertIn("durable work storage instruction not in the system prompt", findings)
+        self.assertNotIn("always-applied rule personal-policy not in the system prompt", findings)
 
     def test_missing_plain_prose_rule(self):
         findings = self.findings_after(lambda release: (release / PAYLOAD / "rules" / "plain-prose.md").unlink())

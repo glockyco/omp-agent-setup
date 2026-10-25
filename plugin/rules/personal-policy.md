@@ -10,3 +10,4 @@ description: Personal deviations from the standard OMP engineering policy.
 - Use the `personal_commit` tool for commit and amend operations.
 - Give every commit a body that explains why the change exists.
 - Never push commits or tags without an explicit user request.
+- Write work that should outlive the session into its repository, the `notes` vault or a synced documents folder, never into a temporary directory, because the system deletes files there.

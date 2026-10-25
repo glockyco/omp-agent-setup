@@ -40,7 +40,7 @@ The refresh is what makes a newer release visible: OMP offers an upgrade only wh
 | `plugin/skills/notes/` | Where the `notes` vault is, how to reach and change it from any session, and how to commit it. Points to the vault's conventions note |
 | `plugin/skills/weekly-review/` | Prepares and runs the weekly review that the vault's checklist note describes |
 | `plugin/skills/research-paper-writing/` | Master-cai's outline-first paper drafting, section guides, examples, and skeptical self-review. Source verification remains with `research-evidence` |
-| `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults, always applied |
+| `plugin/rules/personal-policy.md` | Short personal deviations for verification, commits and durable work storage, always applied |
 | `plugin/rules/plain-prose.md` | Plain punctuation in the prose agents write, always applied. Code, grammars, quotations and manuscripts are exempt |
 | `plugin/rules/documentation.md` | What repository documentation contains and where facts, evidence and rationale go instead, always applied. Notes in the `notes` vault are exempt |
 | `plugin/rules/project-handoff.md` | Finds the work's vault note and keeps its handoff current across sessions, always applied |
