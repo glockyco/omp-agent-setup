@@ -14,7 +14,7 @@ Use the repository URL in a note's `links` to locate it. This connects repositor
 
 Extend the release-tree omission cases and installed-prompt observation with the new rule and a missing-rule negative control. These exercise delivery rather than assert prose fragments.
 
-Follow the notes-skills release sequence: obtain all four PR contexts, merge the runtime release, record host acceptance, archive in a separate reviewed change after checks pass, and tag the released commit. Validate the merged commit and archive before publication and upgrade both hosts with fresh-session probes.
+Follow the notes-skills release split: obtain all four PR contexts, merge the runtime release, and archive in a separate reviewed change after checks pass. Tag the checked runtime commit so the release identifies its tested payload. Record host acceptance in the archive PR, which also validates the completed archived artifacts.
 
 ## Risks / Trade-offs
 
