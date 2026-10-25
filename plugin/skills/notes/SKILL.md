@@ -18,7 +18,6 @@ The `notes` vault holds the owner's work and personal notes, and you maintain th
 
 - The documentation rule does not cover vault notes. Keep dates, history and who decided what.
 - Fix wrong or outdated notes in place. When a decision is reversed, record what changed and when.
-- Before you stop working on open work, update its `Resume here:` line and its dated tasks.
 
 ## Commit
 

@@ -73,6 +73,7 @@ describe("packaged plugin", () => {
 			"documentation.md",
 			"personal-policy.md",
 			"plain-prose.md",
+			"project-handoff.md",
 		]);
 		const lsp = await Bun.file(join(pluginRoot, "lsp", "lsp.json")).json();
 		expect(Object.keys(lsp.servers).sort()).toEqual([
