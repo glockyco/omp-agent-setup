@@ -48,7 +48,7 @@ inputs.fleet.url = "github:glockyco/omp-agent-setup";
 checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
 ```
 
-Adoption owners are nix-config's Windows-native/WSL-retirement integration owner and the respective phd-thesis and test-generalization maintainers. Each must record the reviewed full workflow SHA, migration evidence and removal of external adapter-freshness wiring. Flake/input removal and central-target deregistration require all three completed migrations in a later change; do not delete the interface here.
+When adopting the workflow in nix-config, phd-thesis or test-generalization, record the reviewed full workflow SHA, migration evidence and removal of external adapter-freshness wiring. Flake/input removal and central-target deregistration require all three completed migrations in a later change. Do not delete the interface here.
 
 `retire-legacy-planning-archive` independently owns disposition/deletion of the 17 historical records. Native setup changes do not broaden that scope. Preserve the writing skill's support assets, upstream MIT license and `add-research-paper-writing-skill` rights record; its archival ownership remains independent.
 
@@ -105,7 +105,7 @@ A permanent behavior change needs an observable test that fails for a plausible 
 
 ## Dependency updates
 
-Renovate owns JS dependencies, lockfiles, actions, Bun/mirror, npm OpenSpec/workflow, Python setup and Windows terminal-support pins. `.bun-version` is the sole runtime selection; `constraints.bun` is a checked lockfile-writing mirror. A Bun bump must update both and regenerate `bun.lock` with selected Bun. OpenSpec generator and reusable-workflow pins move together, and generator-only adapter differences require review. OMP tag-only automation is disabled: the maintainer owns its tag/six-digest record through `bun run sync:release-omp -- vX.Y.Z`, which fetches only the explicit official release's SHA256SUMS.txt and changes the complete pin after validation. Review all platform digests and run cross-system gates; never select latest or add runtime metadata/token access. Updates remain review-only and do not merge, publish or upgrade a host.
+Renovate owns JS dependencies, lockfiles, actions, Bun/mirror, npm OpenSpec/workflow, Python setup and Windows terminal-support pins. `.bun-version` is the sole runtime selection; `constraints.bun` is a checked lockfile-writing mirror. A Bun bump must update both and regenerate `bun.lock` with selected Bun. OpenSpec generator and reusable-workflow pins move together, and generator-only adapter differences require review. OMP tag-only automation is disabled. Update its tag/six-digest record through `bun run sync:release-omp -- vX.Y.Z`, which fetches only the explicit official release's SHA256SUMS.txt and changes the complete pin after validation. Review all platform digests and run cross-system gates. Never select latest or add runtime metadata/token access. Updates remain review-only and do not merge, publish or upgrade a host.
 
 The protected `glockyco/dependency-automation` control plane owns retained Nix inputs through its short-lived GitHub App token. No App key or competing scheduler belongs here; Renovate's Nix manager stays disabled until a separately accepted flake removal deregisters the central target.
 
