@@ -1,105 +1,91 @@
 # Personal OMP Plugin
 
-Personal behavior for [Oh My Pi](https://github.com/can1357/oh-my-pi), installed and upgraded through OMP's own plugin manager. The repository is the `glockyco` marketplace; it publishes one plugin, `personal`.
+Personal OMP Plugin adds commit guidance, research and paper-writing skills, browser annotation, and OpenSpec workflows to [Oh My Pi](https://github.com/can1357/oh-my-pi). It is a personal configuration, including workflows for the `notes` vault, rather than a general-purpose OMP setup.
 
-This repository does not install OMP, language servers, or Plannotator, and it never writes to `~/.omp`. OMP owns the installed plugin cache and registry, authentication, sessions, and settings.
-
-[![CI](https://github.com/glockyco/omp-agent-setup/actions/workflows/ci.yml/badge.svg)](https://github.com/glockyco/omp-agent-setup/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+The repository publishes the `personal` plugin through the `glockyco` marketplace. It does not install OMP or the external tools its capabilities use.
 
 ## Install
 
-On macOS, Linux, WSL, or Windows, with upstream OMP installed:
+Install OMP on macOS, Linux, WSL, or Windows, then run:
 
-```bash
+```sh
 omp plugin marketplace add glockyco/omp-agent-setup
 omp plugin install --scope user personal@glockyco
+omp plugin list
 ```
 
-Start a new OMP session afterwards. Do not also pass `--extension` or `--plugin-dir` for this plugin, and do not copy its rule, skills, or commands into your own configuration.
+Start a new OMP session to load the plugin. Use the plugin manager as the only installation path, so OMP does not discover duplicate copies. Do not also pass `--extension` or `--plugin-dir`, or copy the plugin's rules, skills, or commands into your configuration.
+
+Install the external tools for the capabilities you use. Browser annotation needs `plannotator` on PATH. The research helper needs Python 3. Language-server overrides in [plugin/lsp/lsp.json](plugin/lsp/lsp.json) need the corresponding server executables on PATH and matching project markers.
 
 ## Upgrade
 
-Refresh the catalog first, then upgrade the user-scoped plugin explicitly, then start a new OMP session:
+Refresh the catalog before upgrading, then check the installed version:
 
-```bash
+```sh
 omp plugin marketplace update glockyco
 omp plugin upgrade --scope user personal@glockyco
+omp plugin list
 ```
 
-The refresh is what makes a newer release visible: OMP offers an upgrade only when the catalog entry's version is newer. A targeted upgrade of an unchanged version just reinstalls it, so a startup notice or an all-plugin upgrade is not evidence that a release arrived; check `omp plugin list` instead. `/reload-plugins` does not load new extension modules. `omp update` updates OMP itself, never this plugin, and the other way round.
+Start a new session afterwards. `/reload-plugins` does not load new extension modules. `omp update` updates OMP itself, not this plugin.
 
-## Plugin contents
+## Use the skills and workflows
 
-| Path | Capability |
-|---|---|
-| `plugin/extensions/personal-commit.ts` | Structured commit, amend, and non-mutating preview tool |
-| `plugin/extensions/plannotator.ts` | Local browser annotation of document and assistant-response snapshots |
-| `plugin/skills/commit-policy/` | Atomic checkpoint, Conventional Commit, and causal body guidance |
-| `plugin/skills/research-evidence/` | Computer-science search, paper acquisition, evidence reading, metadata, and BibTeX workflow |
-| `plugin/skills/notes/` | Where the `notes` vault is, how to reach and change it from any session, and how to commit it. Points to the vault's conventions note |
-| `plugin/skills/weekly-review/` | Prepares and runs the weekly review that the vault's checklist note describes |
-| `plugin/skills/research-paper-writing/` | Master-cai's outline-first paper drafting, section guides, examples, and skeptical self-review. Source verification remains with `research-evidence` |
-| `plugin/rules/personal-policy.md` | Short personal deviations for verification, commits and durable work storage, always applied |
-| `plugin/rules/plain-prose.md` | Plain punctuation in the prose agents write, always applied. Code, grammars, quotations and manuscripts are exempt |
-| `plugin/rules/documentation.md` | What repository documentation contains and where facts, evidence and rationale go instead, always applied. Notes in the `notes` vault are exempt |
-| `plugin/rules/project-handoff.md` | Finds the work's vault note and keeps its handoff current across sessions, always applied |
-| `plugin/lsp/lsp.json` | Markdown Oxide selection, Marksman disablement, and the Roslyn and Svelte overrides, delivered by the catalog's `lspServers` field |
-| `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
+Ask OMP to create a commit, investigate research evidence, draft a paper section, work with the `notes` vault, or prepare its weekly review. The [skills](plugin/skills) describe when each workflow applies and its prerequisites. The [rules](plugin/rules) apply across sessions and cover commits, prose, documentation, and project handoffs.
 
-The plugin contains no credentials, providers, models, agents, service configuration, or mutable caches.
-
-The marketplace exposes the OpenSpec workflow commands under the plugin's namespace: `/personal:opsx-apply`, `/personal:opsx-archive`, `/personal:opsx-explore`, `/personal:opsx-propose`, `/personal:opsx-sync`, and `/personal:opsx-update`. The generated adapter text may still say `/opsx-*`; that is the generator's shorthand, and the installed entry points carry the prefix. Skill names (`openspec-*`) and the extension-registered `/plannotator-*` commands are unprefixed.
-
-## Host prerequisites
-
-The plugin selects language servers but does not install them. OMP starts a server only when its executable resolves and its project markers match, so a host without, for example, `Microsoft.CodeAnalysis.LanguageServer` simply never starts Roslyn. The research helper needs a Python 3 on the host when an agent runs it explicitly. Visual annotation needs the `plannotator` command.
-
-## Visual annotation
-
-Use a local interactive OMP TUI session with UI on native Windows, macOS, or Linux/WSL:
+The plugin exposes OpenSpec commands with the `/personal:` prefix:
 
 ```text
-/plannotator-annotate docs/design.md
-/plannotator-annotate "docs/design notes.md"
-/plannotator-annotate "C:\Documents\design notes.md"
-/plannotator-annotate "\\server\share\design notes.md"
-/plannotator-annotate local://draft.md
+/personal:opsx-propose
+/personal:opsx-explore
+/personal:opsx-apply
+/personal:opsx-update
+/personal:opsx-sync
+/personal:opsx-archive
+```
+
+Follow each command's prompts in the repository you want to change. The [generated command definitions](plugin/commands) describe their inputs. Generated instructions may use `/opsx-*` as shorthand, but the installed commands need the prefix.
+
+## Annotate a document or response
+
+Use a local interactive OMP TUI session with `plannotator` available. For example, from this checkout:
+
+```text
+/plannotator-annotate README.md
 /plannotator-last
 /plannotator-cancel
 ```
 
-Relative paths use the session's working directory. Drive-qualified and UNC paths are filesystem paths, not URLs. `local://` uses that session's native OMP mapping. Document inputs must be UTF-8 text or Markdown files; URLs, HTML, binary files, directories and unavailable documents fail without substitution.
+`/plannotator-annotate` opens a snapshot of a UTF-8 text or Markdown file. Relative paths use the session's working directory. Quote paths containing spaces. Absolute filesystem paths and session-local `local://` documents also work. `/plannotator-last` opens the latest completed visible assistant response on the active branch.
 
-`/plannotator-last` selects the latest completed visible assistant response on the active branch. It excludes thinking, tool data, and hidden messages. Both commands open a private snapshot, not an editable source file.
+Submit annotations in the browser to return feedback to the conversation. The plugin does not edit the source or treat feedback as approval. A warning identifies feedback whose source has changed since the snapshot.
 
-Submitted annotations return once as follow-up user feedback, with the source identity and snapshot hash. A changed or unavailable source produces a warning. Feedback waits while OMP is busy and starts a conversation turn when OMP is idle. The adapter does not apply replacement suggestions or treat feedback as approval.
+Only one review can run per session. Use `/plannotator-cancel` if a closed tab leaves a review pending. Remote, SSH, and noninteractive sessions are not supported because the review needs a local browser and UI.
 
-One review can run per session. Separate sessions have independent reviews. The command interface remains available while the footer shows a pending review. Use `/plannotator-cancel` if the browser does not open or a closed tab leaves the review pending. Navigation and shutdown also cancel the review. Cancellation removes only the owned subprocess tree and temporary snapshot, not Plannotator preferences or history. Unix uses TERM/KILL on the owned process group. Windows uses creation-qualified CIM identities and built-in `taskkill /T`, then `/T /F` for survivors after a one-second grace, including recorded descendants whose original root exited. Query/termination failures are reported; they are not evidence of successful cleanup.
+## What it changes
 
-On macOS, cleanup retries a zombie-only group refusal after the host observes its owned root's exit. An absent group is success; root exit alone is not tree completion, and real permission failures remain visible.
+OMP manages the installed plugin cache and registry, authentication, sessions, and settings. The plugin payload does not write to `~/.omp` or install or update host tools. It contains no credentials, provider or model configuration, sessions, or mutable caches.
 
-Reviews use random loopback ports and the platform-native browser. SSH (`SSH_CONNECTION`, `SSH_CLIENT` or `SSH_TTY`), explicit remote invocation and noninteractive/no-UI sessions are refused before preparing a snapshot or listener. The child disables sharing and ignores inherited browser, port, and operational Plannotator overrides. It preserves `PLANNOTATOR_DATA_DIR`. The host supplies the native vendor executable on PATH; a missing command reports that prerequisite and never installs a wrapper or fallback. Real Korolev/macbook-pro browser acceptance is a separate release gate, not implied by process fixtures.
+Skills can direct work on repository files and vault notes. The `personal_commit` tool creates or amends local Git commits after files have been staged, or previews the commit without changing the repository. It does not stage or push.
 
-The adapter supports the stock `plannotator annotate <snapshot.md> --json` CLI, without `--gate` or a downstream client-lease patch. Automatic browser-tab-close dismissal is not guaranteed.
+Annotation creates a temporary snapshot and runs Plannotator on a loopback port with sharing disabled. It returns annotations to the OMP conversation and removes its temporary snapshot when the review finishes or is cancelled. Plannotator preferences and history are left intact.
 
-This adapter adds no planner, approval gate, automatic edits, code-review or PR commands, installer, updater, publisher, or full Pi extension.
+## Validate OpenSpec in another repository
 
-## Fleet verification
+This repository also publishes a reusable [OpenSpec validation workflow](.github/workflows/openspec.yml). It checks active and archived artifacts without requiring the plugin or the calling repository's dependencies.
 
-The reusable artifact gate is separate from the plugin. Consumers use a job-level call, replacing the placeholder with the reviewed **full release commit SHA**, not mutable `main`:
+Call it at job level, replacing the placeholder with a reviewed full release commit SHA:
 
 ```yaml
 jobs:
   openspec:
     uses: glockyco/omp-agent-setup/.github/workflows/openspec.yml@<reviewed full release SHA>
-    with:
-      openspec-root: . # optional; a repository-relative directory containing openspec/
 ```
 
-The workflow checks the caller's triggering checkout on Ubuntu with read-only contents permission. It installs its centrally pinned npm OpenSpec **1.14.0** in scratch, requires archive support, and strictly checks active and archived artifacts. It needs no caller dependencies, secrets, Bun or Nix. Absolute, escaping and missing roots fail. Consumers do not copy the CI implementation, select CLI versions or run this repository's adapter-freshness check. Workflow-reference updates are review-only GitHub Actions dependency PRs using a full immutable SHA with a reviewed release-tag annotation; the actual release SHA is supplied at publication.
+If `openspec/` is not at the repository root, pass `openspec-root` under `with` as the repository-relative directory that contains it. Keep the reference immutable so updates can be reviewed. The shared workflow owns the CLI pin and validation flags. Do not copy its implementation or the plugin's generated adapters into the calling repository.
 
-Local hooks may contain this host-owned CLI sequence. Fetch the matching CLI once through host provisioning; these commands then run offline. Version mismatch is corrected by the host tool owner, never hidden by hook downloads.
+Local hooks can run the same validation offline with a host-provisioned OpenSpec CLI. The commands stop when the CLI does not match the workflow's pin or lacks `validate --archived`. Correct a mismatch through host provisioning, not with a download in the hook.
 
 POSIX:
 
@@ -130,83 +116,18 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 exit $LASTEXITCODE
 ```
 
-The retained `lib.openspecCheck { pkgs, src }` remains available with its existing pinned inputs and artifact-only Nix caching:
+Existing Nix consumers can use `lib.openspecCheck` from [flake.nix](flake.nix).
 
-```nix
-inputs.fleet.url = "github:glockyco/omp-agent-setup";
-checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
-```
+## Change the plugin
 
-Adoption ownership: the nix-config owner integrates the released workflow through its Windows-native/WSL-retirement changes; the phd-thesis and test-generalization repository owners review their own workflow-reference migrations. Each removes its external adapter-freshness wiring when adopting. Dates and evidence belong to those owners. Flake/input deletion and central Nix-target deregistration are a **later change**, gated on completed migrations of all three repositories; nothing here removes the interface for an unmigrated consumer.
-
-## Development
-
-Install host-owned Git (Git for Windows on Windows), Bun **1.3.13** from `.bun-version`, Node **24**, and Python **3.13**. Nix and WSL are not prerequisites. Development dependencies are repository-only:
-
-```sh
-bun run check:toolchain
-bun install --frozen-lockfile
-bun x --no-install lefthook install
-python3.13 -m venv .venv
-.venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
-```
-
-PowerShell uses the same Bun commands, with the host's Python 3.13 selected as `python` (no separate `py` launcher is required), then:
-
-```powershell
-python -m venv .venv
-& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-```
-
-The Windows-only pywinpty **3.0.5** wheel supplies ConPTY for development tests, never for plugin loading. `PYTHON_BIN` may select an explicit interpreter instead of the platform's `.venv` default.
-
-Run the complete native gate:
+[AGENTS.md](AGENTS.md) covers the development environment, checks, generated adapters, dependency updates, and release procedures. Use its setup instructions before running the complete native gate:
 
 ```sh
 bun run ci
 ```
 
-It retains formatting, types, dead-code, production advisories, release tree/version, coverage, extension behavior, real Git hooks and deterministic retrieval fixtures, plus Bun/mirror and OpenSpec pin parity, adapter freshness, strict active/archive validation and installed-release verification. The installed-release launcher reads the exact **v18.8.7** tag and six reviewed platform SHA-256 digests from `.omp-version` JSON, downloads only its fixed host-asset URL into scratch, verifies the pinned digest before execution, and uses an absolute executable. It fetches no runtime release metadata, requires no token, runs no installer and never changes user PATH/registry or Korolev's Tern OMP. The Python gate isolates every home/app-data/temp root, installs the candidate with the real manager, observes fresh capabilities and terminal-started LSP probes, exercises the installed-cache Bun/Python suite and damaged-candidate/upgrade/disabled/settings/forward-rollback controls, then removes scratch profiles. Partial setup removes its own state; CI final cleanup runs after successful setup even if later checks fail. `OMP_BIN` can explicitly select the absolute pinned binary; do not point it at a mutable host/Tern installation.
-
-Owned scratch roots are resolved through filesystem realpath before deriving fake homes, and candidate work/release directories stay beneath that home. This makes ancestor discovery stop correctly even with Windows short names or macOS directory aliases. The gate requires an empty pre-install manager list and exactly one owned installed candidate; it never filters duplicate or foreign plugin discovery into a passing result.
-
-Native CI runs equivalent gates on `ubuntu-latest`, `macos-15` and `windows-latest`, plus the shared OpenSpec context. ConPTY, executable probes and injected process tests do **not** establish actual language-server protocol or native-browser acceptance. The compatibility flake remains independently checkable with `nix flake check` but is not required to develop or publish.
-
-The optional retained Nix development shell includes Node 24 for the repository-native npm hooks; CI and ordinary native development do not require that shell.
-
-Only the generator writes workflow payload adapters:
-
-```sh
-bun run sync:openspec-adapters
-bun run check:openspec-adapters
-```
-
-Both use a disposable root with the repository config and `openspec init --tools oh-my-pi`; the checker compares all bytes and missing/extra commands/skills without changing the working tree. Never hand-edit or format these generated paths; Biome exclusions remain authoritative. Never copy adapters into consumers.
-
-Hooks use installed native tools without downloads: staged formatting and types on commit, authoritative commitlint on the message, and frozen installation plus `bun run check:local` on push. That fast local gate runs toolchain parity, lint, types, dead code, release version, the deterministic `bun run check:test:unit` set (`*.unit.test.ts`), OpenSpec adapter freshness and strict artifact validation. Real OpenSpec/commitlint/lefthook/Git fixtures, compiled launchers, annotation subprocess lifecycle and CLI entrypoints are `*.integration.test.ts` cases with 30 s budgets, not pre-push units. `bun run check:test` executes both sets together with the unchanged per-file 80% coverage floor; every PR's complete `bun run ci` retains that covered suite, network audit and OMP installed-release terminal checks on all three hosts. The Bun hook runner strips Git-local environment variables only in its child environment.
-
-Renovate owns JS/lockfiles/actions and native Bun/constraint-mirror, OpenSpec generator/workflow, Python setup and Windows terminal pins. Bun bumps regenerate the lockfile with the selected Bun; generator/workflow OpenSpec pins update together and generated differences require review. The central `glockyco/dependency-automation` control plane owns retained Nix inputs; Renovate's Nix manager stays disabled. Neither updater merges, publishes or upgrades a host.
-
-OMP tag-only automation is disabled: its six trusted digests must change with the tag. A maintainer updates the complete pin from the explicit official release's `SHA256SUMS.txt`:
-
-```sh
-bun run sync:release-omp -- vX.Y.Z
-```
-
-Review the tag and every platform digest in `.omp-version`, then run the complete three-host gate. The command uses no API, token, installer or mutable `latest`; a missing/duplicate/malformed required checksum or download failure leaves the previous pin unchanged.
-
-## Release flow
-
-1. Change the plugin and its observable tests together.
-2. When the change touches anything under `plugin/` or the catalog's delivery fields, raise the version in `.omp-plugin/marketplace.json` and `plugin/package.json` together (and the root `package.json` to match). `bun run check:release` rejects a runtime change that keeps or lowers the version. Documentation-only changes need no bump.
-3. Run `bun run ci` and obtain the three native matrix contexts plus shared OpenSpec context. Require actual browser acceptance in fresh Tern-managed Korolev and macbook-pro sessions separately.
-4. With explicit authorization, merge the reviewed release and tag it `vX.Y.Z`. Never move a published tag.
-5. Re-install the published release into a disposable OMP profile and confirm its version and capabilities before any host upgrades.
-6. Upgrade each host with the commands above and verify the changed capability in a fresh OMP session.
-
-To roll back a bad release, publish the known-good content as a newer version and upgrade to it. Do not rewrite a published tag or rely on an old cache entry surviving an upgrade.
+[package.json](package.json) defines the individual checks. [openspec/specs](openspec/specs) holds the behavior contracts. Documentation-only changes do not need a version bump. Runtime changes follow the release procedure in AGENTS.md.
 
 ## License
 
-[MIT](./LICENSE) covers this repository's code and original text. The writing skill includes [Master-cai's upstream MIT license](./plugin/skills/research-paper-writing/LICENSE).
+[MIT](LICENSE) covers this repository's code and original text. The writing skill includes [Master-cai's upstream MIT license](plugin/skills/research-paper-writing/LICENSE).
