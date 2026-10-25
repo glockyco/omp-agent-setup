@@ -124,7 +124,7 @@ The workstation repository's [dependency-update runbook](https://github.com/gloc
 
 1. Raise the version in `.omp-plugin/marketplace.json`, `plugin/package.json`, and the root `package.json` in the same commit as any runtime change.
 2. Run the full native gate and obtain Linux/macOS/Windows and shared OpenSpec CI contexts, plus actual fresh Tern-managed Korolev/macbook-pro browser acceptance for changed visual behavior.
-3. With explicit owner authorization, merge the reviewed release and create the immutable tag `vX.Y.Z`.
+3. With explicit authorization, merge the reviewed release and create the immutable tag `vX.Y.Z`.
 4. Install the published release into a disposable OMP profile and confirm its version and capabilities.
 5. Upgrade hosts with `omp plugin marketplace update glockyco` and `omp plugin upgrade --scope user personal@glockyco`, then verify the changed capability in a fresh OMP session in Tern.
 

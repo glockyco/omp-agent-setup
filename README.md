@@ -201,7 +201,7 @@ Review the tag and every platform digest in `.omp-version`, then run the complet
 1. Change the plugin and its observable tests together.
 2. When the change touches anything under `plugin/` or the catalog's delivery fields, raise the version in `.omp-plugin/marketplace.json` and `plugin/package.json` together (and the root `package.json` to match). `bun run check:release` rejects a runtime change that keeps or lowers the version. Documentation-only changes need no bump.
 3. Run `bun run ci` and obtain the three native matrix contexts plus shared OpenSpec context. Require actual browser acceptance in fresh Tern-managed Korolev and macbook-pro sessions separately.
-4. With the owner's explicit authorization, merge the reviewed release and tag it `vX.Y.Z`. Never move a published tag.
+4. With explicit authorization, merge the reviewed release and tag it `vX.Y.Z`. Never move a published tag.
 5. Re-install the published release into a disposable OMP profile and confirm its version and capabilities before any host upgrades.
 6. Upgrade each host with the commands above and verify the changed capability in a fresh OMP session.
 
