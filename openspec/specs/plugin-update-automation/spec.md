@@ -80,9 +80,9 @@ The main branch SHALL require the current Linux, macOS, Windows, and shared Open
 
 ### Requirement: Deliberate runtime release
 
-Automated dependency updates SHALL stop after tested pull-request creation. A plugin behavior, native release-tool pin, or retained `llm-agents` change SHALL require human review, the applicable development and cross-system gates, and explicit owner-authorized publication before downstream consumption. Runtime releases SHALL use the native marketplace install/upgrade procedure and fresh host-managed OMP sessions in Tern, not downstream Nix runtime-pin updates, a wrapper, or activation of a plugin package.
+Automated dependency updates SHALL stop after tested pull-request creation. A plugin behavior, native release-tool pin, or retained `llm-agents` change SHALL require human review, the applicable development and cross-system gates, and explicitly authorized publication before downstream consumption. Runtime releases SHALL use the native marketplace install/upgrade procedure and fresh host-managed OMP sessions in Tern, not downstream Nix runtime-pin updates, a wrapper, or activation of a plugin package.
 
-The downstream host SHALL retain its previous deployment until its own applicable release checks pass. Authentication and elevated host operations SHALL remain owner-assisted; pushes, merges, and release tags SHALL require explicit owner authorization. Publication and plugin upgrades SHALL NOT implicitly update upstream OMP or vice versa. An official binary installed only for CI SHALL NOT replace Korolev's Tern-managed OMP.
+The downstream host SHALL retain its previous deployment until its own applicable release checks pass. Authentication and elevated host operations SHALL remain interactive. Pushes, merges, and release tags SHALL require explicit authorization. Publication and plugin upgrades SHALL NOT implicitly update upstream OMP or vice versa. An official binary installed only for CI SHALL NOT replace Korolev's Tern-managed OMP.
 
 #### Scenario: Merge a behavior update
 
@@ -92,7 +92,7 @@ The downstream host SHALL retain its previous deployment until its own applicabl
 
 #### Scenario: Verify the new deployment
 
-- **WHEN** an owner upgrades the published personal plugin through the native manager
+- **WHEN** the published personal plugin is upgraded through the native manager
 - **THEN** a fresh host-managed OMP session in Tern observes the advertised installed version and exercises the changed capability
 - **AND** no wrapper or Nix runtime-package activation is needed to expose the plugin
 
@@ -126,7 +126,7 @@ The release gate SHALL reject mismatched versions and a changed runtime payload 
 
 #### Scenario: Roll back a bad release
 
-- **WHEN** the owner authorizes publication of known-good content as a newer corrective release
+- **WHEN** publication of known-good content as a newer corrective release is authorized
 - **THEN** the ordinary catalog-refresh and user-scoped upgrade procedure installs it
 - **AND** no published tag or same-version cache content is rewritten as the rollback mechanism
 
