@@ -189,7 +189,7 @@ The documented installation SHALL use `omp plugin marketplace add glockyco/omp-a
 
 #### Scenario: Install the published personal plugin
 
-- **WHEN** an owner follows the documented user-scoped marketplace installation in a fresh OMP profile
+- **WHEN** the documented user-scoped marketplace installation runs in a fresh OMP profile
 - **THEN** OMP lists one enabled personal marketplace release at the advertised version
 - **AND** its payload resolves from the plugin manager's installed cache, not a mutable repository checkout
 
@@ -296,7 +296,7 @@ The plain-prose rule SHALL leave the punctuation of code, grammars, quotations, 
 
 ### Requirement: Documentation rule
 
-The plugin SHALL ship an always-applied documentation rule, separate from the personal policy and the plain-prose rule, for repository documentation such as READMEs, guides, runbooks and agent instructions. The rule SHALL require documentation to describe the current state. It SHALL direct facts to their source, evidence and history to the change record, and longer rationale to the change's design. It SHALL require finished one-time procedures to be deleted, and plans that change documentation to name what the reader needs rather than content to copy. The rule SHALL exclude notes in the personal notes vault, which keep dates, history and decision owners under the vault's own conventions.
+The plugin SHALL ship an always-applied documentation rule, separate from the personal policy and the plain-prose rule, for repository documentation such as READMEs, guides, runbooks and agent instructions. The rule SHALL require documentation to describe the current state. It SHALL direct facts to their source, evidence and history to the change record, and longer rationale to the change's design. It SHALL require finished one-time procedures to be deleted, and plans that change documentation to name what the reader needs rather than content to copy. It SHALL require documentation for people to describe the system and address its reader without describing a person such as the owner, the user or the maintainer, and agent instructions to phrase what needs a person's decision as an instruction. The rule SHALL exclude notes in the personal notes vault, which keep dates, history and decision owners under the vault's own conventions.
 
 #### Scenario: Load the rule
 
@@ -307,6 +307,11 @@ The plugin SHALL ship an always-applied documentation rule, separate from the pe
 
 - **WHEN** an agent records a reversed decision in a note of the notes vault
 - **THEN** the documentation rule does not ask it to remove the date, the earlier choice or who decided
+
+#### Scenario: Introduce a repository
+
+- **WHEN** an agent writes the opening of a README for a plugin that serves one person's vault
+- **THEN** the rule directs it to say what the plugin does and for which vault, without calling anyone the owner or the user
 
 ### Requirement: Native repository hooks
 
@@ -349,12 +354,12 @@ The plugin SHALL ship a `notes` skill and a `weekly-review` skill for the person
 
 #### Scenario: Change a convention
 
-- **WHEN** the owner changes a convention in the vault's conventions note
+- **WHEN** a convention changes in the vault's conventions note
 - **THEN** agents follow the changed convention without a plugin release
 
 ### Requirement: Project handoff rule
 
-The plugin SHALL ship an always-applied project handoff rule for work on a project, paper or supervision. The rule SHALL direct agents to find the work's note in the owner's notes vault and read its `Resume here:` line before starting. For repository work, the matching note SHALL be found by searching for the repository URL contained in its `links`. Before finishing, agents SHALL rewrite the handoff with the current state and next step so a session with no other context can continue, and SHALL add or update dated tasks for steps with a date. The rule SHALL delegate vault changes and commits to the notes skill instead of duplicating that skill's handoff instruction. Agents SHALL skip reading and updating a handoff when no matching note exists.
+The plugin SHALL ship an always-applied project handoff rule for work on an item of the notes vault: a paper, project, supervision, talk or topic. The rule SHALL direct agents to find the work's note in the notes vault and read its `Resume here:` line before starting. For repository work, the matching note SHALL be found by searching for the repository URL contained in its `links`. Before finishing, agents SHALL rewrite the handoff with the current state and next step so a session with no other context can continue, and SHALL add or update dated tasks for steps with a date. The rule SHALL delegate vault changes and commits to the notes skill instead of duplicating that skill's handoff instruction. Agents SHALL skip reading and updating a handoff when no matching note exists.
 
 #### Scenario: Start a repository session
 
@@ -364,7 +369,7 @@ The plugin SHALL ship an always-applied project handoff rule for work on a proje
 
 #### Scenario: Finish work with a matching note
 
-- **WHEN** a session finishes work on a project, paper or supervision with a matching vault note
+- **WHEN** a session finishes work on a paper, project, supervision, talk or topic with a matching vault note
 - **THEN** the rule directs the agent to replace the handoff with the current state and next step, update dated tasks for dated steps, and follow the notes skill to change and commit the vault
 
 #### Scenario: Work without a matching note
