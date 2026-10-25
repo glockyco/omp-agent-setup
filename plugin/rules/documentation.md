@@ -14,3 +14,4 @@ Applies to repository documentation such as READMEs, guides, runbooks and agent 
 - Edit documentation in place and remove what a change makes obsolete.
 - A plan or specification that changes documentation names what the reader needs to know or do, not facts or evidence to copy into it.
 - Describe the system and address its reader. Never describe a person in documentation for people, such as "the owner", "the user" or "the maintainer", because the reader needs to know what the system does and what to do, not whose it is. In agent instructions, phrase what needs a person's decision as an instruction, such as "Ask before publishing".
+- A README opens with what the project does and for whom, then how to set it up and use it, then where to read more. It points to specs, docs and agent instructions for contracts, internals and procedures instead of repeating them, because a reader looks for what the project is and how to start.
