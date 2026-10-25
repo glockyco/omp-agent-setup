@@ -37,7 +37,12 @@ export const SKILL_ASSETS = [
 	"skills/research-paper-writing/references/introduction.md",
 	"skills/research-paper-writing/references/examples/index.md",
 ];
-export const RULES = ["rules/personal-policy.md", "rules/plain-prose.md", "rules/documentation.md"];
+export const RULES = [
+	"rules/personal-policy.md",
+	"rules/plain-prose.md",
+	"rules/documentation.md",
+	"rules/project-handoff.md",
+];
 export const LSP_CONFIG = "./lsp/lsp.json";
 /** Entries that belong to development, never to the installed payload. */
 const DEVELOPMENT_ENTRIES: Record<string, true> = {

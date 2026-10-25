@@ -149,6 +149,11 @@ describe("release tree", () => {
 			/rule missing: rules\/documentation\.md/,
 		],
 		[
+			"missing project handoff rule",
+			(root: string) => rmSync(join(root, PAYLOAD, "rules", "project-handoff.md")),
+			/rule missing: rules\/project-handoff\.md/,
+		],
+		[
 			"development files in the payload",
 			(root: string) => {
 				mkdirSync(join(root, PAYLOAD, "tests"));

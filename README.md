@@ -43,6 +43,7 @@ The refresh is what makes a newer release visible: OMP offers an upgrade only wh
 | `plugin/rules/personal-policy.md` | Short personal routing and checkpoint deviations from OMP defaults, always applied |
 | `plugin/rules/plain-prose.md` | Plain punctuation in the prose agents write, always applied. Code, grammars, quotations and manuscripts are exempt |
 | `plugin/rules/documentation.md` | What repository documentation contains and where facts, evidence and rationale go instead, always applied. Notes in the `notes` vault are exempt |
+| `plugin/rules/project-handoff.md` | Finds the work's vault note and keeps its handoff current across sessions, always applied |
 | `plugin/lsp/lsp.json` | Markdown Oxide selection, Marksman disablement, and the Roslyn and Svelte overrides, delivered by the catalog's `lspServers` field |
 | `plugin/commands/`, `plugin/skills/openspec-*/` | The generated OpenSpec workflow, loaded by every repository |
 
