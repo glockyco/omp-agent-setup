@@ -13,9 +13,9 @@
 ## 3. Integration Acceptance
 
 - [x] 3.1 Run native toolchain, formatting, type, dead-code, behavior/coverage, adapter and strict artifact checks with the selected native toolchain.
-- [ ] 3.2 Run the complete native Nix flake check, including the installed-release gate, on the supported Darwin host.
-- [ ] 3.3 Obtain all native, shared OpenSpec and new Nix CI contexts on the implementation PR.
-- [ ] 3.4 Confirm the updater's regenerated age-compliant lock does not change the repository-selected OpenSpec executable and passes native Nix checks before merging its PR.
+- [x] 3.2 Run the complete native Nix flake check, including the installed-release gate, on the supported Darwin host.
+- [x] 3.3 Obtain all native, shared OpenSpec and new Nix CI contexts on the implementation PR.
+- [x] 3.4 Confirm the updater's regenerated lock does not change the repository-selected OpenSpec executable and passes native Nix checks before merging its PR.
 
 ## Workflow follow-up
 
