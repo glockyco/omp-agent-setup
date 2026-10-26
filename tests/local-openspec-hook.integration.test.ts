@@ -6,6 +6,8 @@ import { join } from "node:path";
 setDefaultTimeout(30_000);
 
 const repository = join(import.meta.dir, "..");
+const cliVersion = JSON.parse(readFileSync(join(repository, "package.json"), "utf8"))
+	.devDependencies["@fission-ai/openspec"] as string;
 const readme = readFileSync(join(repository, "README.md"), "utf8");
 const windows = process.platform === "win32";
 const documented = readme.match(
@@ -34,7 +36,7 @@ async function hook(kind: "matching" | "mismatch" | "unsupported" | "invalid") {
 	// Test-only host CLI doubles expose mismatch/unsupported behavior without downloads.
 	// Positive and invalid fixtures use the actual frozen npm CLI through its installed shim.
 	if (kind === "mismatch" || kind === "unsupported") {
-		const version = kind === "mismatch" ? "0.0.0" : "1.14.0";
+		const version = kind === "mismatch" ? "0.0.0" : cliVersion;
 		writeFileSync(
 			join(bin, windows ? "openspec.cmd" : "openspec"),
 			windows
@@ -90,7 +92,7 @@ test("documented native host-local hook runs matching frozen CLI offline", async
 test("documented hook reports expected/observed version mismatch", async () => {
 	const result = await hook("mismatch");
 	expect(result.code).not.toBe(0);
-	expect(result.output).toContain("Expected OpenSpec 1.14.0, observed 0.0.0");
+	expect(result.output).toContain(`Expected OpenSpec ${cliVersion}, observed 0.0.0`);
 });
 
 test("documented hook rejects a host CLI without archive validation", async () => {
