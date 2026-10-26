@@ -28,13 +28,15 @@ The repository SHALL select one exact native Bun version through `.bun-version` 
 
 ### Requirement: Explicit dependency ownership
 
-Renovate SHALL own JavaScript dependencies, their lock-file maintenance, GitHub Actions, and the repository's native Bun, npm OpenSpec, Python setup, and Windows terminal-support pins. The repository maintainer SHALL own the selected OMP tag and all six reviewed platform digests through one explicit pin-update command; automatic tag-only OMP updates SHALL be disabled. The central dependency automation control plane SHALL continue owning retained Nix inputs until the flake is removed in a separately gated change. Renovate's beta Nix manager SHALL remain disabled so one dependency has one updater. The target repository SHALL NOT store the updater App private key or run a competing Nix scheduler.
+Renovate SHALL own JavaScript dependencies and lockfiles, Actions, native Bun, npm OpenSpec, Python setup and Windows terminal-support pins. The maintainer SHALL own the OMP tag and six reviewed digests through one explicit update command, with automatic tag-only updates disabled. The central control plane SHALL own retained Nix inputs until separately gated flake removal. Each dependency SHALL have exactly one updater.
 
 #### Scenario: Inspect update configuration
 
 - **WHEN** a maintainer inspects Renovate, target workflow, and central registry configuration
 - **THEN** each dependency class has exactly one declared update owner
 - **AND** the target repository contains no App credential or scheduled Nix update workflow
+- **AND** Renovate's beta Nix manager remains disabled
+- **AND** the repository stores no updater App private key and runs no competing Nix scheduler
 
 #### Scenario: Native release-tool pin changes
 
@@ -80,21 +82,23 @@ The main branch SHALL require the current Linux, macOS, Windows, and shared Open
 
 ### Requirement: Deliberate runtime release
 
-Automated dependency updates SHALL stop after tested pull-request creation. A plugin behavior, native release-tool pin, or retained `llm-agents` change SHALL require human review, the applicable development and cross-system gates, and explicitly authorized publication before downstream consumption. Runtime releases SHALL use the native marketplace install/upgrade procedure and fresh host-managed OMP sessions in Tern, not downstream Nix runtime-pin updates, a wrapper, or activation of a plugin package.
-
-The downstream host SHALL retain its previous deployment until its own applicable release checks pass. Authentication and elevated host operations SHALL remain interactive. Pushes, merges, and release tags SHALL require explicit authorization. Publication and plugin upgrades SHALL NOT implicitly update upstream OMP or vice versa. An official binary installed only for CI SHALL NOT replace Korolev's Tern-managed OMP.
+Automation SHALL stop at tested pull-request creation. Plugin behavior, native release-tool pins and retained `llm-agents` changes SHALL require human review, applicable development/cross-system gates and explicit authorization before publication or downstream consumption. Runtime releases SHALL use native marketplace delivery and fresh host-managed OMP sessions in Tern, not Nix runtime pins, wrappers or plugin-package activation.
 
 #### Scenario: Merge a behavior update
 
 - **WHEN** a reviewed dependency update changes runtime behavior
 - **THEN** no automation activates it on the workstation before the downstream release procedure succeeds
 - **AND** the release is versioned, reviewed and explicitly authorized for publication before nix-config consumes it
+- **AND** the downstream host retains its previous deployment until its applicable release checks pass
+- **AND** authentication and elevated host operations remain interactive
+- **AND** pushes, merges and release tags require explicit authorization
 
 #### Scenario: Verify the new deployment
 
 - **WHEN** the published personal plugin is upgraded through the native manager
 - **THEN** a fresh host-managed OMP session in Tern observes the advertised installed version and exercises the changed capability
 - **AND** no wrapper or Nix runtime-package activation is needed to expose the plugin
+- **AND** publication and plugin upgrades do not implicitly update upstream OMP or vice versa
 
 #### Scenario: Official binary CI finishes
 
@@ -104,15 +108,14 @@ The downstream host SHALL retain its previous deployment until its own applicabl
 
 ### Requirement: Version-signalled marketplace releases
 
-Every distributed runtime release SHALL declare the same semantic version in the personal catalog entry and payload package manifest. Runtime-content, generated-adapter, catalog LSP semantics, or compatibility changes SHALL bump that version in the same reviewed release revision. Development-only or documentation-only changes MAY leave the runtime version unchanged. A marketplace metadata version or source commit alone SHALL NOT replace the personal catalog entry's version signal.
-
-The release gate SHALL reject mismatched versions and a changed runtime payload without a newer semantic version. Published release tags SHALL be immutable and SHALL identify the reviewed release commit. A corrective rollback SHALL restore known-good runtime content in a newer reviewed version rather than overwrite a published version or tag.
+Distributed releases SHALL declare the same semantic version in the personal catalog entry and payload manifest. Runtime, generated-adapter, catalog LSP or compatibility changes SHALL bump it in the same reviewed revision. Development/docs-only changes MAY leave it unchanged. The gate SHALL reject mismatches and runtime changes without a newer version. Immutable release tags SHALL identify reviewed commits. Rollback SHALL restore known-good content in a newer reviewed release.
 
 #### Scenario: A newer release is published
 
 - **WHEN** the catalog entry and payload version are raised together and the reviewed release is published
 - **THEN** catalog refresh makes the newer personal release available to OMP's version-based update detection
 - **AND** explicit user-scoped upgrade installs that advertised version
+- **AND** a marketplace metadata version or source commit alone does not replace the personal catalog entry's version signal
 
 #### Scenario: Runtime content changes without a bump
 
@@ -132,15 +135,14 @@ The release gate SHALL reject mismatched versions and a changed runtime payload 
 
 ### Requirement: Upgrade acceptance preserves deliberate state
 
-The release gate SHALL exercise catalog refresh and plugin upgrade in a disposable profile using a newer fixture release. It SHALL verify the new installed version and complete capability surface after a fresh load. It SHALL also verify that disabled state, selected features, and plugin settings already present in the native manager are not silently reset by upgrade.
-
-Current instructions SHALL distinguish targeted reinstallation from newer-version detection and SHALL require catalog refresh before the explicit user-scoped target upgrade. They SHALL NOT instruct users to rely on startup notifications or all-plugin partial-success output as release acceptance.
+The release gate SHALL exercise catalog refresh and plugin upgrade to a newer fixture release in a disposable profile. A fresh load SHALL verify the new installed version and complete capabilities without resetting disabled state, selected features or plugin settings. Instructions SHALL distinguish targeted reinstallation from newer-version detection and require refresh before user-scoped target upgrade.
 
 #### Scenario: Upgrade a disposable candidate
 
 - **WHEN** the gate refreshes a candidate catalog to a newer declared version and upgrades `personal@glockyco` in user scope
 - **THEN** the installed registry and a fresh capability load use the newer version
 - **AND** the gate proves all declared capabilities remain available when the plugin is enabled
+- **AND** instructions do not substitute startup notifications or all-plugin partial-success output for release acceptance
 
 #### Scenario: Upgrade an intentionally disabled plugin
 

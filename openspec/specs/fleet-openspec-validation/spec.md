@@ -10,7 +10,7 @@ Define the validation every repository on this workstation applies to its own Op
 
 A repository that contains an `openspec/` directory SHALL fail its continuous integration when an artifact is invalid under strict validation, or when an archived change contains an unchecked task.
 
-The same verification SHALL be reproducible on Linux, macOS, and native Windows without Nix or network access once the host's OpenSpec is fetched. Documented local hook commands SHALL require archive-validation support and use the host's CLI without installing a consumer-owned CLI pin. The local result SHALL match CI when the host CLI matches the shared definition's advertised version; a mismatched version SHALL be reported rather than claimed equivalent.
+The same verification SHALL be reproducible on Linux, macOS, and native Windows with a matching host-owned CLI, without Nix or network access.
 
 #### Scenario: Invalid artifact reaches the default branch
 
@@ -29,6 +29,7 @@ The same verification SHALL be reproducible on Linux, macOS, and native Windows 
 - **WHEN** a maintainer runs the documented host-local checks with the same already-fetched CLI version as CI
 - **THEN** the same verification runs without Nix or network access
 - **AND** it reports the same result as continuous integration
+- **AND** documented hooks require archive-validation support without installing a consumer-owned CLI pin
 
 #### Scenario: Host-local OpenSpec lacks archive support
 
@@ -43,7 +44,7 @@ The same verification SHALL be reproducible on Linux, macOS, and native Windows 
 
 ### Requirement: One definition, consumed rather than copied
 
-This repository SHALL expose portable CI verification through `.github/workflows/openspec.yml` with `on: workflow_call`. A consuming CI job SHALL reference that workflow at a reviewed immutable full commit SHA, not copy its validation commands, flags, or CLI installation. The existing `lib.openspecCheck` SHALL remain operational until nix-config, phd-thesis, and test-generalization have migrated. Consumer local hooks MAY contain only the documented host-local command sequence rather than a second validator implementation.
+This repository SHALL expose portable CI verification through `.github/workflows/openspec.yml` with `on: workflow_call`. Consumers SHALL reference a reviewed immutable full commit SHA rather than copy the implementation. The existing `lib.openspecCheck` SHALL remain operational until nix-config, phd-thesis, and test-generalization have migrated.
 
 #### Scenario: The verification changes
 
@@ -56,12 +57,14 @@ This repository SHALL expose portable CI verification through `.github/workflows
 - **WHEN** a repository adopts the shared reusable workflow
 - **THEN** it declares a job-level workflow reference and optionally its artifact root
 - **AND** it states nothing about which validation commands run in CI
+- **AND** it copies no validation commands, flags, or CLI installation
 
 #### Scenario: No repository keeps its own implementation
 
 - **WHEN** consumer CI configurations are searched for the validation commands
 - **THEN** they appear only in the shared definition, not in consumer CI implementations
 - **AND** documented host-local hooks are not mistaken for an independently owned validator
+- **AND** local hooks may contain only the documented host-local command sequence
 
 #### Scenario: Unmigrated Nix consumer still runs
 
@@ -71,9 +74,7 @@ This repository SHALL expose portable CI verification through `.github/workflows
 
 ### Requirement: The shared definition owns the pinned version
 
-The shared CI definition SHALL pin the OpenSpec version it runs. A consuming repository SHALL NOT pin the CI CLI itself or depend on a CLI installed outside that verification. Consumers SHALL select the shared workflow revision, not an OpenSpec version input. Host-local commands SHALL use their host-owned installation as a separate documented execution context.
-
-The pinned version SHALL support both validations. A version that cannot check archived task completion SHALL NOT be used, whatever its other merits. The workflow SHALL fail when `openspec validate --help` lacks `--archived`, then run `openspec validate --all --strict --no-interactive` and `openspec validate --archived --strict --no-interactive` without an archive-disable option.
+The shared CI definition SHALL pin an OpenSpec version supporting strict active validation and archived task completion. Consumers SHALL select a workflow revision, not a CLI dependency, external CI installation or version input. Host-local commands SHALL use a separate host-owned installation.
 
 #### Scenario: A consuming repository is inspected
 
@@ -91,6 +92,12 @@ The pinned version SHALL support both validations. A version that cannot check a
 
 - **WHEN** a version under consideration does not support validating archived task completion
 - **THEN** it is rejected as a source for the shared definition
+- **AND** the workflow fails when `openspec validate --help` lacks `--archived`
+
+#### Scenario: The pinned CLI supports complete validation
+
+- **WHEN** the workflow's CLI advertises archive support
+- **THEN** it runs `openspec validate --all --strict --no-interactive` and `openspec validate --archived --strict --no-interactive` without an archive-disable option
 
 #### Scenario: Caller tries to weaken the gate
 
@@ -99,7 +106,7 @@ The pinned version SHALL support both validations. A version that cannot check a
 
 ### Requirement: The verification reads only the artifacts
 
-The shared definition SHALL validate the consuming repository's OpenSpec artifacts rather than its unrelated source/build outputs. The reusable workflow SHALL check out the caller's triggering revision and use its optional repository-relative `openspec-root` input, default `.`, as the directory containing `openspec/`. An absent artifact directory or a root outside the caller checkout SHALL fail. Nix artifact-only cache reuse SHALL remain available through the retained flake interface; the reusable workflow SHALL NOT promise content-addressed result reuse for unrelated caller changes.
+The shared definition SHALL validate only the caller's OpenSpec artifacts from its triggering checkout. Its optional repository-relative `openspec-root` input SHALL default to `.` and identify the directory containing `openspec/`. An absent artifact directory or root outside the checkout SHALL fail.
 
 #### Scenario: A repository carries large unrelated files
 
@@ -111,6 +118,7 @@ The shared definition SHALL validate the consuming repository's OpenSpec artifac
 - **WHEN** a file outside the OpenSpec artifacts changes
 - **THEN** the retained Nix interface reuses its artifact-only result
 - **AND** the portable CI job may rerun without changing the artifacts or requiring unrelated project dependencies
+- **AND** only the retained Nix interface promises artifact-only cache reuse, not the reusable workflow
 
 #### Scenario: Caller uses a nested OpenSpec root
 

@@ -23,11 +23,7 @@ body and reject literal `\\n` text.
 
 ### Requirement: Stable message formatting
 
-The tool SHALL preserve paragraph boundaries, wrap ordinary prose to 72 columns, and SHALL NOT split URLs, code tokens, or other indivisible long tokens. Blank-line paragraph separation SHALL remain unchanged.
-
-A line beginning with `- `, `* `, `+ `, or a decimal ordered marker followed by `. ` or `) ` SHALL start a new list item, including multi-digit markers and markers with leading indentation. A preceding blank line SHALL NOT be required: prose before the first item SHALL remain a separate prose block. Each item SHALL wrap to 72 columns with a hanging indent aligned to the text after its marker, and nested markers SHALL retain their leading indentation. Following indented non-marker lines below the code indentation threshold SHALL continue the current item. A blank line or an unindented non-marker line SHALL end the item; unindented prose following a list SHALL form a separate prose block even without a blank line.
-
-Fenced code blocks delimited by backticks, including internal blank lines, and non-marker lines indented by at least four spaces or a tab SHALL be emitted verbatim. The final paragraph, when every line is a Git trailer of the form `Token: value`, `Token #value`, or `BREAKING CHANGE: ...`, SHALL be emitted line by line without reflow.
+The tool SHALL preserve paragraph boundaries and blank-line separation, wrap ordinary prose to 72 columns, and leave indivisible long tokens intact. Lists SHALL retain distinct items, nested indentation and hanging alignment. Fenced code and sufficiently indented non-marker code SHALL remain verbatim. A final paragraph consisting entirely of Git trailers SHALL retain each original line.
 
 #### Scenario: Format multiple paragraphs
 
@@ -38,12 +34,14 @@ Fenced code blocks delimited by backticks, including internal blank lines, and n
 
 - **WHEN** prose ending in `The reader:` is immediately followed by bullet items
 - **THEN** the prose remains separate and every marker begins a separate item
+- **AND** no preceding blank line is required to start the first list item
 
 #### Scenario: Wrap bullet and ordered items
 
 - **WHEN** a body contains long bullet items and numbered items including `10.` and `10)`
 - **THEN** the items wrap at 72 columns with continuation lines aligned after their respective markers
 - **AND** indivisible long tokens remain unbroken
+- **AND** `- `, `* `, `+ ` and decimal markers followed by `. ` or `) ` start items, including multi-digit markers with leading indentation
 
 #### Scenario: Preserve nested item indentation
 
@@ -54,11 +52,14 @@ Fenced code blocks delimited by backticks, including internal blank lines, and n
 
 - **WHEN** an item has a two-space-indented continuation followed immediately by unindented prose
 - **THEN** the indented line is reflowed with its item and the unindented prose starts a separate block
+- **AND** indented non-marker lines below the code indentation threshold continue the current item
+- **AND** either a blank line or an unindented non-marker line ends the item
 
 #### Scenario: Preserve code blocks
 
 - **WHEN** a body contains fenced code with blank lines or non-marker lines indented by four spaces or a tab
 - **THEN** those lines retain their indentation, spacing, line boundaries, and overlong text
+- **AND** backtick-fenced code preserves internal blank lines
 
 #### Scenario: Preserve final Git trailers
 
@@ -67,13 +68,7 @@ Fenced code blocks delimited by backticks, including internal blank lines, and n
 
 ### Requirement: Hook-preserving Git execution
 
-For commit and amend, the tool SHALL write one temporary message file and invoke `git commit -F` or
-`git commit --amend -F` in the target repository. The target SHALL be the optional `repo` input when
-given, resolved against the session working directory when relative, and the session working directory
-otherwise.
-
-The tool SHALL reject a `repo` that does not exist, is not a directory, or is not inside a Git work
-tree, and SHALL do so before writing a message file or invoking Git. This transport SHALL work with native Windows Git and filesystem paths as well as Linux/macOS, without requiring Nix or WSL, and SHALL keep repository hooks authoritative on every host.
+Commit and amend SHALL write one temporary message file and invoke `git commit -F` or `git commit --amend -F` in the target repository. An optional `repo` SHALL resolve against the session working directory, which is also the default target. Invalid targets SHALL fail before writing the message or invoking Git. Native Windows and Linux/macOS paths SHALL work without Nix or WSL, with hooks authoritative on every host.
 
 #### Scenario: Repository has a commit hook
 
@@ -143,9 +138,7 @@ inert, so it SHALL report the path it would use without reading a filesystem or 
 
 ### Requirement: Autonomous atomic checkpoints
 
-During multi-step engineering work, the agent SHALL create an atomic commit after each coherent, verified unit of work, even when the user did not explicitly request a commit. It SHALL not wait for the complete change when an earlier unit already forms a truthful, independently useful checkpoint.
-
-Before each commit, the agent SHALL stage only changes owned by the current task, inspect the staged diff, and use `personal_commit` for commit transport. Each commit SHALL contain one subject and leave applicable build and test checks passing.
+During multi-step engineering work, the agent SHALL commit each coherent, verified unit without waiting for the complete change or an explicit commit request. Before each commit it SHALL stage only task-owned changes, inspect the staged diff and use `personal_commit`. Each commit SHALL contain one subject and leave applicable build and test checks passing.
 
 #### Scenario: Complete one unit of a multi-step change
 
