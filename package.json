@@ -27,7 +27,7 @@
     "@biomejs/biome": "2.5.15",
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
-    "@fission-ai/openspec": "1.14.0",
+    "@fission-ai/openspec": "1.14.3",
     "@types/bun": "1.3.14",
     "knip": "6.39.0",
     "lefthook": "2.2.1",
