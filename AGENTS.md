@@ -4,17 +4,17 @@ Source repository for the personal [Oh My Pi](https://github.com/can1357/oh-my-p
 
 ## Setup
 
-Use host-owned Git, Bun 1.3.13 (`.bun-version`), Node 24 and Python 3.13. Native Windows uses Git for Windows and does not require Nix or WSL:
+Use host-owned Git, Bun selected by `.bun-version`, Node and Python selected by `.github/workflows/ci.yml`. Native Windows uses Git for Windows and does not require Nix or WSL:
 
 ```sh
 bun run check:toolchain
 bun install --frozen-lockfile
 bun x --no-install lefthook install
-python3.13 -m venv .venv
+python -m venv .venv
 .venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```
 
-In PowerShell, select the host's Python 3.13 as `python`, then use `python -m venv .venv` and `& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt` for the last two commands; no separate `py` launcher is required. Check `$LASTEXITCODE` after native commands. `PYTHON_BIN` can select an explicit interpreter; otherwise launchers use the platform's `.venv` interpreter. Windows-only pywinpty 3.0.5 is development ConPTY tooling. Nothing installs global tools or changes user PATH; .NET SDK and actual language servers are host prerequisites only for relevant runtime capabilities.
+Select the workflow's Python as `python` before creating the venv. In PowerShell, use `& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt` for the wheel installation. No separate `py` launcher is required. Check `$LASTEXITCODE` after native commands. `PYTHON_BIN` can select an explicit interpreter. Otherwise launchers use the platform's `.venv` interpreter. Windows-only pywinpty in `requirements-dev.txt` is development ConPTY tooling. Nothing installs global tools or changes user PATH. .NET SDK and actual language servers are host prerequisites only for relevant runtime capabilities.
 
 ## Source layout
 

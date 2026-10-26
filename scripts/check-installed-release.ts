@@ -67,9 +67,9 @@ export async function checkInstalledRelease(
 			timeout: 30_000,
 		});
 		const observed = `${version.stdout}${version.stderr}`.trim();
-		if (version.exitCode !== 0 || !/^Python 3\.13\.\d+(?:\s|$)/.test(observed))
+		if (version.exitCode !== 0 || !/^Python 3\.15\.\d+(?:\s|$)/.test(observed))
 			throw new Error(
-				`release gate Python: expected 3.13, observed ${observed || "unavailable"} (${python})`,
+				`release gate Python: expected 3.15, observed ${observed || "unavailable"} (${python})`,
 			);
 		const child = Bun.spawn([python, join(repository, "tests", "release_gate.py")], {
 			cwd: repository,
