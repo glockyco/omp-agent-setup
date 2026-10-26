@@ -21,6 +21,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install centrally pinned CLI in scratch
+        # Generated from package.json by bun run sync:openspec-adapters.
         env:
           CI: '1'
           OPENSPEC_TELEMETRY: '0'
