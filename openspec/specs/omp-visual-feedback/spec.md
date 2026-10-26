@@ -77,7 +77,7 @@ Non-empty submitted annotations SHALL enter the originating conversation exactly
 
 ### Requirement: Owned review lifecycle
 
-Each session SHALL allow one pending review, while separate sessions SHALL operate independently. Annotation commands SHALL return control while the review is pending. Status SHALL identify the pending source and cancellation command. Dismissal, explicit cancellation, navigation, and shutdown SHALL release the owned subprocess tree and private snapshot without deleting user history or preferences on Linux, macOS, and native Windows. Browser closure MAY leave a review pending. `/plannotator-cancel` SHALL remain available to release that review without feedback. Automatic browser-tab-close dismissal SHALL NOT be required. Cleanup SHALL allow a bounded one-second termination grace before forcing surviving owned processes and SHALL NOT stop another review or an unrelated process. A root process exit alone SHALL NOT establish tree cleanup; cleanup failures SHALL be reported rather than presented as success.
+Each session SHALL allow one pending review independently of other sessions. Commands SHALL return control while pending, and status SHALL identify the source and cancellation command. Dismissal, cancellation, navigation and shutdown SHALL release only the owned subprocess tree and private snapshot, preserving user history and preferences on Linux, macOS and Windows. Browser closure MAY leave a review pending, with `/plannotator-cancel` available without feedback.
 
 #### Scenario: Cancel one concurrent review
 
@@ -100,12 +100,15 @@ Each session SHALL allow one pending review, while separate sessions SHALL opera
 - **WHEN** a closed browser tab leaves the review pending and the user runs `/plannotator-cancel`
 - **THEN** the adapter releases the owned process, listener, and private snapshot
 - **AND** cancellation produces no feedback or model turn
+- **AND** automatic browser-tab-close dismissal is not required
 
 #### Scenario: Windows descendant survives the first termination request
 
 - **WHEN** a native Windows review's owned tree has a surviving descendant after the bounded termination grace
 - **THEN** cleanup force-terminates that owned descendant even if the original root has exited
 - **AND** no unrelated or PID-reused process is terminated
+- **AND** cleanup allows a bounded one-second termination grace before forcing surviving owned processes
+- **AND** a root process exit alone does not establish tree cleanup
 - **AND** cleanup waits for owned process/output closure before removing the private snapshot
 
 #### Scenario: Repeated Windows cancellation races with feedback
@@ -118,6 +121,7 @@ Each session SHALL allow one pending review, while separate sessions SHALL opera
 
 - **WHEN** the host denies termination or owned-tree inspection during cleanup
 - **THEN** the adapter identifies the cleanup failure without delivering cancellation feedback or claiming resources were released
+- **AND** cleanup failures are reported rather than presented as success
 
 #### Scenario: Windows console requires force termination
 
@@ -134,17 +138,20 @@ Each session SHALL allow one pending review, while separate sessions SHALL opera
 
 ### Requirement: Annotation-only local subprocess
 
-The adapter SHALL invoke only the stock `plannotator annotate <private snapshot.md> --json` CLI using an argument array. The host SHALL supply the version-selected vendor executable. The adapter SHALL NOT require a downstream client-lease patch, gate mode, review timeout, or fallback. Only non-empty `annotated` feedback SHALL reach OMP. `dismissed` and empty annotations SHALL produce notices without model turns. Failed processes, malformed output, and unexpected decisions, including `approved`, SHALL report errors without feedback. Invocation SHALL require a local interactive OMP TUI session with UI availability on Linux, macOS, or native Windows; diagnostics SHALL NOT claim that only Linux/macOS are supported. SSH markers and explicit remote Plannotator invocation SHALL be refused identically on every OS before review launch. The child SHALL use random loopback ports and the platform-native browser, with sharing disabled regardless of inherited Plannotator settings.
+The adapter SHALL invoke only the stock `plannotator annotate <private snapshot.md> --json` CLI using an argument array and a host-supplied version-selected executable. It SHALL NOT require a downstream client-lease patch, gate mode, review timeout or fallback. Only non-empty `annotated` feedback SHALL reach OMP. Invocation SHALL require a local interactive TUI with UI availability on Linux, macOS or native Windows.
 
 #### Scenario: Unexpected decision or process failure
 
 - **WHEN** the child fails or emits malformed JSON or an unexpected decision
 - **THEN** the adapter reports an error, cleans up owned resources, and injects no feedback
+- **AND** unexpected decisions include `approved`
+- **AND** `dismissed` and empty annotations instead produce notices without model turns
 
 #### Scenario: Inherited remote or sharing settings
 
 - **WHEN** a local interactive caller has Plannotator port, browser, or sharing overrides
 - **THEN** the child still uses a random loopback port, the native browser, and no sharing or approval mode
+- **AND** inherited Plannotator settings cannot enable sharing
 
 #### Scenario: Remote or noninteractive invocation
 
@@ -156,11 +163,13 @@ The adapter SHALL invoke only the stock `plannotator annotate <private snapshot.
 - **WHEN** the host executable is available and a local native Windows interactive TUI session invokes document or last-response annotation
 - **THEN** the stock native browser review starts and non-empty submitted annotations return once to the originating conversation
 - **AND** explicit cancellation remains available without requiring WSL or a Linux/macOS host
+- **AND** diagnostics do not claim that only Linux/macOS are supported
 
 #### Scenario: Every local and remote refusal applies on Windows
 
 - **WHEN** a Windows caller lacks UI, uses a non-TUI mode, carries any SSH session marker, or requests explicit remote Plannotator invocation
 - **THEN** the same corresponding local-interactive or remote refusal used on Linux/macOS appears before preparing a snapshot or spawning a child
+- **AND** SSH markers and explicit remote invocation are refused identically on every OS
 
 #### Scenario: Missing native host executable
 

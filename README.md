@@ -92,7 +92,7 @@ POSIX:
 ```sh
 set -eu
 version="$(openspec --version)"
-test "$version" = "1.14.0" || { echo "Expected OpenSpec 1.14.0, observed $version; ask the host tool owner to correct it." >&2; exit 1; }
+test "$version" = "1.14.3" || { echo "Expected OpenSpec 1.14.3, observed $version. Ask the host tool owner to correct it." >&2; exit 1; }
 help="$(openspec validate --help)"
 printf '%s\n' "$help" | grep -q -- --archived || { echo "OpenSpec lacks validate --archived." >&2; exit 1; }
 export CI=1 OPENSPEC_TELEMETRY=0
@@ -105,7 +105,7 @@ PowerShell:
 ```powershell
 $version = & openspec --version
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-if ($version.Trim() -ne '1.14.0') { Write-Error "Expected OpenSpec 1.14.0, observed $version; ask the host tool owner to correct it."; exit 1 }
+if ($version.Trim() -ne '1.14.3') { Write-Error "Expected OpenSpec 1.14.3, observed $version. Ask the host tool owner to correct it."; exit 1 }
 $help = & openspec validate --help
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if (-not ($help -match '--archived')) { Write-Error 'OpenSpec lacks validate --archived.'; exit 1 }

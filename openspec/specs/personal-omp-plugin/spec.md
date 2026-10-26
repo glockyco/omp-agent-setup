@@ -60,11 +60,7 @@ The policy SHALL keep detailed commit instructions in their skill instead of dup
 
 ### Requirement: Single source for the OpenSpec workflow
 
-The plugin SHALL be the only tracked source of the generated OpenSpec workflow adapters. A repository that consumes the workflow SHALL NOT track its own copy of a generated command or skill.
-
-A repository MAY still define a command or skill of the same exposed name to override the plugin's, and SHALL do so only to express a repository-specific deviation. Marketplace command entry points SHALL use the stable `personal:` plugin namespace; generated skill names SHALL remain unchanged. The generator-owned files SHALL NOT be rewritten merely to rename their marketplace entry points.
-
-Rationale: identical generated files committed into repositories with their own formatting regimes acquire two owners and diverge. The plugin manager supplies command identity without creating another generated-adapter convention.
+The plugin SHALL be the only tracked source of generated OpenSpec adapters. Consumers SHALL NOT track identical generated commands or skills, because separate formatting regimes create conflicting owners. Repository-specific overrides MAY replace an exposed command or skill only for a local deviation. Commands SHALL use the stable `personal:` namespace, with generated skill names and generator-owned files unchanged.
 
 #### Scenario: Working in any repository
 
@@ -78,6 +74,7 @@ Rationale: identical generated files committed into repositories with their own 
 - **WHEN** a repository defines a command or skill whose exposed name matches one the plugin provides
 - **THEN** the repository's definition takes effect in that repository
 - **AND** the plugin's definition remains in effect everywhere else
+- **AND** the override expresses a repository-specific deviation rather than duplicating generated adapters
 
 #### Scenario: Repository-specific capabilities are unaffected
 
@@ -105,9 +102,7 @@ The manager installation SHALL deliver LSP overrides and extension modules witho
 
 ### Requirement: Generated adapter freshness
 
-The repository SHALL verify in its own native Linux, macOS, and Windows CI that the generated OpenSpec commands and skills in the plugin payload match the centrally pinned npm OpenSpec generator without requiring Nix. An OpenSpec update SHALL fail the release gate until generated changes are reviewed and committed.
-
-Verification SHALL compare the payload rather than any repository-level adapter directory, and SHALL leave the working tree unchanged. Consumers SHALL NOT run this repository's adapter-freshness check as their artifact-validation gate. The native regeneration command SHALL preserve the generator as the only writer of these payload paths.
+Native Linux, macOS and Windows CI SHALL compare payload adapters byte for byte with the centrally pinned npm generator without Nix or checkout mutation. Generator changes SHALL fail the release gate until reviewed and committed. Native regeneration SHALL keep the generator as sole writer. Consumers SHALL NOT use adapter freshness as artifact validation.
 
 #### Scenario: OpenSpec changes generated instructions
 
@@ -185,7 +180,12 @@ The personal plugin SHALL disable OMP's built-in Marksman definition and SHALL d
 
 The repository SHALL publish marketplace `glockyco` with plugin `personal` and runtime identity `personal@glockyco`. Its catalog SHALL identify a self-contained plugin payload, an explicit semantic release version, and an LSP configuration contained within that payload. The payload SHALL declare both runtime extension modules through its OMP package manifest.
 
-The documented installation SHALL use `omp plugin marketplace add glockyco/omp-agent-setup` followed by `omp plugin install --scope user personal@glockyco`. The documented upgrade SHALL use `omp plugin marketplace update glockyco` followed by `omp plugin upgrade --scope user personal@glockyco`, then a fresh OMP session. Runtime publication SHALL NOT require or expose a Nix plugin package output; the independent shared OpenSpec validator SHALL remain available.
+#### Scenario: Document native installation and upgrade
+
+- **WHEN** a maintainer follows the documented runtime delivery procedure
+- **THEN** installation uses `omp plugin marketplace add glockyco/omp-agent-setup` followed by `omp plugin install --scope user personal@glockyco`
+- **AND** upgrade uses `omp plugin marketplace update glockyco` followed by `omp plugin upgrade --scope user personal@glockyco` and a fresh OMP session
+- **AND** runtime publication neither requires nor exposes a Nix plugin package output, while independent shared OpenSpec validation remains available
 
 #### Scenario: Install the published personal plugin
 
@@ -201,9 +201,23 @@ The documented installation SHALL use `omp plugin marketplace add glockyco/omp-a
 
 ### Requirement: Isolated complete release verification
 
-The release gate SHALL validate the catalog and demonstrate actual install, runtime discovery, and upgrade under a temporary HOME with isolated configuration, data and cache roots on Linux, macOS, and native Windows. It SHALL use no provider credentials or model request, SHALL leave real OMP state unchanged, and SHALL remove its temporary profiles. The gate SHALL keep the selected exact OMP tag and all six platform SHA-256 digests in one reviewed repository pin record, download only the host asset from the fixed release URL, verify its pinned digest before execution, and use its absolute executable. Runtime setup SHALL NOT fetch release metadata, require a GitHub token, run an installer that changes PATH or registry state, or depend on Nix or a contributor's host OMP installation. Failed partial setup SHALL remove everything it created; final CI cleanup SHALL run after successful setup even when later gates fail. Windows home, application-data, and temporary roots SHALL remain isolated as well.
+The release gate SHALL validate the catalog and demonstrate install, complete runtime discovery and upgrade under isolated temporary profiles on Linux, macOS and native Windows. It SHALL use no provider credentials or model requests, leave real OMP state unchanged and clean its owned state. All platforms SHALL retain positive and negative capability/upgrade controls, using a verified official binary selected by one reviewed tag and six-digest pin.
 
-Verification SHALL observe both declared extension factories, the commit tool, all three annotation command registrations, all declared skills and their support assets, the always-applied personal policy, each workflow command exactly once, and every declared LSP override. A list or doctor result alone SHALL NOT satisfy runtime verification. Deterministic executable probes MAY prove configuration selection but SHALL NOT be reported as real language-server protocol or native-browser acceptance. No platform SHALL skip an existing positive or negative capability/upgrade control because its Unix process or terminal fixture is unavailable.
+#### Scenario: Observe the complete installed surface
+
+- **WHEN** the gate verifies a candidate release from its installed cache
+- **THEN** it observes both extension factories, the commit tool, all three annotation commands, every skill and support asset, always-applied policy, each workflow command exactly once and every LSP override
+- **AND** a list or doctor result alone does not satisfy runtime verification
+- **AND** deterministic executable probes prove configuration selection, not real language-server protocol or native-browser acceptance
+- **AND** no platform skips a positive or negative capability/upgrade control because its Unix process or terminal fixture is unavailable
+
+#### Scenario: Provision an isolated official runtime
+
+- **WHEN** setup provisions the selected release gate runtime
+- **THEN** it downloads only the host asset from its fixed release URL, verifies the pinned digest before execution and uses the absolute executable
+- **AND** setup does not fetch release metadata, require a GitHub token, run a PATH/registry-changing installer, or depend on Nix or a contributor's OMP
+- **AND** partial setup removes everything it created and final CI cleanup runs after successful setup even if later gates fail
+- **AND** Windows home, application-data and temporary roots remain isolated
 
 #### Scenario: Complete marketplace release is tested
 
@@ -296,12 +310,17 @@ The plain-prose rule SHALL leave the punctuation of code, grammars, quotations, 
 
 ### Requirement: Documentation rule
 
-The plugin SHALL ship an always-applied documentation rule, separate from the personal policy and the plain-prose rule, for repository documentation such as READMEs, guides, runbooks and agent instructions. The rule SHALL require documentation to describe the current state. It SHALL direct facts to their source, evidence and history to the change record, and longer rationale to the change's design. It SHALL require finished one-time procedures to be deleted, and plans that change documentation to name what the reader needs rather than content to copy. It SHALL require documentation for people to describe the system and address its reader without describing a person such as the owner, the user or the maintainer, and agent instructions to phrase what needs a person's decision as an instruction. It SHALL require a README to open with what the project does and for whom, then how to set it up and use it, then where to read more, and to point to specs, docs and agent instructions instead of repeating them. The rule SHALL exclude notes in the personal notes vault, which keep dates, history and decision owners under the vault's own conventions.
+The plugin SHALL ship a separate always-applied rule for repository documentation, including READMEs, guides, runbooks and agent instructions. Documentation SHALL describe the current state, refer facts to their source and keep evidence, history and longer rationale in change records. Finished one-time procedures SHALL be deleted. Plans changing documentation SHALL name reader needs rather than content to copy.
 
 #### Scenario: Load the rule
 
 - **WHEN** OMP starts with the manager-installed personal plugin
 - **THEN** the system prompt carries the documentation rule beside the personal policy and the plain-prose rule
+- **AND** documentation for people describes the system and addresses its reader without describing a person such as the owner, user or maintainer
+- **AND** agent instructions phrase what needs a person's decision as an instruction
+- **AND** a README opens with what the project does and for whom, then setup and use, then further reading
+- **AND** the README points to specs, docs and agent instructions instead of repeating them
+- **AND** notes in the personal notes vault retain dates, history and decision owners under the vault's own conventions
 
 #### Scenario: Edit a vault note
 
@@ -320,13 +339,14 @@ The plugin SHALL ship an always-applied documentation rule, separate from the pe
 
 ### Requirement: Native repository hooks
 
-Repository development and Git hooks SHALL run the pinned native toolchain on Linux, macOS, and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen dependency installation, and the fast `bun run check:local` pre-push gate covering toolchain, lint, types, dead code, release version, deterministic unit tests, OpenSpec adapter freshness and strict artifact validation; they SHALL use installed development tools without fetching a missing executable. Real external-toolchain and process-lifecycle tests SHALL be classified as integration tests, retain explicit 30 s case budgets and run in complete CI rather than pre-push's unit set. Pre-push SHALL omit network audit and installed-release download/terminal checks. Every PR's Linux, macOS and Windows CI SHALL run the complete `bun run ci`, including both test sets with the unchanged complete-suite coverage floor and those checks.
+Repository development and Git hooks SHALL use the pinned native toolchain on Linux, macOS and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen installation and the fast `check:local` pre-push gate. They SHALL use installed tools without fetching missing executables. Every PR SHALL run complete CI on all three hosts, with both test sets and the unchanged complete-suite coverage floor.
 
 #### Scenario: Commit from a native Windows client
 
 - **WHEN** a native Windows Git client invokes the installed repository hooks after documented setup
 - **THEN** formatting/type checks and commit-message validation run without a Nix shell or WSL
 - **AND** a failed applicable hook prevents the Git operation
+- **AND** pre-push covers toolchain, lint, types, dead code, release version, deterministic unit tests, adapter freshness and strict artifact validation
 
 #### Scenario: Native Bun has no optional executable alias
 
@@ -341,6 +361,7 @@ Repository development and Git hooks SHALL run the pinned native toolchain on Li
 - **AND** sanitization does not depend on POSIX shell substitution or mutate the parent environment
 - **AND** every PR still runs the complete gate, including audit and installed-release checks, on all three CI hosts
 - **AND** the local unit selector excludes real OpenSpec/commitlint/lefthook/Git command fixtures, compiled executable launchers and actual annotation process lifecycle, while preserving their complete CI and installed-cache coverage
+- **AND** real external-toolchain and process-lifecycle integration tests retain explicit 30 s case budgets
 
 #### Scenario: A loaded native workstation pushes a change
 

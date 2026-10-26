@@ -9,7 +9,7 @@ Define one evidence workflow that finds, acquires, reads, verifies, and register
 
 For a paper search or evidence request, the skill SHALL guide `search -> screen -> acquire -> read -> verify metadata -> register` and SHALL require relevant full-text reading before characterizing a paper.
 
-For metadata-only citation maintenance, the skill SHALL verify authoritative metadata and update the registration without requiring unrelated search, acquisition, or full-text reading. It SHALL enter the full workflow when the request also requires paper characterization or evidence for a claim.
+Metadata-only citation maintenance SHALL verify authoritative metadata and update registration without unrelated evidence work. Requests that characterize papers or support claims SHALL use the full workflow.
 
 #### Scenario: Add a paper to a writing repository
 
