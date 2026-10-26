@@ -34,26 +34,13 @@ The repository SHALL assign each legacy planning record one verified disposition
 
 Current guidance, skills, rules, source documentation, and packaged plugin content SHALL NOT instruct a reader to use `omp-plans`, `planning-files`, or `docs/plans/`. Historical command names MAY appear in archived OpenSpec changes or explicit removal requirements.
 
-#### Scenario: Retired guidance returns to a current surface
+#### Scenario: A current surface is maintained
 
-- **WHEN** a current policy or documentation surface instructs use of the retired convention
-- **THEN** repository validation fails with the conflicting path
+- **WHEN** current guidance or packaged content is revised
+- **THEN** its instructions use OpenSpec rather than the retired convention
+- **AND** review checks this contract without a documentation-vocabulary test
 
 #### Scenario: An accepted removal requirement names the command
 
-- **WHEN** an accepted spec names `omp-plans` only to prohibit or verify its removal
-- **THEN** repository validation permits that historical reference
-
-### Requirement: Repository validation guards the sole home
-
-The normal repository validation path SHALL reject a restored `docs/plans/` tree, a current retired-convention instruction, or guidance that declares a second planning home. The detector SHALL prove its reach with a known conflicting fixture.
-
-#### Scenario: The retired archive is restored
-
-- **WHEN** a change adds a tracked file below `docs/plans/`
-- **THEN** repository validation fails and reports the path
-
-#### Scenario: The repository follows the contract
-
-- **WHEN** current planning remains under `openspec/` and current policy omits the retired convention
-- **THEN** repository validation passes
+- **WHEN** an accepted spec names `omp-plans` only to prohibit or record its removal
+- **THEN** that historical reference does not instruct operational use

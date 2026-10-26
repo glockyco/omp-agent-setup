@@ -13,7 +13,7 @@ The records cover several generations of the repository. They include mutable bo
 - Account for all 17 records before deleting the archive.
 - Preserve each unique current requirement or technical fact in one accepted owner.
 - Remove the retired planning namespace and its always-read pointer.
-- Make restoration fail in the existing `bun run ci` gate.
+- Keep the planning boundary explicit without testing documentation vocabulary.
 
 **Non-Goals:**
 
@@ -46,32 +46,30 @@ After disposition, remove `docs/plans/` completely. Git retains the exact record
 
 ### 3. Preserve facts by capability, not by source record
 
-Compare retained content with `personal-omp-plugin`, `structured-commit`, `research-evidence`, `simplified-technical-english`, and `plugin-update-automation`. Add only missing current requirements. Do not copy implementation narratives or old architecture into a generic migration summary.
+Compare retained content with the accepted capability specs and current runtime payload. The old `simplified-technical-english` capability has been retired, so its removal contract in `personal-omp-plugin` is the relevant boundary. Add only missing current requirements. Do not copy implementation narratives or old architecture into a generic migration summary.
 
 A fact contradicted by current source, tests, or accepted specs is corrected or discarded. The observation wins over the historical description.
 
 **Alternative:** Add one legacy-decisions document. Rejected because it mixes unrelated ownership and recreates the archive in condensed form.
 
-### 4. Guard current surfaces through the existing test gate
+### 4. Review the cutover without a documentation text test
 
-Add a repository-level test to the existing Bun test suite. It will reject a tracked `docs/plans/` path and current instructions for `planning-files` or operational `omp-plans` use. It will also reject guidance that declares another planning home.
+Do not add the planned Bun test that scans documentation for retired tool names, competing planning declarations or old paths. The user approved dropping that test because it checks text rather than behavior. Review the tracked tree and current references during the cutover instead. Strict OpenSpec validation still checks the planning contract's structure.
 
-The test will allow the retired names in OpenSpec history and in explicit removal requirements. It will include a synthetic positive control that proves a known conflict is reported.
-
-**Alternative:** Keep only the prohibition in `AGENTS.md`. Rejected because prose did not prevent the archive and its pointer from surviving the earlier cutover.
+This is a documentation-only removal. It adds no runtime detector and makes no claim that CI rejects every future prose violation.
 
 ### 5. Cut over guidance and files together
 
-Keep all 17 records until the ledger is complete and every retained destination exists. Remove the source-layout pointer from `AGENTS.md`, delete the archive, and enable the repository scan in one cutover commit.
+Keep all 17 records until the ledger is complete and every retained destination exists. Remove the source-layout pointer from `AGENTS.md` and delete the archive and its index in one cutover commit.
 
 Do not edit plugin runtime files unless the audit finds an active dependency. The current scan found none.
 
 ## Risks / Trade-offs
 
-- **A historical record contains the only copy of a current requirement.** → Compare every record with accepted specs and current behavior before removal.
-- **A text scan rejects a removal requirement that names `omp-plans`.** → Exclude OpenSpec history and explicit prohibition contexts, then test both allowed and rejected fixtures.
-- **Deleting 17 files hides a small substantive migration.** → Land retained requirements by capability before the mechanical cutover.
-- **The cleanup is mistaken for fleet-wide completion.** → Report this repository separately from `nix-darwin` and project cleanup changes.
+- A historical record contains the only copy of a current requirement. Compare every record with accepted specs and current behavior before removal.
+- Without a documentation text test, future guidance can diverge. Keep the planning authority in `AGENTS.md` and review documentation changes against the accepted contract.
+- Deleting 17 files hides a small substantive migration. Land retained requirements by capability before the mechanical cutover.
+- The cleanup is mistaken for fleet-wide completion. Report this repository separately from companion cleanup changes.
 
 ## Migration Plan
 
@@ -79,8 +77,12 @@ Do not edit plugin runtime files unless the audit finds an active dependency. Th
 2. Verify each retained claim against accepted specs, current source, tests, and history.
 3. Move missing current requirements or facts to their subject owners.
 4. Confirm that the active plugin and current guidance contain no operational retired-convention instruction.
-5. Add the repository guard and its positive controls.
-6. Remove the `AGENTS.md` archive pointer and the complete `docs/plans/` tree in one cutover.
-7. Run the focused guard test, `nix develop --command bun run ci`, `nix flake check`, and `openspec validate --all --strict`.
+5. Remove the `AGENTS.md` archive pointer and the complete `docs/plans/` tree in one cutover.
+6. Compare the ledger path set with the deleted tracked paths and inspect retained destinations.
+7. Run native repository checks and `openspec validate --all --strict`. Retained Nix compatibility remains independent of this documentation cutover.
+
+## Workflow follow-up
+
+- After the implementation PR is green and merged, archive this change with the repository-pinned CLI, validate the resulting main specs and push the archive as a separate follow-up commit.
 
 Rollback is a normal commit revert because the change affects tracked documentation and validation only. Keep verified requirement migrations if the final deletion must be reverted.

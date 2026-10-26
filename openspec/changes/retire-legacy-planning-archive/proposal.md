@@ -9,14 +9,14 @@ The active plugin and repository guidance have retired `omp-plans`, but 17 track
 - Move any unique, verified requirement or technical fact into the accepted spec or current document that owns its subject.
 - Remove records that only preserve retired tools, mutable deployment, or completed implementation history.
 - Remove the `docs/plans/archive/` pointer from `AGENTS.md` and delete the legacy planning directory after migration.
-- Add repository validation that rejects a restored `docs/plans/` tree or current guidance for `omp-plans` and `planning-files`.
-- **BREAKING**: repository history no longer ships as browsable planning files. Git history remains the historical record.
+- Keep the planning boundary in current guidance and review it during this cutover. Do not add a test that scans documentation for retired names.
+- Breaking change: repository history no longer ships as browsable planning files. Git history remains the historical record.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `repository/planning-state`: Defines the sole planning home, legacy-record disposition, and enforcement against restoring the retired convention.
+- `repository/planning-state`: Defines the sole planning home and verified legacy-record disposition.
 
 ### Modified Capabilities
 
@@ -24,4 +24,4 @@ None.
 
 ## Impact
 
-The change affects `AGENTS.md`, repository validation, 17 historical Markdown records, and any current links to them. It does not change the packaged plugin, OMP runtime behavior, deployment, dependency ownership, or accepted personal capabilities.
+The change affects `AGENTS.md`, 17 historical Markdown records, their index, and any current links to them. It does not change tests, packaged plugin behavior, deployment, dependency ownership, or accepted personal capabilities.
