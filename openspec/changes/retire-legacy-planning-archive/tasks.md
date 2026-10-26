@@ -1,6 +1,6 @@
 ## 1. Establish the Disposition Ledger
 
-- [ ] 1.1 Create `disposition.md` with one row for each of the 17 records under `docs/plans/archive/`; include old path, inbound references, unique retained content, evidence, disposition, destination, and verification.
+- [ ] 1.1 Create `disposition.md` with one row for each of the 17 records under `docs/plans/archive/`, including old path, inbound references, unique retained content, evidence, disposition, destination and verification.
 - [ ] 1.2 Prove that the ledger path set equals the tracked archive path set.
 - [ ] 1.3 Record every current reference to the archive or retired convention outside OpenSpec history.
 - [ ] 1.4 Record the accepted capability specs and current documents that can own retained content.
@@ -27,27 +27,27 @@
 
 ## 3. Migrate Retained Content
 
-- [ ] 3.1 Compare every retained requirement with `personal-omp-plugin`, `structured-commit`, `research-evidence`, `simplified-technical-english`, and `plugin-update-automation`.
-- [ ] 3.2 Move each missing current requirement into exactly one accepted capability spec with its complete observable contract.
-- [ ] 3.3 Move each verified technical fact into the current document that owns its subject; do not create a generic legacy summary.
-- [ ] 3.4 Correct or discard any historical claim contradicted by current source, tests, or accepted behavior.
+- [ ] 3.1 Compare retained requirements with accepted capability specs, including `personal-omp-plugin`, `structured-commit`, `research-evidence` and `plugin-update-automation`. Treat the retired STE capability through its accepted removal contract.
+- [ ] 3.2 Move each missing current requirement into exactly one accepted capability spec with its complete observable contract, or record that no migration is needed.
+- [ ] 3.3 Move each unique verified technical fact into its current subject document, or record that no migration is needed. Do not create a generic legacy summary.
+- [ ] 3.4 Correct or discard any historical claim contradicted by current source, tests or accepted behavior.
 - [ ] 3.5 Resolve every ledger row and verify every retained destination exists before deletion.
 
-## 4. Guard and Cut Over
+## 4. Cut Over Current Guidance
 
-- [ ] 4.1 Add a repository-level Bun test that rejects a tracked `docs/plans/` path, a second planning-home declaration, and current operational guidance for `omp-plans` or `planning-files`.
-- [ ] 4.2 Add positive controls for each rejected class and allowed controls for OpenSpec history and explicit removal requirements.
-- [ ] 4.3 Confirm that `plugin/`, current guidance, and current documentation contain no operational retired-convention instruction.
-- [ ] 4.4 Remove the historical archive entry from the `AGENTS.md` source layout.
-- [ ] 4.5 Delete all 17 records and the complete `docs/plans/` directory in the same cutover as the guard.
-- [ ] 4.6 Run the guard against the cut-over tree and confirm that it reports no current conflict.
+- [ ] 4.1 Confirm that `plugin/`, current guidance and current documentation contain no operational retired-convention instruction.
+- [ ] 4.2 Remove the historical archive entry and finished retirement procedure from `AGENTS.md`.
+- [ ] 4.3 Delete all 17 records and the `docs/plans/INDEX.md` index after disposition. Add no documentation text-scanning test.
+- [ ] 4.4 Review the cut-over tree and current references against the accepted planning contract.
 
 ## 5. Verify the Complete Change
 
-- [ ] 5.1 Prove that the 17-row ledger covers every removed path and that each retained destination still exists.
-- [ ] 5.2 Run the focused planning-home test and its positive controls.
-- [ ] 5.3 Run `nix develop --command bun run ci`.
-- [ ] 5.4 Run `nix flake check`.
-- [ ] 5.5 Run `openspec validate --all --strict`.
-- [ ] 5.6 Review the final diff by subject and remove incidental changes.
-- [ ] 5.7 Report this repository separately from `nix-darwin` and project cleanup changes.
+- [ ] 5.1 Prove that the 17-row ledger covers every removed archive path, separately account for the deleted index and verify retained destinations.
+- [ ] 5.2 Run `bun run check:local` and obtain the complete three-host CI and shared OpenSpec checks on the implementation PR.
+- [ ] 5.3 Run `openspec validate --all --strict` with the repository-pinned CLI.
+- [ ] 5.4 Review the final diff by subject and remove incidental changes.
+- [ ] 5.5 Report this repository separately from companion cleanup changes.
+
+## Workflow follow-up
+
+- After the implementation PR is green and merged, archive the change with the pinned CLI, validate the synchronized specs and push the archive as a separate follow-up commit.
