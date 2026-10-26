@@ -174,7 +174,42 @@ class TerminalTests(unittest.TestCase):
                     terminal.tree.remember.side_effect = AssertionError("query denied")
                 with patch("release_gate.Terminal", return_value=terminal), patch("release_gate.omp_binary", return_value=sys.executable):
                     with self.assertRaisesRegex(AssertionError, "timed out|exited early|query denied"):
-                        language_servers_started(profile, deadline=.02)
+                        language_servers_started(profile, set(), deadline=.02)
+                terminal.close.assert_called_once()
+
+    def test_observation_requires_every_expected_probe_after_the_first_settle_window(self):
+        for complete in (True, False):
+            with self.subTest(complete=complete), tempfile.TemporaryDirectory() as directory:
+                profile = Mock()
+                profile.work = Path(directory)
+                profile.lsp_log = profile.work / "lsp.log"
+                profile.environment.return_value = {}
+                terminal = Mock(output=b"fixture output")
+                terminal.alive.return_value = True
+                clock = [0.0]
+                early = json.dumps({"name": "svelteserver", "args": ["--stdio"]}) + "\n"
+                late = json.dumps({"name": "markdown-oxide", "args": []}) + "\n"
+
+                def advance(seconds):
+                    clock[0] += seconds
+                    content = early
+                    if clock[0] >= 6 and complete:
+                        content += late
+                    elif clock[0] >= 5:
+                        content += '{"name":"markdown-oxide"'
+                    profile.lsp_log.write_text(content)
+
+                with patch("release_gate.Terminal", return_value=terminal), patch("release_gate.omp_binary", return_value=sys.executable), patch("release_gate.time.monotonic", side_effect=lambda: clock[0]), patch("release_gate.time.sleep", side_effect=advance):
+                    if complete:
+                        servers = language_servers_started(profile, {"svelteserver", "markdown-oxide"},
+                                                           deadline=10)
+                        self.assertEqual(servers, {"svelteserver": ["--stdio"], "markdown-oxide": []})
+                        self.assertGreaterEqual(clock[0], 6)
+                        self.assertLess(clock[0], 10)
+                    else:
+                        with self.assertRaisesRegex(AssertionError, "timed out.*markdown-oxide"):
+                            language_servers_started(profile, {"svelteserver", "markdown-oxide"},
+                                                     deadline=10)
                 terminal.close.assert_called_once()
 
     def test_cli_timeout_releases_owned_tree_and_pipe_handles(self):

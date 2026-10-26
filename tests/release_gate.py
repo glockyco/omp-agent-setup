@@ -562,24 +562,31 @@ def capability_findings(commands, prompt, errors):
     return findings
 
 
-def language_servers_started(profile, path=None, settle=4.0, deadline=40.0):
-    """Observe actual OMP executable selection through a native terminal."""
+def language_servers_started(profile, expected, path=None, settle=4.0, deadline=40.0):
+    """Observe every required native probe before evaluating server selection."""
     profile.lsp_log.unlink(missing_ok=True)
     terminal = Terminal([omp_binary()], profile.work, profile.environment(path))
     started = time.monotonic()
     first_spawn = None
+    observed = set()
     try:
         while time.monotonic() - started < deadline:
-            if first_spawn is None and profile.lsp_log.exists():
-                first_spawn = time.monotonic()
-            if first_spawn is not None and time.monotonic() - first_spawn >= settle:
+            if profile.lsp_log.exists():
+                # A concurrent append is observable only after its complete newline.
+                observed = {json.loads(line)["name"]
+                            for line in profile.lsp_log.read_text().split("\n")[:-1]}
+                if first_spawn is None and observed:
+                    first_spawn = time.monotonic()
+            if (first_spawn is not None and time.monotonic() - first_spawn >= settle
+                    and expected <= observed):
                 break
             if not terminal.alive():
                 raise AssertionError(f"OMP terminal exited early: {terminal.output.decode(errors='replace')[-2000:]}")
             terminal.tree.remember()
             time.sleep(0.2)
         else:
-            raise AssertionError(f"LSP observation timed out: {terminal.output.decode(errors='replace')[-2000:]}")
+            raise AssertionError(f"LSP observation timed out (missing {sorted(expected - observed)}): "
+                                 f"{terminal.output.decode(errors='replace')[-2000:]}")
     finally:
         terminal.close()
     servers = {}
@@ -692,7 +699,7 @@ class InstalledRelease(unittest.TestCase):
 
     def test_language_server_overrides_select_servers(self):
         full_language_fixture(self.profile)
-        servers = language_servers_started(self.profile)
+        servers = language_servers_started(self.profile, set(LANGUAGE_SERVERS) - {"marksman"})
         self.assertEqual(language_server_findings(servers), [], servers)
 
     def test_executables_without_svelte_or_roslyn_markers_are_not_selected(self):
@@ -702,7 +709,7 @@ class InstalledRelease(unittest.TestCase):
         (profile.work / ".git").mkdir()
         (profile.work / "README.md").write_text("# Fixture\n")
         profile.language_server_probes(LANGUAGE_SERVERS)
-        servers = language_servers_started(profile, path=profile.restricted_path())
+        servers = language_servers_started(profile, {"markdown-oxide"}, path=profile.restricted_path())
         self.assertEqual(servers.get("markdown-oxide"), [])
         self.assertNotIn("svelteserver", servers)
         self.assertNotIn("Microsoft.CodeAnalysis.LanguageServer", servers)
@@ -714,7 +721,8 @@ class InstalledRelease(unittest.TestCase):
         profile.install()
         full_language_fixture(profile)
         profile.probe_path("svelteserver").unlink()
-        servers = language_servers_started(profile, path=profile.restricted_path())
+        servers = language_servers_started(profile, {"markdown-oxide", "Microsoft.CodeAnalysis.LanguageServer"},
+                                           path=profile.restricted_path())
         self.assertNotIn("svelteserver", servers)
         self.assertEqual(servers.get("Microsoft.CodeAnalysis.LanguageServer"), ["--stdio", "--autoLoadProjects"])
         self.assertEqual(servers.get("markdown-oxide"), [])
@@ -733,7 +741,7 @@ class InstalledRelease(unittest.TestCase):
         self.profile.language_server_probes(["marksman", "markdown-oxide", "svelteserver"])
         self.profile.probe_path("Microsoft.CodeAnalysis.LanguageServer").unlink(missing_ok=True)
         restricted = self.profile.restricted_path()
-        servers = language_servers_started(self.profile, path=restricted)
+        servers = language_servers_started(self.profile, {"markdown-oxide"}, path=restricted)
         self.assertIn("markdown-oxide", servers)
         self.assertNotIn("svelteserver", servers)
         self.assertNotIn("Microsoft.CodeAnalysis.LanguageServer", servers)
@@ -855,7 +863,7 @@ class LostCapabilities(unittest.TestCase):
         catalog_path.write_text(json.dumps(catalog))
         self.profile.install()
         full_language_fixture(self.profile)
-        findings = language_server_findings(language_servers_started(self.profile))
+        findings = language_server_findings(language_servers_started(self.profile, {"marksman"}))
         self.assertIn("Marksman is active although the personal overrides disable it", findings)
 
 

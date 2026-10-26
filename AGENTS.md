@@ -97,6 +97,8 @@ The Python installed-release gate uses an absolute OMP v18.8.7 downloaded from i
 
 Resolve owned scratch roots through filesystem realpath before deriving fake HOME and state paths; keep candidate work/release directories beneath that home. Preserve empty pre-install and exactly-once owned-manager assertions even for Windows short names or symlink/junction roots. Do not fix leaked or duplicate discovery with an output filter, extra config marker or host override.
 
+LSP observation must include every probe that the scenario requires before judging selection. Independent servers can start at different times, so the first server's settle window does not prove the remaining required servers have started. Preserve the same bounded deadline and all unexpected-server assertions.
+
 `nix flake check` remains an independent compatibility check for retained flake consumers, not a prerequisite for native development or publication. Keep `lib.openspecCheck` operational.
 
 Install hooks explicitly with `bun x --no-install lefthook install` after frozen installation. Use Bun's built-in `x` subcommand, not an optional `bunx` executable alias. Hooks run installed native tools without Nix or downloads: staged formatting/types on commit, authoritative commitlint on the message, and frozen install plus `bun run check:local` on push. The fast local gate covers toolchain, lint, types, dead code, release version, unit tests, adapter freshness and strict OpenSpec validation; it omits network audit and installed-release download/terminal checks. Every PR's three-host CI runs the complete `bun run ci`, including both omitted checks. The Bun hook runner strips `git rev-parse --local-env-vars` names only from its child environment, never the parent.
