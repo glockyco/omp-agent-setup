@@ -5,5 +5,5 @@
 
 ## 2. Release
 
-- [ ] 2.1 Merge after the Linux, macOS, Windows and OpenSpec CI contexts pass, tag `v0.7.5`, and verify in a disposable OMP profile that the installed rule text is the new one.
-- [ ] 2.2 Upgrade Korolev and the Mac and verify in a fresh session that the system prompt carries the new rule.
+- [x] 2.1 Merge after the Linux, macOS, Windows and OpenSpec CI contexts pass, tag `v0.7.5`, and verify in a disposable OMP profile that the installed rule text is the new one.
+- [x] 2.2 Upgrade Korolev and the Mac and verify in a fresh session that the system prompt carries the new rule.
