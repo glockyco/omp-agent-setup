@@ -168,7 +168,6 @@ function defaultBoundary(): AnnotationBoundary {
 			utility(join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe"), [
 				"/PID",
 				String(pid),
-				"/T",
 				...(force ? ["/F"] : []),
 			]),
 		readDocument: readDocumentBytes,
@@ -403,6 +402,7 @@ function startChild(
 						observedRoot && observedRoot.created !== root.created ? initial : [...initial, ...current],
 					);
 					let live = surviving(owned, current);
+					// /T would rebuild ancestry from bare PIDs and bypass creation-qualified ownership.
 					if (live.some(identity => identity.pid === root.pid)) {
 						const request = await boundary.taskkill(root.pid, false);
 						if (request.code !== 0) {
@@ -424,9 +424,18 @@ function startChild(
 						}
 					}
 					if (live.length) await boundary.sleep(1000);
-					live = surviving(owned, await boundary.processes());
-					for (const identity of live) {
-						// Re-query each target: a preceding /T may already have stopped it.
+					const afterGrace = await boundary.processes();
+					// Only still-matching parents can establish children born during the grace.
+					for (const identity of surviving(owned, afterGrace)) {
+						for (const descendant of ownedTree(identity, afterGrace)) {
+							if (!owned.some(member => member.pid === descendant.pid)) owned.push(descendant);
+						}
+					}
+					live = surviving(owned, afterGrace);
+					for (let index = live.length - 1; index >= 0; index--) {
+						const identity = live[index];
+						if (!identity) continue;
+						// Children precede parents. Re-query in case an owned process already exited.
 						if (!surviving([identity], await boundary.processes()).length) continue;
 						const forced = await boundary.taskkill(identity.pid, true);
 						if (forced.code !== 0) {

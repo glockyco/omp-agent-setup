@@ -1,6 +1,6 @@
 {
   "name": "omp-agent-setup",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "private": true,
   "type": "module",
   "description": "Personal Oh My Pi plugin source and release checks.",

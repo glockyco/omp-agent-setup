@@ -111,6 +111,13 @@ Each session SHALL allow one pending review independently of other sessions. Com
 - **AND** a root process exit alone does not establish tree cleanup
 - **AND** cleanup waits for owned process/output closure before removing the private snapshot
 
+#### Scenario: Historical parent PID refers to a newer process
+
+- **WHEN** a Windows process predates an owned process but its recorded parent PID matches that owned process
+- **THEN** cleanup does not adopt the older process or its descendants
+- **AND** termination targets only creation-qualified owned identities, with descendants stopped before their surviving parents
+- **AND** the operating system does not rebuild an unqualified process tree from a bare PID
+
 #### Scenario: Repeated Windows cancellation races with feedback
 
 - **WHEN** repeated cancellation and a late child result race in a native Windows session
