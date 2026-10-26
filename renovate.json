@@ -32,13 +32,6 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github/workflows/openspec\\.yml$/"],
-      "matchStrings": ["@fission-ai/openspec@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
-      "depNameTemplate": "@fission-ai/openspec",
-      "datasourceTemplate": "npm"
-    },
-    {
-      "customType": "regex",
       "managerFilePatterns": ["/^\\.github/workflows/.*\\.yml$/"],
       "matchStrings": ["python-version: '(?<currentValue>\\d+\\.\\d+)'"],
       "depNameTemplate": "python",
@@ -58,7 +51,8 @@
     },
     {
       "matchPackageNames": ["@fission-ai/openspec"],
-      "groupName": "OpenSpec generator and fleet gate"
+      "enabled": false,
+      "description": "The OpenSpec dependency, the Nix npm lock and hashes, the generated workflow and hook pins and the adapters move together through the coordinated update in the README. A pull request that changes the dependency alone cannot pass."
     },
     {
       "matchPackageNames": ["python", "pywinpty"],

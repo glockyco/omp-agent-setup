@@ -38,7 +38,21 @@ test("real native generation/check preserves all checkout bytes and non-OpenSpec
 	put(root, "plugin/package.json", "{}");
 	put(root, "plugin/skills/personal/SKILL.md", "not generated");
 	put(root, "openspec/config.yaml", readFileSync(join(repository, "openspec/config.yaml"), "utf8"));
+	const mirrors = new Map<string, string>();
+	const version = JSON.parse(readFileSync(join(repository, "package.json"), "utf8")).devDependencies[
+		"@fission-ai/openspec"
+	];
+	put(root, "package.json", readFileSync(join(repository, "package.json"), "utf8"));
+	for (const path of [".github/workflows/openspec.yml", "README.md"]) {
+		const content = readFileSync(join(repository, path), "utf8");
+		mirrors.set(path, content);
+		put(root, path, content.replaceAll(version, "0.0.0"));
+	}
+	// Stale mirrors fail before trying the CLI, even when no executable is available.
+	expect(await openspecAdapters(root, "check", join(root, "unavailable-cli.js"))).toHaveLength(5);
 	expect(await openspecAdapters(root, "sync", cli)).toEqual([]);
+	for (const [path, content] of mirrors)
+		expect(readFileSync(join(root, path), "utf8")).toBe(content);
 	async function git(args: string[]): Promise<string> {
 		const child = Bun.spawn(["git", ...args], { cwd: root, stdout: "pipe", stderr: "inherit" });
 		const output = await new Response(child.stdout).text();

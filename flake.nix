@@ -40,6 +40,10 @@
       '';
     in
     {
+      packages = forAllSystems (system: {
+        openspec = nixpkgs.legacyPackages.${system}.callPackage ./nix/openspec/package.nix { };
+      });
+
       # The only sanctioned writer of the generated payload. Everything else,
       # including the repository formatter, leaves those paths alone so that
       # reproducing them byte for byte stays a meaningful check.
@@ -47,7 +51,7 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          openspec = llm-agents.packages.${system}.openspec;
+          openspec = self.packages.${system}.openspec;
           sync = pkgs.writeShellApplication {
             name = "sync-openspec-adapters";
             runtimeInputs = [ openspec ];
@@ -89,12 +93,9 @@
       #   inputs.fleet.url = "github:glockyco/omp-agent-setup";
       #   checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
       #
-      # The CLI comes from `llm-agents`, not Nixpkgs. Nixpkgs lags far enough
-      # that its `validate` has no `--archived` flag, so it cannot check that an
-      # archived change finished its tasks, which is the failure this check
-      # exists to catch. Re-test with `openspec validate --help` before
-      # reconsidering. Consumers inherit the version through this flake and
-      # never pin the CLI themselves.
+      # The CLI is packaged locally from the root manifest's exact development
+      # dependency, so updating the OMP flake input cannot change validation.
+      # Consumers inherit that package without choosing their own CLI version.
       lib.openspecCheck =
         {
           pkgs,
@@ -104,7 +105,7 @@
         pkgs.runCommand name
           {
             nativeBuildInputs = [
-              llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.openspec
+              (pkgs.callPackage ./nix/openspec/package.nix { })
             ];
 
             # Only the artifacts. A repository's build outputs stay out of the
@@ -141,7 +142,7 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           omp = llm-agents.packages.${system}.omp;
-          openspec = llm-agents.packages.${system}.openspec;
+          openspec = self.packages.${system}.openspec;
         in
         {
           # Installs the candidate release with OMP's real plugin manager into a
@@ -183,6 +184,19 @@
               }
               ''
                 test "$(bun --version)" = "${pkgs.bun.version}"
+                touch "$out"
+              '';
+
+          openspec-version =
+            pkgs.runCommand "personal-omp-plugin-openspec-version"
+              {
+                nativeBuildInputs = [ openspec ];
+              }
+              ''
+                export HOME="$TMPDIR/home"
+                export OPENSPEC_TELEMETRY=0
+                mkdir -p "$HOME"
+                test "$(openspec --version)" = "${openspec.version}"
                 touch "$out"
               '';
 
@@ -238,7 +252,7 @@
               pkgs.nodejs_24
               pkgs.git
               pkgs.lefthook
-              llm-agents.packages.${system}.openspec
+              self.packages.${system}.openspec
             ];
 
             # Installing is idempotent, so it is safe on every entry. The guard

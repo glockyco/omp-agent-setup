@@ -49,9 +49,7 @@ test("Renovate extracts native pins under their actual upstream identities and k
 	expect(extract(".omp-version", JSON.stringify({ tag: "v18.8.7", assets: {} }))).toEqual([
 		{ dependency: "can1357/oh-my-pi", datasource: "github-tags", value: "v18.8.7" },
 	]);
-	expect(extract(".github/workflows/openspec.yml", "@fission-ai/openspec@1.14.0")).toEqual([
-		{ dependency: "@fission-ai/openspec", datasource: "npm", value: "1.14.0" },
-	]);
+	expect(extract(".github/workflows/openspec.yml", "@fission-ai/openspec@1.14.0")).toEqual([]);
 	expect(extract(".github/workflows/ci.yml", "python-version: '3.13'")).toEqual([
 		{ dependency: "python", datasource: "python-version", value: "3.13" },
 	]);
@@ -76,25 +74,28 @@ test("OMP retains JSON extraction identity but requires manual whole-pin updates
 		rule.matchPackageNames?.includes("can1357/oh-my-pi"),
 	);
 	expect(ompRule?.enabled).toBe(false);
-	for (const rule of renovate.packageRules.filter(rule => rule !== ompRule))
-		expect(rule.enabled).not.toBe(false);
 	expect(renovate.automerge).toBe(false);
 	const scripts = JSON.parse(readFileSync(join(repository, "package.json"), "utf8")).scripts;
 	expect(scripts["sync:release-omp"]).toBe("bun scripts/sync-release-omp.ts");
 });
 
-test("candidate Bun/OpenSpec updates share groups and extract coherently at both boundaries", () => {
+test("Bun pins share a group while Renovate leaves OpenSpec to the coordinated update", () => {
 	const bunGroup = renovate.packageRules.find(rule => rule.matchPackageNames?.includes("bun"));
 	expect(bunGroup?.matchPackageNames).toContain("oven-sh/bun");
 	expect(extract(".bun-version", "1.3.14\n")[0]?.value).toBe("1.3.14");
 	expect(extract("renovate.json", '"bun": "1.3.14"')[0]?.value).toBe("1.3.14");
-	expect(
-		renovate.packageRules.find(rule => rule.matchPackageNames?.includes("@fission-ai/openspec"))
-			?.groupName,
-	).toBe("OpenSpec generator and fleet gate");
-	expect(extract(".github/workflows/openspec.yml", "@fission-ai/openspec@1.14.1")[0]?.value).toBe(
-		"1.14.1",
+	const openspecRule = renovate.packageRules.find(rule =>
+		rule.matchPackageNames?.includes("@fission-ai/openspec"),
 	);
+	expect(openspecRule?.enabled).toBe(false);
+	expect(extract(".github/workflows/openspec.yml", "@fission-ai/openspec@1.14.1")).toEqual([]);
+	// Only pins that must move with generated artifacts stay out of Renovate.
+	const disabled = renovate.packageRules
+		.filter(rule => rule.enabled === false)
+		.flatMap(rule => rule.matchPackageNames ?? []);
+	expect(disabled.sort()).toEqual(["@fission-ai/openspec", "can1357/oh-my-pi"]);
+	const scripts = JSON.parse(readFileSync(join(repository, "package.json"), "utf8")).scripts;
+	expect(scripts["sync:openspec-adapters"]).toBe("bun scripts/openspec-adapters.ts sync");
 });
 
 test("reusable gate exposes only optional root and native CI selects all required hosts", () => {

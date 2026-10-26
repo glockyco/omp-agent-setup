@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { openspecMirrors } from "./check-toolchain.ts";
 
 function inventory(root: string): Map<string, Buffer> {
 	const files = new Map<string, Buffer>();
@@ -57,6 +58,8 @@ export async function openspecAdapters(
 ): Promise<string[]> {
 	if (!existsSync(join(root, "plugin/package.json")))
 		throw new Error("Run from the repository root.");
+	const findings = openspecMirrors(root, mode);
+	if (findings.length) return findings;
 	const scratch = mkdtempSync(join(tmpdir(), "personal-openspec-adapters-"));
 	try {
 		mkdirSync(join(scratch, "openspec"));
