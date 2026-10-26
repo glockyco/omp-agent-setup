@@ -46,6 +46,9 @@ test("real native generation/check preserves all checkout bytes and non-OpenSpec
 		return output;
 	}
 	await git(["init"]);
+	// The byte snapshot includes Git metadata, so fixture commits must not start background writers.
+	await git(["config", "maintenance.auto", "false"]);
+	await git(["config", "gc.auto", "0"]);
 	await git(["add", "."]);
 	await git([
 		"-c",
