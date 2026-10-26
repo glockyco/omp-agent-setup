@@ -361,6 +361,42 @@ describe("injected annotation process boundary", () => {
 		expect(double.identities.map(identity => identity.pid)).toEqual([101, 777]);
 	});
 
+	test("force-stops creation-qualified leaves before parents without adopting stale ancestry", async () => {
+		const double = processDouble();
+		double.identities.push(
+			{ pid: 777, parentPid: 101, created: "2026-10-10T01:00:00.0000000Z" },
+			{ pid: 778, parentPid: 777, created: "2026-10-11T01:00:03.0000000Z" },
+		);
+		double.boundary.taskkill = async (pid, force) => {
+			double.requests.push({ pid, force });
+			if (!force) return { code: 128, output: "This process can only be terminated forcefully." };
+			double.identities = double.identities.filter(identity => identity.pid !== pid);
+			if (pid === 101) double.close();
+			return { code: 0, output: "terminated" };
+		};
+		const instance = await host("stale-ancestry", double.boundary);
+		await writeFile(join(instance.ctx.cwd, "note.md"), "review");
+		await instance.command("plannotator-annotate", "note.md");
+		await until(() => !!double.snapshot);
+		const cancellation = instance.command("plannotator-cancel");
+		await until(() => double.waiting);
+		double.identities.push({
+			pid: 103,
+			parentPid: 102,
+			created: "2026-10-11T01:00:02.0000000Z",
+		});
+		double.grace.resolve();
+		await cancellation;
+		expect(double.requests).toEqual([
+			{ pid: 101, force: false },
+			{ pid: 103, force: true },
+			{ pid: 102, force: true },
+			{ pid: 101, force: true },
+		]);
+		expect(double.identities.map(identity => identity.pid)).toEqual([999, 777, 778]);
+		expect(await Bun.file(double.snapshot).exists()).toBe(false);
+	});
+
 	test("startup error waits for stream close before removing the snapshot", async () => {
 		const double = processDouble();
 		double.identities = [];

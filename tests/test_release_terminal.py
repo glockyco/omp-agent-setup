@@ -224,10 +224,10 @@ class TerminalTests(unittest.TestCase):
         expected = subprocess.CompletedProcess([], 128, "", "This process can only be terminated forcefully (with /F option).")
         with patch.dict(os.environ, {"SystemRoot": str(Path.cwd())}), patch.object(subprocess, "CREATE_NO_WINDOW", 0, create=True), patch("release_gate.subprocess.run", return_value=expected) as run:
             tree.taskkill(123, False)
-            self.assertEqual(run.call_args.args[0][1:], ["/PID", "123", "/T"])
+            self.assertEqual(run.call_args.args[0][1:], ["/PID", "123"])
             with self.assertRaisesRegex(AssertionError, "forcefully"):
                 tree.taskkill(123, True)
-            self.assertEqual(run.call_args.args[0][1:], ["/PID", "123", "/T", "/F"])
+            self.assertEqual(run.call_args.args[0][1:], ["/PID", "123", "/F"])
             for output in ("Access is denied.", "unknown utility error", "Reason: can only be terminated forcefully\nReason: unknown utility error"):
                 run.return_value = subprocess.CompletedProcess([], 5, "", output)
                 with self.assertRaisesRegex(AssertionError, "denied|unknown utility error"):
@@ -245,6 +245,46 @@ class TerminalTests(unittest.TestCase):
                 11: {"pid": 11, "parent": 10, "created": "child"}}
         with patch("release_gate.windows_processes", return_value=rows):
             self.assertEqual(tree.survivors(), [11])
+
+    def test_windows_ancestry_rejects_processes_older_than_their_apparent_parent(self):
+        tree = OwnedTree.__new__(OwnedTree)
+        tree.pid = 10
+        tree.identities = {}
+        rows = {
+            10: {"pid": 10, "parent": 1, "created": "2026-10-26T02:00:00.0000000Z"},
+            11: {"pid": 11, "parent": 10, "created": "2026-10-26T01:00:00.0000000Z"},
+            12: {"pid": 12, "parent": 11, "created": "2026-10-26T04:00:00.0000000Z"},
+            13: {"pid": 13, "parent": 10, "created": "2026-10-26T03:00:00.0000000Z"},
+            14: {"pid": 14, "parent": 13, "created": "2026-10-26T04:00:00.0000000Z"},
+            15: {"pid": 15, "parent": 13, "created": "2026-10-26T02:00:00.0000000Z"},
+        }
+        with patch("release_gate.os.name", "nt"), patch("release_gate.windows_processes", return_value=rows):
+            tree.remember()
+        self.assertEqual(set(tree.identities), {10, 13, 14})
+
+    def test_windows_stops_individual_descendants_before_parents_and_refreshes_after_grace(self):
+        tree = OwnedTree.__new__(OwnedTree)
+        tree.remember = Mock()
+        tree.survivors = Mock(side_effect=[[10, 11, 12], [10, 11, 12], []])
+        tree.taskkill = Mock()
+        with patch("release_gate.os.name", "nt"), patch("release_gate.time.sleep") as sleep:
+            tree.stop(.25)
+        self.assertEqual(
+            [request.args for request in tree.taskkill.call_args_list],
+            [(12, False), (11, False), (10, False), (12, True), (11, True), (10, True)],
+        )
+        self.assertEqual(tree.remember.call_count, 2)
+        sleep.assert_called_once_with(.25)
+
+    def test_windows_already_exited_target_is_success_but_live_refusal_is_not(self):
+        tree = OwnedTree.__new__(OwnedTree)
+        tree.survivors = Mock(side_effect=[[123], []])
+        missing = subprocess.CompletedProcess([], 128, "", "The process was not found.")
+        with patch.dict(os.environ, {"SystemRoot": str(Path.cwd())}), patch.object(subprocess, "CREATE_NO_WINDOW", 0, create=True), patch("release_gate.subprocess.run", return_value=missing):
+            tree.taskkill(123, True)
+            tree.survivors.side_effect = [[123], [123]]
+            with self.assertRaisesRegex(AssertionError, "not found"):
+                tree.taskkill(123, True)
 
     def test_profile_failure_and_environment_remain_scratch_owned(self):
         profile = Profile()

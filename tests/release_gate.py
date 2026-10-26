@@ -138,7 +138,9 @@ class OwnedTree:
         pending = {pid for pid, created in self.identities.items()
                    if pid in rows and rows[pid]["created"] == created}
         while pending:
+            # ParentProcessId survives parent exit and can name a reused PID.
             children = {pid for pid, row in rows.items() if row["parent"] in pending
+                        and row["created"] >= rows[row["parent"]]["created"]
                         and pid not in self.identities}
             for pid in children:
                 self.identities[pid] = rows[pid]["created"]
@@ -152,7 +154,8 @@ class OwnedTree:
     def taskkill(self, pid, force):
         if pid not in self.survivors():
             return
-        args = [str(Path(os.environ["SystemRoot"]) / "System32/taskkill.exe"), "/PID", str(pid), "/T"]
+        # /T rebuilds ancestry from bare PIDs and can include unrelated processes.
+        args = [str(Path(os.environ["SystemRoot"]) / "System32/taskkill.exe"), "/PID", str(pid)]
         if force:
             args.append("/F")
         result = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
@@ -174,10 +177,11 @@ class OwnedTree:
     def stop(self, grace=1.0, reap_root=None):
         if os.name == "nt":
             self.remember()
-            for pid in self.survivors():
+            for pid in reversed(self.survivors()):
                 self.taskkill(pid, False)
             time.sleep(grace)
-            for pid in self.survivors():
+            self.remember()
+            for pid in reversed(self.survivors()):
                 self.taskkill(pid, True)
             if self.survivors():
                 raise AssertionError("owned Windows subprocess tree survived force termination")
@@ -209,7 +213,7 @@ def stop_spawned_process(process, tree=None, grace=1.0):
         if alive and os.name == "nt":
             result = subprocess.run(
                 [str(Path(os.environ["SystemRoot"]) / "System32/taskkill.exe"),
-                 "/PID", str(process.pid), "/T", "/F"],
+                 "/PID", str(process.pid), "/F"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15, creationflags=subprocess.CREATE_NO_WINDOW,
             )
             if result.returncode:
