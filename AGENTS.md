@@ -29,7 +29,6 @@ Select the workflow's Python as `python` before creating the venv. In PowerShell
 - `scripts/`: release-tree validation and the release-version check.
 - `openspec/specs/`: accepted behavior contracts.
 - `openspec/changes/`: active and archived OpenSpec changes.
-- `docs/plans/archive/`: historical records from the retired mutable deployment system.
 
 ## Planning
 
@@ -50,7 +49,7 @@ checks.openspec = fleet.lib.openspecCheck { inherit pkgs; src = ./.; };
 
 When adopting the workflow in nix-config, phd-thesis or test-generalization, record the reviewed full workflow SHA, migration evidence and removal of external adapter-freshness wiring. Flake/input removal and central-target deregistration require all three completed migrations in a later change. Do not delete the interface here.
 
-`retire-legacy-planning-archive` independently owns disposition/deletion of the 17 historical records. Native setup changes do not broaden that scope. Preserve the writing skill's support assets, upstream MIT license and `add-research-paper-writing-skill` rights record; its archival ownership remains independent.
+Preserve the writing skill's support assets, upstream MIT license and `add-research-paper-writing-skill` rights record.
 
 ## Runtime boundaries
 
