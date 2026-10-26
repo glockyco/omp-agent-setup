@@ -43,10 +43,10 @@
 ## 5. Verify the Complete Change
 
 - [x] 5.1 Prove that the 17-row ledger covers every removed archive path, separately account for the deleted index and verify retained destinations.
-- [ ] 5.2 Run `bun run check:local` and obtain the complete three-host CI and shared OpenSpec checks on the implementation PR.
-- [ ] 5.3 Run `openspec validate --all --strict` with the repository-pinned CLI.
-- [ ] 5.4 Review the final diff by subject and remove incidental changes.
-- [ ] 5.5 Report this repository separately from companion cleanup changes.
+- [x] 5.2 Run `bun run check:local` and obtain the complete three-host CI and shared OpenSpec checks on the implementation PR.
+- [x] 5.3 Run `openspec validate --all --strict` with the repository-pinned CLI.
+- [x] 5.4 Review the final diff by subject and remove incidental changes.
+- [x] 5.5 Report this repository separately from companion cleanup changes.
 
 ## Workflow follow-up
 
