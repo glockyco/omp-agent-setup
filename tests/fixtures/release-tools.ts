@@ -21,7 +21,7 @@ if (process.env.NATIVE_GATE_FIXTURE_LOG) {
 if (process.argv[2] === "--version") {
 	console.log(
 		python
-			? `Python ${process.env.NATIVE_GATE_FIXTURE_PYTHON_VERSION ?? "3.13.14"}`
+			? `Python ${process.env.NATIVE_GATE_FIXTURE_PYTHON_VERSION ?? "3.15.1"}`
 			: `omp/${process.env.NATIVE_GATE_FIXTURE_OMP_VERSION ?? "18.8.7"}`,
 	);
 } else if (python && process.argv[2]?.endsWith("release_gate.py")) {

@@ -239,7 +239,7 @@ test(
 			value.env.NATIVE_GATE_FIXTURE_PYTHON_VERSION = "3.12.1";
 			await expect(
 				checkInstalledRelease({ env: value.env, scratchDirectory: value.root }),
-			).rejects.toThrow("expected 3.13, observed Python 3.12.1");
+			).rejects.toThrow("expected 3.15, observed Python 3.12.1");
 			delete value.env.NATIVE_GATE_FIXTURE_PYTHON_VERSION;
 			value.env.NATIVE_GATE_FIXTURE_EXIT_CODE = "23";
 			await expect(
