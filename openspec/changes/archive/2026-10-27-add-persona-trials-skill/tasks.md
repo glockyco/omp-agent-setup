@@ -13,4 +13,4 @@
 
 - [x] 3.1 Name persona trials among the skills in the README's "Use the skills and workflows" section.
 - [x] 3.2 Run `bun run check:local` and `openspec validate add-persona-trials-skill --strict`, and obtain the three native CI contexts and the OpenSpec context on the pull request.
-- [ ] 3.3 With explicit authorization, merge, tag and upgrade Korolev and the Mac. Verify in a fresh OMP session on each host that the `persona-trials` skill is discovered.
+- [x] 3.3 With explicit authorization, merge, tag and upgrade Korolev and the Mac. Verify in a fresh OMP session on each host that the `persona-trials` skill is discovered. PR #94 was merged and `v0.8.0` was tagged on 2026-10-27. A disposable OMP profile installed 0.8.0 with the skill. Both hosts upgraded to 0.8.0, and a fresh `omp -p` session on the Mac and one in Korolev's desktop session listed `persona-trials`. Over SSH, Korolev cannot load any plugin, because Windows refuses the plugin manager's junctions as untrusted mount points in SSH sessions.
