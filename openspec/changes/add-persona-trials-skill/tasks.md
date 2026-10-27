@@ -12,5 +12,5 @@
 ## 3. Documentation and release
 
 - [x] 3.1 Name persona trials among the skills in the README's "Use the skills and workflows" section.
-- [ ] 3.2 Run `bun run check:local` and `openspec validate add-persona-trials-skill --strict`, and obtain the three native CI contexts and the OpenSpec context on the pull request.
+- [x] 3.2 Run `bun run check:local` and `openspec validate add-persona-trials-skill --strict`, and obtain the three native CI contexts and the OpenSpec context on the pull request.
 - [ ] 3.3 With explicit authorization, merge, tag and upgrade Korolev and the Mac. Verify in a fresh OMP session on each host that the `persona-trials` skill is discovered.
