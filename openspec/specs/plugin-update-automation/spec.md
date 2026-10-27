@@ -28,7 +28,7 @@ The repository SHALL select one exact native Bun version through `.bun-version` 
 
 ### Requirement: Explicit dependency ownership
 
-Renovate SHALL own JavaScript dependencies and lockfiles, Actions, native Bun, npm OpenSpec, Python setup and Windows terminal-support pins. The maintainer SHALL own the OMP tag and six reviewed digests through one explicit update command, with automatic tag-only updates disabled. The central control plane SHALL own retained Nix inputs until separately gated flake removal. Each dependency SHALL have exactly one updater.
+Renovate SHALL own JavaScript dependencies other than OpenSpec, lockfiles, Actions, native Bun, Python setup and Windows terminal-support pins. The maintainer SHALL own the OMP tag and six reviewed digests and the npm OpenSpec dependency, each through one explicit update procedure, with automatic updates of both disabled. The central control plane SHALL own retained Nix inputs until separately gated flake removal. Each dependency SHALL have exactly one updater.
 
 #### Scenario: Inspect update configuration
 
@@ -40,9 +40,10 @@ Renovate SHALL own JavaScript dependencies and lockfiles, Actions, native Bun, n
 
 #### Scenario: Native release-tool pin changes
 
-- **WHEN** Renovate finds a newer npm OpenSpec version
-- **THEN** it proposes a reviewable native-pin update that runs the complete cross-system gates
-- **AND** it neither selects a mutable latest runtime nor publishes or upgrades a host
+- **WHEN** a newer npm OpenSpec version is published
+- **THEN** Renovate opens no pull request for it
+- **AND** the maintainer changes the dependency, refreshes the Nix packaging lock and hashes and runs the synchronization command in one reviewable update that runs the complete cross-system gates
+- **AND** the update neither selects a mutable latest runtime nor publishes or upgrades a host
 
 #### Scenario: Maintainer updates the OMP release pin
 
