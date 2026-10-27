@@ -18,6 +18,7 @@ export const SKILLS = [
 	"openspec-propose",
 	"openspec-sync-specs",
 	"openspec-update-change",
+	"persona-trials",
 	"research-evidence",
 	"research-paper-writing",
 	"weekly-review",
