@@ -58,6 +58,7 @@ describe("packaged plugin", () => {
 		expect(skills.sort()).toEqual([
 			"commit-policy",
 			"notes",
+			"persona-trials",
 			"research-evidence",
 			"research-paper-writing",
 			"weekly-review",
