@@ -7,13 +7,13 @@ Define the versioned personal OMP capability bundle that OMP's plugin manager in
 
 ### Requirement: Capability isolation
 
-The plugin SHALL export no agents, model providers, local-model support, remote services, mutable configuration database, or Simplified Technical English skill. The installed release SHALL contain its complete declared runtime assets without depending on the source checkout.
+The plugin SHALL export no agents, model providers, local-model support, remote services, general-purpose mutable configuration database, or Simplified Technical English skill. The installed release SHALL contain its complete declared runtime assets without depending on the source checkout. Private mutable state SHALL be limited to the vault-access contract and SHALL remain outside the installed payload.
 
 #### Scenario: Inspect plugin discovery
 
 - **WHEN** OMP loads only the manager-installed personal plugin under a disposable profile
-- **THEN** every shipped always-applied rule, the remaining personal skills, the generated OpenSpec workflow skills and commands, one commit tool, and the declared LSP overrides are discoverable without personal agents, model changes, or Simplified Technical English guidance
-- **AND** both declared extension modules load without import or registration errors
+- **THEN** every shipped always-applied rule, the remaining personal skills, the generated OpenSpec workflow skills and commands, one commit tool, the vault tool, and the declared LSP overrides are discoverable without personal agents, model changes, or Simplified Technical English guidance
+- **AND** every declared extension module loads without import or registration errors
 
 #### Scenario: Commands resolve from the payload
 
@@ -178,7 +178,7 @@ The personal plugin SHALL disable OMP's built-in Marksman definition and SHALL d
 
 ### Requirement: Native marketplace delivery
 
-The repository SHALL publish marketplace `glockyco` with plugin `personal` and runtime identity `personal@glockyco`. Its catalog SHALL identify a self-contained plugin payload, an explicit semantic release version, and an LSP configuration contained within that payload. The payload SHALL declare both runtime extension modules through its OMP package manifest.
+The repository SHALL publish marketplace `glockyco` with plugin `personal` and runtime identity `personal@glockyco`. Its catalog SHALL identify a self-contained plugin payload, an explicit semantic release version, and an LSP configuration contained within that payload. The payload SHALL declare every runtime extension module through its OMP package manifest.
 
 #### Scenario: Document native installation and upgrade
 
@@ -430,3 +430,21 @@ The plugin SHALL ship a `persona-trials` skill for checking material or a produc
 
 - **WHEN** persona trial results could appear in a paper, a thesis or another research report
 - **THEN** the skill states that the results are not evidence about real users and must not be reported as a user study
+
+### Requirement: Scoped vault runtime state
+
+The plugin SHALL keep vault profiles, approvals, cached unlock keys, `bw` data and delivery files beneath `~/.omp/vault/` only as specified by vault-access. It SHALL NOT write unrelated OMP state, store credentials in the payload, install Bitwarden, or create a second delivery owner.
+
+#### Scenario: Load without Bitwarden
+
+- **WHEN** the manager-installed plugin loads with no `bw` on PATH
+- **THEN** all extension factories and non-vault capabilities remain discoverable
+- **AND** the vault capability explains its missing host prerequisite only when used
+- **AND** loading does not create a logged-in profile or prompt for credentials
+
+#### Scenario: Installed vault capability verification
+
+- **WHEN** the isolated release gate loads the installed candidate
+- **THEN** it verifies vault tool registration from the installed cache without a real vault or provider credential
+- **AND** every vault state path stays within the redirected disposable home
+- **AND** absence or damage of the vault extension fails the gate
