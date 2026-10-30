@@ -11,6 +11,7 @@ describe("packaged plugin", () => {
 		expect(manifest.name).toBe("@glockyco/personal-omp-plugin");
 		expect(manifest.omp.extensions).toContain("./extensions/personal-commit.ts");
 		expect(manifest.omp.extensions).toContain("./extensions/plannotator.ts");
+		expect(manifest.omp.extensions).toContain("./extensions/vault.ts");
 		expect(manifest.bin).toBeUndefined();
 		expect(existsSync(join(pluginRoot, "bin"))).toBe(false);
 		expect(existsSync(join(pluginRoot, "agents"))).toBe(false);
@@ -43,7 +44,7 @@ describe("packaged plugin", () => {
 			const module = await import(pathToFileURL(join(pluginRoot, relative)).href);
 			module.default(api);
 		}
-		expect(registrations.map(item => item.name)).toEqual(["personal_commit"]);
+		expect(registrations.map(item => item.name)).toEqual(["personal_commit", "vault"]);
 		expect(commands.sort()).toEqual([
 			"plannotator-annotate",
 			"plannotator-cancel",

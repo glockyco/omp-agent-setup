@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Source repository for the personal [Oh My Pi](https://github.com/can1357/oh-my-pi) plugin. It is the `glockyco` marketplace and publishes one plugin, `personal@glockyco`, which every host installs and upgrades with OMP's plugin manager. Hosts own OMP, language servers, Plannotator, and their own OMP state.
+Source repository for the personal [Oh My Pi](https://github.com/can1357/oh-my-pi) plugin. It is the `glockyco` marketplace and publishes one plugin, `personal@glockyco`, which every host installs and upgrades with OMP's plugin manager. Hosts own OMP, language servers, Plannotator, the Bitwarden CLI, and their own OMP state.
 
 ## Setup
 
@@ -55,7 +55,7 @@ Preserve the writing skill's support assets, upstream MIT license and `add-resea
 
 The payload must be self-contained. It must not:
 
-- write to `~/.omp`;
+- write to `~/.omp` outside `~/.omp/vault/`, which belongs to the vault extension;
 - install or update OMP, language servers, Plannotator, providers, models, or services;
 - include credentials, sessions, history, caches, logs, databases, tests, or development tools;
 - depend on a mutable checkout, sibling repository, Homebrew package, or global package manager;
@@ -71,6 +71,10 @@ The personal extension uses only runtime APIs already available in OMP's Bun pro
 ### Structured commits
 
 `personal_commit` accepts structured `commit`, `amend`, and `preview` input. Keep Git hooks enabled. Never stage, push, bypass hooks, or run planning commands from the extension. Preview must not mutate the repository. Agents stage only task-owned changes and create local commits at coherent, verified checkpoints. A push requires an explicit user request.
+
+### Vault
+
+No secret value may appear in the `vault` tool's arguments or results, and the extension never rewrites another tool's arguments to contain one, because OMP saves revised arguments in the session. Keep the redaction hooks synchronous plain string replacement without I/O, because OMP lets a request through when a hook throws or times out. Passwords, codes and keys reach `bw` through child-only environment variables, never through arguments or the conversation.
 
 ### Research evidence
 
