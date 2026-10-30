@@ -40,7 +40,7 @@ The extension SHALL obtain server, email, master password, two-step codes and AP
 #### Scenario: First login with two-step login
 
 - **WHEN** a vault is used for the first time and the account requires a two-step code
-- **THEN** the extension asks for email, master password, the two-step method and the code
+- **THEN** the extension asks for email, master password and one code, which is a YubiKey OTP, an authenticator code, or empty to request an email code
 - **AND** none of these reach the model, tool arguments or the saved session
 
 #### Scenario: New-device verification
