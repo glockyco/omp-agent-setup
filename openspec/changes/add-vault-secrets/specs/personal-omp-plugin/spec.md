@@ -9,7 +9,7 @@ The plugin SHALL export no agents, model providers, local-model support, remote 
 #### Scenario: Inspect plugin discovery
 
 - **WHEN** OMP loads only the manager-installed personal plugin under a disposable profile
-- **THEN** every shipped always-applied rule, the remaining personal skills, the generated OpenSpec workflow skills and commands, one commit tool, the vault tools, and the declared LSP overrides are discoverable without personal agents, model changes, or Simplified Technical English guidance
+- **THEN** every shipped always-applied rule, the remaining personal skills, the generated OpenSpec workflow skills and commands, one commit tool, the vault tool, and the declared LSP overrides are discoverable without personal agents, model changes, or Simplified Technical English guidance
 - **AND** every declared extension module loads without import or registration errors
 
 #### Scenario: Commands resolve from the payload
@@ -46,7 +46,7 @@ The repository SHALL publish marketplace `glockyco` with plugin `personal` and r
 
 ### Requirement: Scoped vault runtime state
 
-The plugin SHALL permit extension-owned vault profiles, approvals, OS-protected cache material and operation recovery state beneath `~/.omp` only as specified by vault-access. It SHALL NOT write unrelated OMP state, store credentials in the payload, install Bitwarden, or create a second delivery owner.
+The plugin SHALL keep vault profiles, approvals, cached unlock keys, `bw` data and delivery files beneath `~/.omp/vault/` only as specified by vault-access. It SHALL NOT write unrelated OMP state, store credentials in the payload, install Bitwarden, or create a second delivery owner.
 
 #### Scenario: Load without Bitwarden
 
@@ -58,6 +58,6 @@ The plugin SHALL permit extension-owned vault profiles, approvals, OS-protected 
 #### Scenario: Installed vault capability verification
 
 - **WHEN** the isolated release gate loads the installed candidate
-- **THEN** it verifies vault registration and stub-CLI privacy behavior from the installed cache without a real vault or provider credential
+- **THEN** it verifies vault tool registration from the installed cache without a real vault or provider credential
 - **AND** every vault state path stays within the redirected disposable home
 - **AND** absence or damage of the vault extension fails the gate

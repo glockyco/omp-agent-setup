@@ -2,30 +2,28 @@
 
 ## Why
 
-Coding sessions need credentials for command-line operations and browser logins without deliberately placing vault values in model-visible text or session history. The personal plugin can own private authentication, approval, delivery and accidental-disclosure protection while workstation configuration supplies only the official Bitwarden CLI.
+Agents need project secrets such as API keys and web logins from Bitwarden vaults. Today a person has to fetch each value and paste it, which puts the value into the conversation and into the model provider's request. OMP's own secret obfuscation only knows values that exist when a session starts or that match well-known token shapes, so a value fetched during a session is not covered.
 
 ## What Changes
 
-- Add a dependency-free vault extension with separate `scch` and `private` Bitwarden profiles, masked login prompts, end-of-day OS-protected unlock caching and remembered entry approvals.
-- Expose names-only discovery and opaque field references. Deliver values through child-only environments, protected files and internally delegated browser fills without plaintext in model-authored tool arguments.
-- Keep generic bash, eval, browser and delegation tools usable. Do not turn the extension into a sandbox against deliberately malicious same-user code.
-- Add small synchronous known-value scrubbers at tool-result, context and final-provider boundaries. Preserve an encrypted per-session redaction ledger for restart and state known limitations of hook failures, streaming, images and export paths explicitly.
-- Add canary behavior tests, actual OMP boundary tests and throwaway-entry host acceptance before real entries.
-- BREAKING: replace the blanket prohibition on plugin writes beneath `~/.omp` with a narrow vault-state exception. Keep installed payloads immutable and credentials outside them.
-- Add official `bw` as an optional host prerequisite. The plugin creates its own data directories and configures servers. nix-config installs the executable only.
+- A `vault` extension with one `vault` tool. The agent searches entry names, asks for a field, and receives the path of a private file that holds the value. The value never appears in tool arguments or tool results.
+- Masked OMP prompts handle login, two-step codes and unlock. The unlock key is cached in the OS keystore until local midnight.
+- The first use of each entry asks once: allow always, allow once or deny. Decisions are remembered.
+- Every value the extension delivers is replaced with a label in tool results, in the context sent to the model and in the final provider payload.
+- Vault state lives under `~/.omp/vault/`. `bw` becomes an optional host prerequisite.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `vault-access`: Private vault authentication, approval, caching, value-free delivery and accidental-disclosure protection through OMP lifecycle paths.
+- `vault-access`: Bitwarden login and unlock, entry approval, file delivery and redaction of delivered values.
 
 ### Modified Capabilities
 
-- `personal-omp-plugin`: Permit scoped mutable vault state, discover the additional extension and tools, and verify their installed-release boundaries without installing host tools.
+- `personal-omp-plugin`: the plugin declares a third extension and may keep vault state under `~/.omp/vault/`.
 
 ## Impact
 
-Implementation will add the vault extension, declare it in the manifest and bump the runtime versions together. Tests stay outside the payload. README and AGENTS.md will explain prerequisites, supported value-free delivery, state ownership and residual risks instead of promising universal redaction.
-
-No upstream OMP changes, runtime npm dependencies, host aliases, manual pre-export workflow or blanket tool restrictions are included. The invariant concerns accidental disclosure during supported use. It is not an OS sandbox against malicious or prompt-injected agent code with shell access. OMP's fail-open output hooks prevent an unconditional guarantee in every failure mode, which the design records rather than conceals.
+- New `plugin/extensions/vault.ts`, its manifest entry and tests.
+- README and AGENTS.md: the vault capability, the `bw` prerequisite and the scoped `~/.omp/vault/` state.
+- Release version bump.
