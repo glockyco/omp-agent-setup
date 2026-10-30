@@ -10,7 +10,7 @@ The `notes` vault holds work and personal notes. `Conventions.md` in the vault d
 ## Reach the vault
 
 - While Obsidian runs, `vault://notes/<path>` reads and writes notes from any session, and `?op=` queries search, list tasks, backlinks, properties and unresolved links, and query bases.
-- Home and the panels in item and person notes are drawn by the Workbench plugin, so their notes hold only a `workbench` code block. While Obsidian runs, read the model they show with `obsidian eval code="JSON.stringify(app.plugins.plugins['glockyco-workbench'].api.home())"`, or `api.item('<note path>')` for one note's panel.
+- Home and the panels in item and person notes are drawn by the Workbench plugin, so their notes hold only a `workbench` code block. While Obsidian runs, read the model they show with `obsidian eval code="app.plugins.plugins['glockyco-workbench'].api.home().then(model => JSON.stringify(model))"`, or `api.item('<note path>')` the same way for one note's panel.
 - Otherwise use the folder: `~/src/github.com/glockyco/notes` on Korolev and `~/notes` on the Mac.
 - Create notes from their templates where `Conventions.md` says, with `obsidian create path="<path>" template=<template>`. Move and rename notes only with `obsidian move` and `obsidian rename`, because they update every link. Never move or rename note files directly.
 - Checkboxes in `Templates/` are template content. Leave them out of task lists.
