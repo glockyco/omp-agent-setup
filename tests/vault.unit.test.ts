@@ -41,7 +41,8 @@ const ITEMS = [
 ];
 
 interface BwOptions {
-	twoFactor?: boolean;
+	/** Two-step methods the account has, by bw provider id, with the code each accepts. */
+	twoFactor?: Record<string, string>;
 	newDevice?: boolean;
 }
 
@@ -97,7 +98,16 @@ function fakeBw(options: BwOptions = {}) {
 				if (args[0] !== "login") return fail(`unknown command ${args.join(" ")}`);
 				if (env[flag("--passwordenv") ?? ""] !== MASTER)
 					return fail("Username or password is incorrect.");
-				if (options.twoFactor && flag("--code") !== "246810") return fail("Code is required.");
+				if (options.twoFactor) {
+					const method = flag("--method");
+					const code = flag("--code");
+					if (method === undefined) return fail("Code is required.");
+					const expected = options.twoFactor[method];
+					if (expected === undefined) return fail("Invalid two-step login method.");
+					// Asking for the email method without a code sends the email.
+					if (code === undefined) return fail("Code is required.");
+					if (code !== expected) return fail("Two-step token is invalid. Try again.");
+				}
 				if (options.newDevice) return fail("Code is required.");
 				account.loggedIn = true;
 				return ok(newKey());
@@ -237,25 +247,58 @@ describe("login and unlock", () => {
 		).toBe(true);
 	});
 
-	test("asks for the two-step method and code when the server demands one", async () => {
-		const { call } = setup({ twoFactor: true });
-		const { ctx, prompts } = scriptedContext(["me@scch.at", MASTER, "Authenticator app", "246810"]);
+	const YUBIKEY_CODE = "cccccbhkevrjkrtlfngujrrnkgjrtlkhbeiguetefhec";
+
+	test("one masked prompt takes a YubiKey touch or an authenticator code", async () => {
+		for (const [methods, code] of [
+			[{ "3": YUBIKEY_CODE }, YUBIKEY_CODE],
+			[{ "0": "246810" }, "246810"],
+		] as const) {
+			const { call } = setup({ twoFactor: methods });
+			const { ctx, prompts } = scriptedContext(["me@scch.at", MASTER, code]);
+			await call({ action: "search", vault: "scch", query: "" }, ctx);
+			expect(prompts.map(prompt => prompt.kind)).toEqual(["input", "input", "input"]);
+			expect(prompts.at(-1)?.secret).toBe(true);
+			clearRegistry();
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("an empty code requests one by email and asks for it", async () => {
+		const { bw, call } = setup({ twoFactor: { "1": "135791" } });
+		const { ctx, prompts } = scriptedContext(["me@scch.at", MASTER, "", "135791"]);
 		await call({ action: "search", vault: "scch", query: "" }, ctx);
-		expect(prompts.at(-1)?.secret).toBe(true);
+		expect(prompts).toHaveLength(4);
+		expect(
+			bw.calls.some(entry => entry.args.includes("--method") && !entry.args.includes("--code")),
+		).toBe(true);
+	});
+
+	test("a wrong or unavailable code fails with the reason instead of asking for an API key", async () => {
+		const cases = [
+			["000000", /does not use an authenticator app/],
+			["", /does not use email/],
+			// A YubiKey OTP from another touch: valid modhex, rejected by the server.
+			["cccccbhkevrjkrtlfngujrrnkgjrtlkhbeiguetefhed", /Two-step token is invalid/],
+		] as const;
+		for (const [code, reason] of cases) {
+			const { call } = setup({ twoFactor: { "3": YUBIKEY_CODE } });
+			const { ctx } = scriptedContext(["me@scch.at", MASTER, code]);
+			await expect(call({ action: "search", vault: "scch", query: "" }, ctx)).rejects.toThrow(reason);
+		}
 	});
 
 	test("falls back to the personal API key for new-device verification and reuses the password", async () => {
-		const { bw, call } = setup({ twoFactor: true, newDevice: true });
+		const { bw, call } = setup({ twoFactor: { "0": "246810" }, newDevice: true });
 		const { ctx, prompts } = scriptedContext([
 			"me@scch.at",
 			MASTER,
-			"Authenticator app",
 			"246810",
 			"user.client",
 			"client-secret",
 		]);
 		await call({ action: "search", vault: "scch", query: "" }, ctx);
-		expect(prompts).toHaveLength(6);
+		expect(prompts).toHaveLength(5);
 		expect(bw.calls.some(entry => entry.args[0] === "unlock")).toBe(true);
 		for (const entry of bw.calls) expect(entry.args.join(" ")).not.toContain("client-secret");
 	});

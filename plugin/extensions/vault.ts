@@ -61,13 +61,12 @@ const SERVER_CHOICES = new Map([
 	["Bitwarden EU (vault.bitwarden.eu)", "https://vault.bitwarden.eu"],
 ]);
 const CUSTOM_SERVER = "Another server";
-// bw's two-step provider ids.
-const TWO_STEP_METHODS = new Map([
-	["Authenticator app", "0"],
-	["Email", "1"],
-	["YubiKey OTP", "3"],
-]);
-const NO_TWO_STEP = "No two-step login is set up";
+// bw's two-step provider ids. A YubiKey OTP is 44 modhex characters, so the code itself tells the
+// method apart, and the person needs no method menu.
+const AUTHENTICATOR = "0";
+const EMAIL = "1";
+const YUBIKEY = "3";
+const YUBIKEY_OTP = /^[cbdefghijklnrtuv]{44}$/u;
 const APPROVAL_CHOICES = ["Allow always", "Allow once", "Deny"] as const;
 const VAULT_NAME = /^[a-z][a-z0-9-]{0,31}$/u;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/u;
@@ -388,21 +387,35 @@ export class VaultService {
 		if (result.exitCode === 0) return { key: sessionKey(result), password };
 		if (!needsCode(result)) throw new VaultError(`Login failed: ${firstLine(result)}`);
 
-		const method = await ctx.ui.select?.(
-			`The ${vault} vault asks for a code. Which two-step method?`,
-			[...TWO_STEP_METHODS.keys(), NO_TWO_STEP],
+		const code = await ask(
+			ctx,
+			`Two-step code for ${email} (${vault}): touch your YubiKey or type the authenticator code. Leave it empty to get a code by email.`,
+			true,
+			true,
 		);
-		if (method === undefined) throw new VaultError("Login cancelled.");
-		if (method !== NO_TWO_STEP) {
-			const methodId = TWO_STEP_METHODS.get(method);
-			if (!methodId) throw new VaultError("Login cancelled.");
+		const method = code ? (YUBIKEY_OTP.test(code) ? YUBIKEY : AUTHENTICATOR) : EMAIL;
+		if (code) {
+			result = await attempt(["--method", method, "--code", code]);
+		} else {
 			// Without a code, bw asks the server to send the email and stops.
-			if (methodId === "1") await attempt(["--method", methodId]);
-			const code = await ask(ctx, `Two-step code for ${email} (${vault})`, true);
-			result = await attempt(["--method", methodId, "--code", code]);
-			if (result.exitCode === 0) return { key: sessionKey(result), password };
-			if (!needsCode(result)) throw new VaultError(`Login failed: ${firstLine(result)}`);
+			result = await attempt(["--method", EMAIL]);
+			if (needsCode(result)) {
+				const emailed = await ask(ctx, `Code from the email to ${email} (${vault})`, true);
+				result = await attempt(["--method", EMAIL, "--code", emailed]);
+			}
 		}
+		if (result.exitCode === 0) return { key: sessionKey(result), password };
+		if (/invalid two-step login method/iu.test(`${result.stdout}\n${result.stderr}`)) {
+			const names: Record<string, string> = {
+				[AUTHENTICATOR]: "an authenticator app",
+				[EMAIL]: "email",
+				[YUBIKEY]: "a YubiKey",
+			};
+			throw new VaultError(
+				`Login failed: the account does not use ${names[method]} for two-step login.`,
+			);
+		}
+		if (!needsCode(result)) throw new VaultError(`Login failed: ${firstLine(result)}`);
 
 		// The remaining code is new-device verification, which bw only completes in a terminal.
 		// A personal API key skips it.
@@ -597,9 +610,14 @@ function firstLine(result: CommandResult): string {
 	return redactText(text) || `exit code ${result.exitCode}`;
 }
 
-async function ask(ctx: ExtensionContext, title: string, secret: boolean): Promise<string> {
+async function ask(
+	ctx: ExtensionContext,
+	title: string,
+	secret: boolean,
+	optional = false,
+): Promise<string> {
 	const answer = await ctx.ui.input?.(title, undefined, { secret });
-	if (!answer) throw new VaultError("Login cancelled.");
+	if (answer === undefined || (!answer && !optional)) throw new VaultError("Login cancelled.");
 	return secret ? answer : answer.trim();
 }
 
