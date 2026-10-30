@@ -550,6 +550,8 @@ def capability_findings(commands, prompt, errors):
             findings.append(f"annotation command {command} not registered once by the extension")
     if "xd://personal_commit" not in prompt:
         findings.append("commit tool personal_commit not registered")
+    if "xd://vault" not in prompt:
+        findings.append("vault tool not registered")
     skills_block = prompt.split("<skills>", 1)[-1].split("</skills>", 1)[0]
     for skill in SKILLS:
         if f"- {skill}:" not in skills_block:
@@ -754,7 +756,7 @@ class InstalledRelease(unittest.TestCase):
         bun = subprocess.run(
             [self.profile.bun, "test", "--coverage", *(str(REPOSITORY / "tests" / name) for name in (
                 "plugin-load.unit.test.ts", "personal-commit.unit.test.ts", "personal-commit.integration.test.ts",
-                "plannotator.unit.test.ts", "plannotator.integration.test.ts"))],
+                "plannotator.unit.test.ts", "plannotator.integration.test.ts", "vault.unit.test.ts"))],
             cwd=REPOSITORY,
             env=env,
             capture_output=True,

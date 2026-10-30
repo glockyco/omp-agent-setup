@@ -8,7 +8,11 @@ export const PAYLOAD = "plugin";
 // Git tree paths use forward slashes; join with the root for native filesystem access.
 export const CATALOG = ".omp-plugin/marketplace.json";
 
-export const EXTENSIONS = ["./extensions/personal-commit.ts", "./extensions/plannotator.ts"];
+export const EXTENSIONS = [
+	"./extensions/personal-commit.ts",
+	"./extensions/plannotator.ts",
+	"./extensions/vault.ts",
+];
 export const SKILLS = [
 	"commit-policy",
 	"notes",

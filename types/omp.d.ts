@@ -64,9 +64,50 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		willContinue?: boolean;
 	}
 
+	export interface ExtensionUIDialogOptions {
+		secret?: boolean;
+	}
+
 	export interface ExtensionUIContext {
 		notify(message: string, type?: "info" | "warning" | "error"): void;
 		setStatus(key: string, text: string | undefined): void;
+		// OMP always provides the dialogs; they are optional here so test doubles that never ask need no stubs.
+		select?(
+			title: string,
+			options: string[],
+			dialogOptions?: ExtensionUIDialogOptions,
+		): Promise<string | undefined>;
+		input?(
+			title: string,
+			placeholder?: string,
+			dialogOptions?: ExtensionUIDialogOptions,
+		): Promise<string | undefined>;
+	}
+
+	export interface ToolCallEvent {
+		type: "tool_call";
+		toolName: string;
+		toolCallId: string;
+		input: Record<string, unknown>;
+	}
+
+	export interface ToolCallEventResult {
+		block?: boolean;
+		reason?: string;
+	}
+
+	export interface ContextEvent {
+		type: "context";
+		messages: unknown[];
+	}
+
+	export interface ContextEventResult {
+		messages?: unknown[];
+	}
+
+	export interface BeforeProviderRequestEvent {
+		type: "before_provider_request";
+		payload: unknown;
 	}
 
 	export interface CustomMessagePayload<T = unknown> {
@@ -184,6 +225,12 @@ declare module "@oh-my-pi/pi-coding-agent" {
 		): void;
 		on(event: "session_start", handler: ExtensionHandler<SessionStartEvent>): void;
 		on(event: "tool_result", handler: ExtensionHandler<ToolResultEvent, ToolResultEventResult>): void;
+		on(event: "tool_call", handler: ExtensionHandler<ToolCallEvent, ToolCallEventResult>): void;
+		on(event: "context", handler: ExtensionHandler<ContextEvent, ContextEventResult>): void;
+		on(
+			event: "before_provider_request",
+			handler: ExtensionHandler<BeforeProviderRequestEvent, unknown>,
+		): void;
 		on(event: "agent_end", handler: ExtensionHandler<AgentEndEvent>): void;
 		sendMessage<T = unknown>(
 			message: CustomMessagePayload<T>,
