@@ -11,7 +11,7 @@ description: Prepare and run the weekly review of the `notes` vault, or its shor
 
 Gather before proposing anything:
 
-- the daily notes of the past seven days, and the views and checks that the checklist's steps name
+- the daily notes of the past seven days, and the weekly review's model from Workbench's `api.review()`, which the `notes` skill shows how to read: its Clear checks, Look ahead with the preparation it flags, and Choose focus with the hours since the last review and the ranked suggestions
 - the week's commits in the vault and in the repositories that open work links
 - the week's OMP sessions with their recaps, from the `archive` helper of the eval tool. Look for state and decisions that never reached a note, corrections that came up again and again, and sessions that ended with a next step nobody took.
 
