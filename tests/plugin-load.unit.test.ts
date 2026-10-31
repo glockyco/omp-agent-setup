@@ -10,7 +10,6 @@ describe("packaged plugin", () => {
 		const manifest = await Bun.file(join(pluginRoot, "package.json")).json();
 		expect(manifest.name).toBe("@glockyco/personal-omp-plugin");
 		expect(manifest.omp.extensions).toContain("./extensions/personal-commit.ts");
-		expect(manifest.omp.extensions).toContain("./extensions/plannotator.ts");
 		expect(manifest.omp.extensions).toContain("./extensions/vault.ts");
 		expect(manifest.bin).toBeUndefined();
 		expect(existsSync(join(pluginRoot, "bin"))).toBe(false);
@@ -18,7 +17,7 @@ describe("packaged plugin", () => {
 		expect(existsSync(join(pluginRoot, "models"))).toBe(false);
 	});
 
-	test("loads declared factories and registers commit and annotation capabilities", async () => {
+	test("loads declared factories and registers the commit and vault tools", async () => {
 		const manifest = await Bun.file(join(pluginRoot, "package.json")).json();
 		const registrations: Array<Record<string, unknown>> = [];
 		const commands: string[] = [];
@@ -45,11 +44,7 @@ describe("packaged plugin", () => {
 			module.default(api);
 		}
 		expect(registrations.map(item => item.name)).toEqual(["personal_commit", "vault"]);
-		expect(commands.sort()).toEqual([
-			"plannotator-annotate",
-			"plannotator-cancel",
-			"plannotator-last",
-		]);
+		expect(commands).toEqual([]);
 	});
 
 	test("contains exactly the selected skills, rules, and LSP overrides", async () => {
