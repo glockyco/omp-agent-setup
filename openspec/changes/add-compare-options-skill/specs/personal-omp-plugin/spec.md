@@ -14,6 +14,25 @@ The plugin SHALL ship a `compare-options` skill for deciding text that players s
 - **WHEN** an agent writes the player-facing text of a known game issue while fixing a data error
 - **THEN** the skill directs it to present options with a marked recommendation to a person in Plannotator before the text ships
 
+### Requirement: Checked recommendations
+
+The `compare-options` skill SHALL have the agent check every option against the project's written reader-text rules and the wording a person already approved, show that check in the comparison, and give a recommendation only with a reason that is true of the option. It SHALL have the agent ask whether an element should exist at all for its reader, and name the open decision, its options and the recommendation in chat.
+
+#### Scenario: Recommend a heading
+
+- **WHEN** an agent recommends one of several headings for a known issue
+- **THEN** the comparison shows how each heading meets the project's reader-text rules and the pattern of headings a person approved
+
+#### Scenario: Question an added element
+
+- **WHEN** a comparison covers an element that an agent or a model reviewer added, such as a line in a link preview
+- **THEN** the options include removing it
+
+#### Scenario: Wait for an answer
+
+- **WHEN** a comparison is open for a person
+- **THEN** the agent's message names the decision, the options and the recommendation besides the link
+
 ### Requirement: Comparison cases in the notes vault
 
 The `compare-options` skill SHALL have the agent record each decision as a case in the notes of the vault item the decision belongs to, and read earlier cases from any project before the next decision. Cases, specs and agent-written designs SHALL count as evidence, not authority, and what the agent infers from an answer SHALL stay labelled as inferred.
