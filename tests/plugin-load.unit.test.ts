@@ -53,6 +53,7 @@ describe("packaged plugin", () => {
 		);
 		expect(skills.sort()).toEqual([
 			"commit-policy",
+			"compare-options",
 			"notes",
 			"persona-trials",
 			"research-evidence",
@@ -67,6 +68,7 @@ describe("packaged plugin", () => {
 			expect(existsSync(join(pluginRoot, "skills", "research-paper-writing", relative))).toBe(true);
 		}
 		expect(readdirSync(join(pluginRoot, "rules")).sort()).toEqual([
+			"compare-options.md",
 			"documentation.md",
 			"personal-policy.md",
 			"plain-prose.md",
