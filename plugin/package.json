@@ -1,10 +1,10 @@
 {
   "name": "@glockyco/personal-omp-plugin",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "Personal behavior for Oh My Pi, delivered through the OMP plugin manager.",
   "omp": {
-    "extensions": ["./extensions/personal-commit.ts", "./extensions/plannotator.ts", "./extensions/vault.ts"]
+    "extensions": ["./extensions/personal-commit.ts", "./extensions/vault.ts"]
   }
 }

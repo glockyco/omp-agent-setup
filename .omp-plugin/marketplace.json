@@ -5,14 +5,14 @@
     "name": "glockyco"
   },
   "metadata": {
-    "description": "Personal Oh My Pi behavior: structured commits, research evidence, paper writing, visual annotation, and the OpenSpec workflow."
+    "description": "Personal Oh My Pi behavior: structured commits, research evidence, paper writing, Bitwarden secrets, and the OpenSpec workflow."
   },
   "plugins": [
     {
       "name": "personal",
-      "description": "Personal policy, plain-prose rule, skills, OpenSpec workflow commands, commit tool, vault tool, Plannotator commands, and LSP overrides.",
+      "description": "Personal policy, plain-prose rule, skills, OpenSpec workflow commands, commit tool, vault tool, and LSP overrides.",
       "source": "./plugin",
-      "version": "0.9.2",
+      "version": "0.10.0",
       "lspServers": "./lsp/lsp.json",
       "repository": "https://github.com/glockyco/omp-agent-setup",
       "homepage": "https://github.com/glockyco/omp-agent-setup",

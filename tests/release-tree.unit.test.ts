@@ -103,11 +103,11 @@ describe("release tree", () => {
 				editJson(join(root, PAYLOAD, "package.json"), manifest => {
 					manifest.omp = { extensions: ["./extensions/personal-commit.ts"] };
 				}),
-			/extension entry missing: \.\/extensions\/plannotator\.ts/,
+			/extension entry missing: \.\/extensions\/vault\.ts/,
 		],
 		[
 			"missing extension module",
-			(root: string) => rmSync(join(root, PAYLOAD, "extensions", "plannotator.ts")),
+			(root: string) => rmSync(join(root, PAYLOAD, "extensions", "vault.ts")),
 			/extension module missing/,
 		],
 		[

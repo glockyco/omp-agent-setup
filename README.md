@@ -1,6 +1,6 @@
 # Personal OMP Plugin
 
-Personal OMP Plugin adds commit guidance, research and paper-writing skills, browser annotation, and OpenSpec workflows to [Oh My Pi](https://github.com/can1357/oh-my-pi). It is a personal configuration, including workflows for the `notes` vault, rather than a general-purpose OMP setup.
+Personal OMP Plugin adds commit guidance, research and paper-writing skills, Bitwarden secrets, and OpenSpec workflows to [Oh My Pi](https://github.com/can1357/oh-my-pi). It is a personal configuration, including workflows for the `notes` vault, rather than a general-purpose OMP setup.
 
 The repository publishes the `personal` plugin through the `glockyco` marketplace. It does not install OMP or the external tools its capabilities use.
 
@@ -16,7 +16,7 @@ omp plugin list
 
 Start a new OMP session to load the plugin. Use the plugin manager as the only installation path, so OMP does not discover duplicate copies. Do not also pass `--extension` or `--plugin-dir`, or copy the plugin's rules, skills, or commands into your configuration.
 
-Install the external tools for the capabilities you use. Browser annotation needs `plannotator` on PATH. Vault access needs the official Bitwarden CLI `bw` on PATH. The research helper needs Python 3. Language-server overrides in [plugin/lsp/lsp.json](plugin/lsp/lsp.json) need the corresponding server executables on PATH and matching project markers.
+Install the external tools for the capabilities you use. Vault access needs the official Bitwarden CLI `bw` on PATH. The research helper needs Python 3. Language-server overrides in [plugin/lsp/lsp.json](plugin/lsp/lsp.json) need the corresponding server executables on PATH and matching project markers.
 
 ## Upgrade
 
@@ -47,29 +47,21 @@ The plugin exposes OpenSpec commands with the `/personal:` prefix:
 
 Follow each command's prompts in the repository you want to change. The [generated command definitions](plugin/commands) describe their inputs. Generated instructions may use `/opsx-*` as shorthand, but the installed commands need the prefix.
 
-## Annotate a document or response
+## Annotate in the browser
 
-Use a local interactive OMP TUI session with `plannotator` available. For example, from this checkout:
+Annotation comes from Plannotator's own OMP plugin. This plugin registers no annotation commands. Install it on each host:
 
-```text
-/plannotator-annotate README.md
-/plannotator-last
-/plannotator-cancel
+```sh
+omp plugin install @plannotator/pi-extension
 ```
 
-`/plannotator-annotate` opens a snapshot of a UTF-8 text or Markdown file. Relative paths use the session's working directory. Quote paths containing spaces. Absolute filesystem paths and session-local `local://` documents also work. `/plannotator-last` opens the latest completed visible assistant response on the active branch.
-
-Submit annotations in the browser to return feedback to the conversation. The plugin does not edit the source or treat feedback as approval. A warning identifies feedback whose source has changed since the snapshot.
-
-Only one review can run per session. Use `/plannotator-cancel` if a closed tab leaves a review pending. Remote, SSH, and noninteractive sessions are not supported because the review needs a local browser and UI.
+Its [README](https://github.com/backnotprop/plannotator/tree/main/apps/pi-extension#oh-my-pi-omp) describes `/plannotator-annotate`, `/plannotator-last` and the tool agents use to open reviews.
 
 ## What it changes
 
 OMP manages the installed plugin cache and registry, authentication, sessions, and settings. The plugin payload does not install or update host tools. It contains no credentials, provider or model configuration, sessions, or mutable caches. The vault extension is the only part that writes to `~/.omp`, and only below `~/.omp/vault/`.
 
 Skills can direct work on repository files and vault notes. The `personal_commit` tool creates or amends local Git commits after files have been staged, or previews the commit without changing the repository. It does not stage or push.
-
-Annotation creates a temporary snapshot and runs Plannotator on a loopback port with sharing disabled. It returns annotations to the OMP conversation and removes its temporary snapshot when the review finishes or is cancelled. Plannotator preferences and history are left intact.
 
 The `vault` tool gives agents secrets from Bitwarden vaults without the values entering the conversation. The `scch` vault is SCCH's Vaultwarden. Any other vault name asks for its server on first use. The agent searches entry names and asks for a field, and the tool writes the value to a private file under `~/.omp/vault/files/` and returns its path. The first use of each entry asks you to allow it always, once, or deny it. Login, two-step codes and unlock happen in masked OMP prompts. The unlock lasts until local midnight and is kept in Windows DPAPI or the macOS Keychain. Delivered values are replaced with `[vault:...]` labels in tool results and in everything sent to the model provider. Values inside images or encodings such as base64 are not recognized, and a tool that saves its own output before OMP's result hook runs can keep a value on disk. The extension does not sandbox same-user code, which can read the delivery files.
 

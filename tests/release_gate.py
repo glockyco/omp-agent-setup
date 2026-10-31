@@ -34,7 +34,6 @@ PLUGIN_ID = "personal@glockyco"
 PACKAGE = "@glockyco/personal-omp-plugin"
 
 COMMANDS = ["opsx-apply", "opsx-archive", "opsx-explore", "opsx-propose", "opsx-sync", "opsx-update"]
-ANNOTATION_COMMANDS = ["plannotator-annotate", "plannotator-cancel", "plannotator-last"]
 SKILLS = [
     "commit-policy",
     "notes",
@@ -544,10 +543,6 @@ def capability_findings(commands, prompt, errors):
             findings.append(f"command personal:{command} registered {count} times")
         if command in names:
             findings.append(f"command {command} registered under a bare alias")
-    for command in ANNOTATION_COMMANDS:
-        sources = [entry.get("source") for entry in commands if entry["name"] == command]
-        if sources != ["extension"]:
-            findings.append(f"annotation command {command} not registered once by the extension")
     if "xd://personal_commit" not in prompt:
         findings.append("commit tool personal_commit not registered")
     if "xd://vault" not in prompt:
@@ -756,7 +751,7 @@ class InstalledRelease(unittest.TestCase):
         bun = subprocess.run(
             [self.profile.bun, "test", "--coverage", *(str(REPOSITORY / "tests" / name) for name in (
                 "plugin-load.unit.test.ts", "personal-commit.unit.test.ts", "personal-commit.integration.test.ts",
-                "plannotator.unit.test.ts", "plannotator.integration.test.ts", "vault.unit.test.ts"))],
+                "vault.unit.test.ts"))],
             cwd=REPOSITORY,
             env=env,
             capture_output=True,
@@ -801,7 +796,7 @@ class LostCapabilities(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest))
 
         findings = self.findings_after(damage)
-        self.assertIn("annotation command plannotator-annotate not registered once by the extension", findings)
+        self.assertIn("vault tool not registered", findings)
 
     def test_missing_extension_module(self):
         findings = self.findings_after(lambda release: (release / PAYLOAD / "extensions" / "personal-commit.ts").unlink())
