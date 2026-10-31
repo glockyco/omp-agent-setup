@@ -33,13 +33,12 @@ description: Use before shipping text that players see or a visible design choic
 
 A person decides text that players see and visible design choices from a few options. Agents frame the decision, gather references, draft, check facts and record the outcome. Model reviewers check facts and find defects, because they have not been able to judge voice or look.
 
-1. Frame one decision on the real page with the real data, and name the player's question it answers. Ask whether the element should exist at all for that reader, also when an agent or a model reviewer added it. Small decisions on one page can share a comparison, with one question card each.
-2. Find how strong references handle the same situation, such as large game wikis or pages a person approved, and quote them with links. They inform this decision only.
+1. Frame one decision on the real page with the real data, and name the player's question it answers. Ask whether that reader needs the element on that page and what they can do with it, also when an agent or a model reviewer added it. Small decisions on one page can share a comparison, with one question card each.
+2. Search the notes vault for earlier cases that apply, also from other projects, and say what transfers. Earlier cases, and specs and designs written by agents, are evidence, not authority. Then find how strong references handle the same situation, such as large game wikis or pages a person approved, and quote them with links. They inform this decision only.
 3. Draft two to four options that differ in structure, plus the current version. Check every fact, and test behaviour in the game, because code is easy to misread.
 4. Check every option against the project's written reader-text rules and the wording a person already approved, and show that check in the comparison. Then mark one option as recommended with a one-sentence reason that is true of it, and offer "None of these".
 5. Write the comparison as a Markdown file in the project, outside Git when the repository is public, and open it in Plannotator. Show each option where it appears, with screenshots of the real page for layout. When Plannotator cannot open, give the file's path and ask in chat. In chat, name the decision, the options and the recommendation, not only the link.
 6. Apply the answer and record a case in the notes vault, in the notes of the item the decision belongs to: the question, the options with a link to the comparison, the person's words verbatim, the outcome and the date. Keep anything inferred from it apart and labelled as inferred.
-7. Before the next decision, search the vault for earlier cases that apply, also from other projects, and say what transfers. Earlier cases, and specs and designs written by agents, are evidence, not authority.
 
 A subagent that drafts such text gets this skill's path and returns options. It does not commit, push or deploy them.
 
@@ -99,7 +98,7 @@ As with `persona-trials`, a fresh agent receives only the skill and a realistic 
 
 ## Risks / Trade-offs
 
-- [Risk] Agents read earlier cases as rules. Mitigation: step 7 calls cases evidence and asks what transfers, and inferences stay labelled.
+- [Risk] Agents read earlier cases as rules. Mitigation: step 2 calls cases evidence and asks what transfers, and inferences stay labelled.
 - [Risk] Small text changes wait for a review. Mitigation: one comparison holds several question cards, and each took minutes in the trial.
 - [Risk] The skill names Plannotator, which an SSH session on Korolev cannot open in a browser. Mitigation: step 5 falls back to the file path and a question in chat.
 - [Risk] The skill and rule change only through review, so they lag behind new lessons. Mitigation: a complaint that the loop should have caught leads to a change of the skill, with the case that showed it.

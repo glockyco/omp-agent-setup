@@ -11,6 +11,7 @@ export const CATALOG = ".omp-plugin/marketplace.json";
 export const EXTENSIONS = ["./extensions/personal-commit.ts", "./extensions/vault.ts"];
 export const SKILLS = [
 	"commit-policy",
+	"compare-options",
 	"notes",
 	"openspec-apply-change",
 	"openspec-archive-change",
@@ -43,6 +44,7 @@ export const RULES = [
 	"rules/plain-prose.md",
 	"rules/documentation.md",
 	"rules/project-handoff.md",
+	"rules/compare-options.md",
 ];
 export const LSP_CONFIG = "./lsp/lsp.json";
 /** Entries that belong to development, never to the installed payload. */

@@ -32,7 +32,7 @@ Start a new session afterwards. `/reload-plugins` does not load new extension mo
 
 ## Use the skills and workflows
 
-Ask OMP to create a commit, investigate research evidence, draft a paper section, check material with persona trials, work with the `notes` vault, or prepare its weekly review. The [skills](plugin/skills) describe when each workflow applies and its prerequisites. The [rules](plugin/rules) apply across sessions and cover commits, prose, documentation, and project handoffs.
+Ask OMP to create a commit, investigate research evidence, draft a paper section, check material with persona trials, [compare options](plugin/skills/compare-options/SKILL.md) for text that players see and visible design in game projects, work with the `notes` vault, or prepare its weekly review. The [skills](plugin/skills) describe when each workflow applies and its prerequisites. The [rules](plugin/rules) apply across sessions and cover commits, prose, documentation, comparisons, and project handoffs.
 
 The plugin exposes OpenSpec commands with the `/personal:` prefix:
 

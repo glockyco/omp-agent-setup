@@ -13,4 +13,4 @@ punctuation.
 - Straight quotes and apostrophes only. No em or en dashes, ellipsis characters,
   arrows or section signs.
 - No bold lead-ins on bullets and no slogans.
-- Short factual sentences without filler or hedging.
+- Factual sentences without filler or hedging.

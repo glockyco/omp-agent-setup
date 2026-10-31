@@ -36,6 +36,7 @@ PACKAGE = "@glockyco/personal-omp-plugin"
 COMMANDS = ["opsx-apply", "opsx-archive", "opsx-explore", "opsx-propose", "opsx-sync", "opsx-update"]
 SKILLS = [
     "commit-policy",
+    "compare-options",
     "notes",
     "openspec-apply-change",
     "openspec-archive-change",
@@ -53,6 +54,7 @@ RULE_HEADINGS = {
     "plain-prose": "# Plain prose",
     "documentation": "# Documentation",
     "project-handoff": "# Project handoff",
+    "compare-options": "# Compare options",
 }
 DURABLE_WORK_RULE = (
     "Write work that should outlive the session into its repository, the `notes` vault or a synced documents folder, "

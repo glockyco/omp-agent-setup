@@ -16,7 +16,7 @@ The plugin SHALL ship a `compare-options` skill for deciding text that players s
 
 ### Requirement: Checked recommendations
 
-The `compare-options` skill SHALL have the agent check every option against the project's written reader-text rules and the wording a person already approved, show that check in the comparison, and give a recommendation only with a reason that is true of the option. It SHALL have the agent ask whether an element should exist at all for its reader, and name the open decision, its options and the recommendation in chat.
+The `compare-options` skill SHALL have the agent check every option against the project's written reader-text rules and the wording a person already approved, show that check in the comparison, and give a recommendation only with a reason that is true of the option. It SHALL have the agent ask whether the reader needs an element on its page and what they can do with it, and name the open decision, its options and the recommendation in chat.
 
 #### Scenario: Recommend a heading
 
@@ -35,7 +35,7 @@ The `compare-options` skill SHALL have the agent check every option against the 
 
 ### Requirement: Comparison cases in the notes vault
 
-The `compare-options` skill SHALL have the agent record each decision as a case in the notes of the vault item the decision belongs to, and read earlier cases from any project before the next decision. Cases, specs and agent-written designs SHALL count as evidence, not authority, and what the agent infers from an answer SHALL stay labelled as inferred.
+The `compare-options` skill SHALL have the agent record each decision as a case in the notes of the vault item the decision belongs to, and read earlier cases from any project before drafting each decision. Cases, specs and agent-written designs SHALL count as evidence, not authority, and what the agent infers from an answer SHALL stay labelled as inferred.
 
 #### Scenario: Record a decision
 
