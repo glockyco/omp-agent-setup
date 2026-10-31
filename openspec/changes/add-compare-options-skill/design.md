@@ -2,7 +2,7 @@
 
 ## Context
 
-The loop ran on nine comparisons in `bloodline-compendium`, kept in its Git-ignored `artifacts/design/process/`. Each comparison was a Markdown file with screenshots or quoted text and one Plannotator `:::question` card per decision, and the answers came back as session messages through Plannotator's OMP plugin. An evaluation of that trial, answered on 2026-10-31, chose a skill in this plugin with one always-applied line, factual instead of short sentences in plain-prose, and case records in the notes vault with the comparisons staying in each project. The vault's conventions put a record that has no properties and no dated work of its own into the note it belongs to, as a section or list. The plain-prose rule must not route writing to a skill, so the new line needs its own rule.
+The loop ran on the comparisons in `bloodline-compendium`, kept in its Git-ignored `artifacts/design/process/`. Each comparison was a Markdown file with screenshots or quoted text and one Plannotator `:::question` card per decision, and the answers came back as session messages through Plannotator's OMP plugin. An evaluation of that trial, answered on 2026-10-31, chose a skill in this plugin with one always-applied line, factual instead of short sentences in plain-prose, and case records in the notes vault with the comparisons staying in each project. The vault's conventions put a record that has no properties and no dated work of its own into the note it belongs to, as a section or list. The plain-prose rule must not route writing to a skill, so the new line needs its own rule.
 
 ## Goals / Non-Goals
 
@@ -33,11 +33,11 @@ description: Use before shipping text that players see or a visible design choic
 
 A person decides text that players see and visible design choices from a few options. Agents frame the decision, gather references, draft, check facts and record the outcome. Model reviewers check facts and find defects, because they have not been able to judge voice or look.
 
-1. Frame one decision on the real page with the real data, and name the player's question it answers. Small decisions on one page can share a comparison, with one question card each.
+1. Frame one decision on the real page with the real data, and name the player's question it answers. Ask whether the element should exist at all for that reader, also when an agent or a model reviewer added it. Small decisions on one page can share a comparison, with one question card each.
 2. Find how strong references handle the same situation, such as large game wikis or pages a person approved, and quote them with links. They inform this decision only.
 3. Draft two to four options that differ in structure, plus the current version. Check every fact, and test behaviour in the game, because code is easy to misread.
-4. Mark one option as recommended with a one-sentence reason, and offer "None of these".
-5. Write the comparison as a Markdown file in the project, outside Git when the repository is public, and open it in Plannotator. Show each option where it appears, with screenshots of the real page for layout. When Plannotator cannot open, give the file's path and ask in chat.
+4. Check every option against the project's written reader-text rules and the wording a person already approved, and show that check in the comparison. Then mark one option as recommended with a one-sentence reason that is true of it, and offer "None of these".
+5. Write the comparison as a Markdown file in the project, outside Git when the repository is public, and open it in Plannotator. Show each option where it appears, with screenshots of the real page for layout. When Plannotator cannot open, give the file's path and ask in chat. In chat, name the decision, the options and the recommendation, not only the link.
 6. Apply the answer and record a case in the notes vault, in the notes of the item the decision belongs to: the question, the options with a link to the comparison, the person's words verbatim, the outcome and the date. Keep anything inferred from it apart and labelled as inferred.
 7. Before the next decision, search the vault for earlier cases that apply, also from other projects, and say what transfers. Earlier cases, and specs and designs written by agents, are evidence, not authority.
 
@@ -49,20 +49,22 @@ Plannotator shows each card with its choices, a field for another answer and a n
 
 ```markdown
 :::question
-Where should a bug show on an item page?
+How should the knee guards' bug read?
 
-Recommended: B: one sentence about this item, beside the game card
+Recommended: A: the armor counts only after another piece
 
-- [ ] A: the entry's title and its sentence about every affected item
-- [ ] B: one sentence about this item, beside the game card
+- [ ] A: the armor counts only after another piece
+- [ ] B: no armor while they are the last piece
 - [ ] None of these
 
-Why: the bug changes what the game card says, so the correction belongs beside it.
+Why: A says when the armor counts and what to do in one sentence.
 :::
 ```
 ````
 
 Alternatives: a `reader-text` skill with positive style guidance, and a shared shelf of references with a `mood-board` skill. Both were withdrawn before the trial, because they would turn one review's findings into standing rules without a way to revise them.
+
+Three steps came from complaints that the loop should have caught, after the evaluation. A recommended heading broke the pattern of two approved headings, and its stated reason was false. A line about bugs in item link previews had come from a model reviewer, and nobody asked whether someone hovering a link wants it. A message said a decision was still open without naming it. Steps 1, 4 and 5 now cover these.
 
 ### A separate always-applied rule triggers the skill
 
@@ -93,7 +95,7 @@ The last line of `plugin/rules/plain-prose.md` becomes "Factual sentences withou
 
 ### Verification with a fresh agent
 
-As with `persona-trials`, a fresh agent receives only the skill and a realistic task: wording a known-issue entry for a bug that helps the player. Its plan passes when it gathers references, drafts options that differ in structure with the current text, marks a recommendation with a reason, plans a Plannotator review and a vault case, and ships nothing. The skill is revised where the plan misses a step.
+As with `persona-trials`, a fresh agent receives only the skill and a realistic task: wording a known-issue entry for a bug that helps the player. Its plan passes when it gathers references, drafts options that differ in structure with the current text, checks each option against the project's written rules and approved wording, marks a recommendation with a reason that holds, plans a Plannotator review, a chat message that names the decision, and a vault case, and ships nothing. The skill is revised where the plan misses a step.
 
 ## Risks / Trade-offs
 
