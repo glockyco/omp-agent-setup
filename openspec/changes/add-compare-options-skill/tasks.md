@@ -17,7 +17,7 @@
 ## 4. Documentation and release
 
 - [x] 4.1 Name comparisons of player-facing text and design among the workflows in the README's "Use the skills and workflows" section. Verify that the README links the skill and states no other change.
-- [ ] 4.2 Run `bun run check:local` and `openspec validate add-compare-options-skill --strict`, and obtain the three native CI contexts and the OpenSpec context on the pull request.
+- [x] 4.2 Run `bun run check:local` and `openspec validate add-compare-options-skill --strict`, and obtain the three native CI contexts and the OpenSpec context on the pull request.
 - [ ] 4.3 With explicit authorization, merge, tag the release and upgrade the Mac. Verify in a fresh OMP session that `compare-options` is discovered and that the system prompt of a session and of a subagent carries the compare-options rule.
 
 ## Workflow follow-up
