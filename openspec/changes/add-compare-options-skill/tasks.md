@@ -4,6 +4,7 @@
 
 - [x] 1.1 Add `plugin/skills/compare-options/SKILL.md` and `plugin/rules/compare-options.md` with the texts from design.md, and raise the version to the next minor release in `.omp-plugin/marketplace.json`, `plugin/package.json` and `package.json` in the same commit. Add the skill and the rule to the expected lists in `tests/plugin-load.unit.test.ts`. Verify that the plugin-load test finds both in the payload and that the release-version check passes.
 - [x] 1.2 Give a fresh agent only the skill and the task of wording a known-issue entry for a game bug that helps the player. Verify that its plan gathers references, drafts options that differ in structure together with the current text, checks each option against the project's written rules and approved wording, marks a recommendation with a reason that holds, plans a Plannotator review, a chat message that names the decision and a case in the notes vault, and ships nothing. Revise the skill where the plan misses one of these.
+- [x] 1.3 Audit the skill and the rule against the feedback and cases of 2026-10-26 to 2026-10-31 and against the signs of AI writing, revise them and the design and spec where they miss a lesson, and repeat 1.2 on the revision with the checks the design's verification lists. Verify that the revision passes those checks and that the change validates.
 
 ## 2. Plain prose
 
