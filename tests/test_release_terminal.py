@@ -8,12 +8,49 @@ import sys
 import tempfile
 import time
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from release_gate import OwnedTree, Profile, Terminal, language_servers_started, stop_spawned_process
+from release_gate import OwnedTree, Profile, Terminal, language_servers_started, stop_spawned_process, windows_processes
 
 
 class TerminalTests(unittest.TestCase):
+    def test_windows_process_snapshot_refreshes_creation_identity_without_subprocesses(self):
+        iterator = Mock(side_effect=[
+            [SimpleNamespace(info={"pid": 10, "ppid": 1, "create_time": 100.0})],
+            [SimpleNamespace(info={"pid": 10, "ppid": 2, "create_time": 200.0})],
+        ])
+        with patch.dict(sys.modules, {"psutil": SimpleNamespace(process_iter=iterator)}), patch(
+            "release_gate.subprocess.run", side_effect=AssertionError("snapshot spawned a process")
+        ):
+            self.assertEqual(windows_processes(), {10: {"pid": 10, "parent": 1, "created": 100.0}})
+            self.assertEqual(windows_processes(), {10: {"pid": 10, "parent": 2, "created": 200.0}})
+        self.assertEqual(iterator.cache_clear.call_count, 2)
+        self.assertEqual(iterator.call_args.args, (["pid", "ppid", "create_time"],))
+
+    def test_windows_process_snapshot_keeps_query_failures_visible(self):
+        for info in (
+            {"pid": 10, "ppid": None, "create_time": 100.0},
+            {"pid": 10, "ppid": 1, "create_time": None},
+        ):
+            iterator = Mock(return_value=[SimpleNamespace(info=info)])
+            with self.subTest(info=info), patch.dict(sys.modules, {"psutil": SimpleNamespace(process_iter=iterator)}):
+                with self.assertRaisesRegex(AssertionError, "query denied for PID 10"):
+                    windows_processes()
+        iterator = Mock(side_effect=OSError("snapshot failed"))
+        with patch.dict(sys.modules, {"psutil": SimpleNamespace(process_iter=iterator)}):
+            with self.assertRaisesRegex(OSError, "snapshot failed"):
+                windows_processes()
+
+    @unittest.skipUnless(os.name == "nt", "native Windows process snapshot")
+    def test_native_windows_snapshot_matches_current_process_without_shell(self):
+        with patch("release_gate.subprocess.run", side_effect=AssertionError("snapshot spawned a process")):
+            first = windows_processes()[os.getpid()]
+            second = windows_processes()[os.getpid()]
+        self.assertEqual(first, second)
+        self.assertEqual(first["parent"], os.getppid())
+        self.assertGreater(first["created"], 0)
+
     def test_completed_conpty_reader_releases_handles_without_cancelling_io(self):
         terminal = Terminal.__new__(Terminal)
         terminal.process = Mock(closed=False)

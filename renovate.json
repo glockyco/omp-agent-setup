@@ -54,7 +54,7 @@
       "description": "The OpenSpec dependency, the Nix npm lock and hashes, the generated workflow and hook pins and the adapters move together through the coordinated update in the README. A pull request that changes the dependency alone cannot pass."
     },
     {
-      "matchPackageNames": ["python", "pywinpty"],
+      "matchPackageNames": ["python", "pywinpty", "psutil"],
       "groupName": "native Python terminal tooling"
     },
     {
