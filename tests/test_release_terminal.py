@@ -348,6 +348,26 @@ class TerminalTests(unittest.TestCase):
         self.assertEqual(tree.remember.call_count, 2)
         sleep.assert_called_once_with(.25)
 
+    def test_windows_force_cleanup_waits_for_observed_exit_and_still_rejects_survivors(self):
+        for outcome in ("exits", "survives", "query"):
+            with self.subTest(outcome=outcome):
+                tree = OwnedTree.__new__(OwnedTree)
+                tree.remember = Mock()
+                tree.taskkill = Mock()
+                final = [] if outcome == "exits" else (
+                    AssertionError("query denied") if outcome == "query" else [123]
+                )
+                tree.survivors = Mock(side_effect=[[123], [123], [123], final])
+                with patch("release_gate.os.name", "nt"), patch(
+                    "release_gate.time.monotonic", side_effect=[0, 0, 1]
+                ), patch("release_gate.time.sleep") as sleep:
+                    if outcome == "exits":
+                        tree.stop(0)
+                    else:
+                        with self.assertRaisesRegex(AssertionError, "survived force termination|query denied"):
+                            tree.stop(0)
+                self.assertEqual([call.args for call in sleep.call_args_list], [(0,), (.05,)])
+
     def test_windows_already_exited_target_is_success_but_live_refusal_is_not(self):
         tree = OwnedTree.__new__(OwnedTree)
         tree.survivors = Mock(side_effect=[[123], []])

@@ -14,6 +14,8 @@ Use Windows-only psutil wheels for native process enumeration. This avoids imple
 
 Missing parent or creation identities fail the query. Other enumeration errors propagate. Silently dropping denied rows could mistake a surviving owned process for a completed cleanup.
 
+After a successful forced-termination request, poll creation-qualified survivors for up to one second before the existing final failure. Native snapshots can observe the interval between taskkill returning and the process exiting. The prior shell startup hid that interval. No surviving process or query failure is accepted.
+
 Keep the dependency exact and grouped with native Python terminal tooling for reviewed upgrades. No new runtime dependency enters the plugin.
 
 Parallelizing the existing gate would retain its repeated process startup cost and complicate fixture ownership. Caching installs would not address the measured installed-release bottleneck.

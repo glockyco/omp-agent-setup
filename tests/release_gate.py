@@ -195,8 +195,13 @@ class OwnedTree:
             self.remember()
             for pid in reversed(self.survivors()):
                 self.taskkill(pid, True)
-            if self.survivors():
-                raise AssertionError("owned Windows subprocess tree survived force termination")
+            # Successful taskkill requests can return before native exit is
+            # observable. Require disappearance, not just a successful request.
+            deadline = time.monotonic() + 1.0
+            while self.survivors():
+                if time.monotonic() >= deadline:
+                    raise AssertionError("owned Windows subprocess tree survived force termination")
+                time.sleep(.05)
         else:
             for sig in (signal.SIGTERM, signal.SIGKILL):
                 if reap_root is not None:
