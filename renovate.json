@@ -7,7 +7,6 @@
   "nix": {
     "enabled": false
   },
-  "automerge": false,
   "customManagers": [
     {
       "customType": "regex",
