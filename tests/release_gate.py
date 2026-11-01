@@ -106,20 +106,21 @@ def omp_binary():
 
 
 def windows_processes():
-    system = Path(os.environ["SystemRoot"]) / "System32"
-    script = (
-        "$ErrorActionPreference='Stop'; "
-        "@(Get-CimInstance Win32_Process | ForEach-Object { "
-        "[pscustomobject]@{pid=$_.ProcessId; parent=$_.ParentProcessId; "
-        "created=$_.CreationDate.ToUniversalTime().ToString('o')} }) | ConvertTo-Json -Compress"
-    )
-    result = subprocess.run(
-        [str(system / "WindowsPowerShell/v1.0/powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", script],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15, creationflags=subprocess.CREATE_NO_WINDOW,
-    )
-    if result.returncode:
-        raise AssertionError(f"owned process query failed: {result.stderr}")
-    return {int(row["pid"]): row for row in json.loads(result.stdout or "[]")}
+    # Native process snapshots avoid starting PowerShell for each ownership check.
+    import psutil
+
+    # process_iter caches Process objects, including creation times. Refresh them
+    # so PID reuse cannot inherit a previous snapshot's identity.
+    psutil.process_iter.cache_clear()
+    rows = {}
+    for process in psutil.process_iter(["pid", "ppid", "create_time"]):
+        info = process.info
+        if info["ppid"] is None or info["create_time"] is None:
+            raise AssertionError(f"owned process query denied for PID {info['pid']}")
+        rows[info["pid"]] = {
+            "pid": info["pid"], "parent": info["ppid"], "created": info["create_time"],
+        }
+    return rows
 
 
 class OwnedTree:
