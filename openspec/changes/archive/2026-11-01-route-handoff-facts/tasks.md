@@ -10,12 +10,12 @@
 
 - [x] 2.1 Change the Items section of the vault's `Conventions.md` to the same definition of the line.
 - [x] 2.2 Rewrite the Ancient Kingdoms Compendium note by hand: its line, its tasks and its Notes.
-- [ ] 2.3 Rewrite the other lines of more than 100 words under the new rule: ANITA, nix-config, The Bloodline Compendium, Security Incentivization, Workbench, PhD thesis and omp-agent-setup. Verify for each note that every fact of its old line is in the new line, a task, a `#waiting` task or the Notes, or is history or state that Git and Workbench keep.
+- [x] 2.3 Rewrite the other lines of more than 100 words under the new rule: ANITA, nix-config, The Bloodline Compendium, Security Incentivization, Workbench, PhD thesis and omp-agent-setup. Verify for each note that every fact of its old line is in the new line, a task, a `#waiting` task or the Notes, or is history or state that Git and Workbench keep.
 
 ## 3. Release
 
-- [ ] 3.1 Run `bun run check:local` and `openspec validate route-handoff-facts --strict`, and obtain the three native CI contexts and the OpenSpec context on the pull request.
-- [ ] 3.2 With explicit authorization, merge, tag the release and upgrade the Mac. Verify in a fresh OMP session that its system prompt carries the new Project handoff rule.
+- [x] 3.1 Run `bun run check:local` and `openspec validate route-handoff-facts --strict`, and obtain the three native CI contexts and the OpenSpec context on the pull request.
+- [x] 3.2 With explicit authorization, merge, tag the release and upgrade the Mac. Verify in a fresh OMP session that its system prompt carries the new Project handoff rule.
 
 ## Workflow follow-up
 

@@ -8,9 +8,9 @@
 
 ## 2. Release
 
-- [ ] 2.1 Raise the version to 0.10.0 in the three version fields and run `bun run ci`. Verify that the native gate passes.
-- [ ] 2.2 Obtain the CI contexts on all three hosts, merge and tag `v0.10.0`. Verify that the tag points at the merged commit.
-- [ ] 2.3 Upgrade the Mac after nix-config installs the official plugin. Verify in a fresh OMP session that `/plannotator-annotate` and `/plannotator-last` come from the official plugin.
+- [x] 2.1 Raise the version to 0.10.0 in the three version fields and run `bun run ci`. Verify that the native gate passes.
+- [x] 2.2 Obtain the CI contexts on all three hosts, merge and tag `v0.10.0`. Verify that the tag points at the merged commit.
+- [x] 2.3 Upgrade the Mac after nix-config installs the official plugin. Verify in a fresh OMP session that `/plannotator-annotate` and `/plannotator-last` come from the official plugin.
 
 ## Workflow follow-up
 
