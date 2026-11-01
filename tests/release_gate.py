@@ -174,6 +174,15 @@ class OwnedTree:
                 return
             if not alive and ("not found" in lowered or "no running instance" in lowered):
                 return
+            if all(reason.strip().lower().rstrip(".") == "the operation attempted is not supported"
+                   for reason in reasons) and "denied" not in lowered:
+                # Windows can refuse termination while the owned process exits.
+                deadline = time.monotonic() + 1.0
+                while alive and time.monotonic() < deadline:
+                    time.sleep(.05)
+                    alive = pid in self.survivors()
+                if not alive:
+                    return
             raise AssertionError(f"owned tree termination failed: {output}")
 
     def stop(self, grace=1.0, reap_root=None):
