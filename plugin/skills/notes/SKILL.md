@@ -17,7 +17,7 @@ The `notes` vault holds work and personal notes. `Conventions.md` in the vault d
 
 ## Write
 
-- The documentation rule does not cover vault notes. Keep dates, history and who decided what.
+- The documentation rule does not cover vault notes, so Notes sections and daily notes keep dates, history and who decided what. A `Resume here:` line holds only the current state, as the project handoff rule describes.
 - Fix wrong or outdated notes in place. When a decision is reversed, record what changed and when.
 
 ## Commit
