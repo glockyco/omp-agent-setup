@@ -9,4 +9,4 @@
 ## 2. Acceptance
 
 - [x] 2.1 Prove the throwaway overlong case passes existing delta checks but fails the new gate, and run current live callers through it.
-- [ ] 2.2 Run the complete native gate and obtain all required CI checks without a plugin release.
+- [x] 2.2 Run the complete native gate and obtain all required CI checks without a plugin release.
