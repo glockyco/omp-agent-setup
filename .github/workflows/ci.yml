@@ -13,6 +13,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.classify.outputs.native }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Test complete-diff classification
+        run: python3 -m unittest discover -s tests -p test_ci_paths.py
+      - name: Classify the complete PR diff
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/classify_ci_paths.py
+
   openspec:
     uses: ./.github/workflows/openspec.yml
   nix-openspec:
@@ -26,13 +44,21 @@ jobs:
           .#checks.x86_64-linux.openspec-version
           .#checks.x86_64-linux.openspec-adapters
           .#checks.x86_64-linux.openspec-contracts
-  check:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-15, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
+  linux:
+    name: check (ubuntu-latest)
+    needs: changes
+    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.native != 'false')
+    runs-on: ubuntu-latest
+    # Static jobs retain each required context when documentation skips native CI.
+    steps: &native-steps
+      - name: Require successful native classification
+        shell: bash
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          NATIVE_REQUIRED: ${{ needs.changes.outputs.native }}
+        run: |
+          test "$CHANGES_RESULT" = success
+          test "$NATIVE_REQUIRED" = true
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The release-version check compares the payload with the base revision.
@@ -66,3 +92,17 @@ jobs:
       - name: Remove isolated official binary
         if: always() && steps.omp_setup.outcome == 'success'
         run: bun run setup:release-omp --cleanup
+
+  macos:
+    name: check (macos-15)
+    needs: changes
+    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.native != 'false')
+    runs-on: macos-15
+    steps: *native-steps
+
+  windows:
+    name: check (windows-latest)
+    needs: changes
+    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.native != 'false')
+    runs-on: windows-latest
+    steps: *native-steps
