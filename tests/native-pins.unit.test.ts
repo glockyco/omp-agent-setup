@@ -110,7 +110,12 @@ test("reusable gate exposes only optional root and native CI selects all require
 			};
 		};
 		permissions: { contents: string };
-		jobs: { validate: { "runs-on": string } };
+		jobs: {
+			validate: {
+				"runs-on": string;
+				steps: Array<{ run?: string; env?: Record<string, string> }>;
+			};
+		};
 	};
 	expect(shared.on.workflow_call.inputs).toEqual({
 		"openspec-root": {
@@ -122,6 +127,10 @@ test("reusable gate exposes only optional root and native CI selects all require
 	});
 	expect(shared.permissions.contents).toBe("read");
 	expect(shared.jobs.validate["runs-on"]).toBe("ubuntu-latest");
+	const artifactSteps = shared.jobs.validate.steps.filter(step => step.env?.OPENSPEC_CLI);
+	expect(artifactSteps).toHaveLength(2);
+	expect(artifactSteps[1]?.run).toBe(artifactSteps[0]?.run);
+	expect(artifactSteps[1]?.env?.OPENSPEC_PROSPECTIVE).toBe("1");
 	const matrix = Bun.YAML.parse(
 		readFileSync(join(repository, ".github/workflows/ci.yml"), "utf8"),
 	) as {
