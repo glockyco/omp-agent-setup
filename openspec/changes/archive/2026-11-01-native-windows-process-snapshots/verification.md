@@ -55,3 +55,7 @@ All three candidate runs passed the same 25 installed-release scenarios. The can
 ## Local verification
 
 Toolchain, lint, types, dead code, release-version, all 212 Bun tests with coverage, adapters, strict active/archive/prospective OpenSpec and audit passed. The first installed-release launch stopped because a locally selected prerelease Python did not match the gate. After selecting stable Python, 24 of 25 release scenarios passed, including installed-cache Bun/Python behavior. The full-LSP scenario timed out waiting for markdown-oxide while the official OMP terminal displayed setup. The complete native gates passed on every CI platform without changing that assertion or deadline.
+
+## Integrated cleanup race
+
+The first archived/rebased PR run [41318686662](https://github.com/glockyco/omp-agent-setup/actions/runs/41318686662) failed on Windows because a process remained observable immediately after a successful force request. The native snapshots removed the former shell startup delay. Cleanup now waits up to one second for actual disappearance and retains the same survivor failure. A deterministic regression covers delayed exit, a surviving process and a query failure. The three timing samples above precede this bounded completion-wait correction.
