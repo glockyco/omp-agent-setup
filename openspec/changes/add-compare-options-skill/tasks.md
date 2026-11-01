@@ -6,6 +6,8 @@
 - [x] 1.2 Give a fresh agent only the skill and the task of wording a known-issue entry for a game bug that helps the player. Verify that its plan gathers references, drafts options that differ in structure together with the current text, checks each option against the project's written rules and approved wording, marks a recommendation with a reason that holds, plans a Plannotator review, a chat message that names the decision and a case in the notes vault, and ships nothing. Revise the skill where the plan misses one of these.
 - [x] 1.3 Audit the skill and the rule against the feedback and cases of 2026-10-26 to 2026-10-31 and against the signs of AI writing, revise them and the design and spec where they miss a lesson, and repeat 1.2 on the revision with the checks the design's verification lists. Verify that the revision passes those checks and that the change validates.
 
+- [x] 1.4 Have the skill ask a question that comes up while applying an answer as a new comparison in Plannotator, not in chat, in the skill, the design and the spec, and raise the version to the next patch release. Verify that the change validates and that the plugin-load and release-version checks pass.
+
 ## 2. Plain prose
 
 - [x] 2.1 Change the last line of `plugin/rules/plain-prose.md` to "Factual sentences without filler or hedging." Verify that `tests/plugin-load.unit.test.ts` passes and that the rule file holds no other change.

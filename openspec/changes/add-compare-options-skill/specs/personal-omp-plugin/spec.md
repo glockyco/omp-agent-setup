@@ -112,3 +112,12 @@ The plugin SHALL ship an always-applied plain-prose rule, separate from the pers
 - **WHEN** OMP starts with the manager-installed personal plugin
 - **THEN** the system prompt carries the plain-prose rule beside the personal policy
 - **AND** the personal policy text is unchanged
+
+### Requirement: Follow-up questions in Plannotator
+
+The `compare-options` skill SHALL have the agent ask a question that comes up while it applies an answer, such as a fact that changes the approved option, as a new comparison in Plannotator instead of in chat.
+
+#### Scenario: A fact changes the approved option
+
+- **WHEN** a lab run made while applying an answer shows that the approved option's claim does not hold
+- **THEN** the skill directs the agent to open a new comparison in Plannotator before the change ships
