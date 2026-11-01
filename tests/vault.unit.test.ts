@@ -30,7 +30,12 @@ const ITEMS = [
 		id: "11111111-aaaa-4bbb-8ccc-000000000001",
 		name: "ANITA vLLM external",
 		notes: 'multi\nline note "quoted" $HOME',
-		login: { username: "anita-service", password: PASSWORD, totp: "otpauth://totp/x?secret=ABC" },
+		login: {
+			username: "anita-service",
+			password: PASSWORD,
+			totp: "otpauth://totp/x?secret=ABC",
+			uris: [{ uri: "https://vllm.example.org" }],
+		},
 		fields: [{ name: "Api Token", value: "tok_canary_9f8e7d" }],
 	},
 	{
@@ -356,16 +361,25 @@ describe("delivery", () => {
 		return harness;
 	}
 
-	test("search lists names, ids and fields but no values", async () => {
+	test("search lists names, ids, usernames, URIs and fields but no secrets", async () => {
 		const { call } = await unlocked();
 		const result = await call(
 			{ action: "search", vault: "scch", query: "anita" },
 			scriptedContext([]).ctx,
 		);
 		expect(result).toContain(ITEMS[0]?.id ?? "missing id");
+		expect(result).toContain("username anita-service, uri https://vllm.example.org");
 		expect(result).toContain("username, password, totp, notes, Api Token");
-		for (const secret of [PASSWORD, "anita-service", "tok_canary_9f8e7d", "multi"])
+		for (const secret of [PASSWORD, "tok_canary_9f8e7d", "multi", "secret=ABC"])
 			expect(result).not.toContain(secret);
+	});
+
+	test("a delivered username stays readable", async () => {
+		const { call, hook } = await unlocked();
+		await call({ ...deliver, field: "username" }, scriptedContext(["Allow once"]).ctx);
+		expect(
+			hook("tool_result")({ content: [{ type: "text", text: "anita-service" }], details: {} }),
+		).toBeUndefined();
 	});
 
 	test("writes each format exactly and returns only the path and label", async () => {
