@@ -2,7 +2,7 @@
 
 ### Requirement: Plain prose rule
 
-The plugin SHALL ship an always-applied plain-prose rule, separate from the personal policy, for the prose an agent writes in documentation, comments, docstrings, notebooks, commit messages and chat. The rule SHALL ask for what the reader needs to know or do, in the reader's words, and for factual sentences without filler or hedging. It SHALL exclude semicolons between clauses, typographic quotes and apostrophes, em and en dashes, ellipsis characters, arrows, section signs, bold bullet lead-ins and slogans.
+The plugin SHALL ship an always-applied plain-prose rule, separate from the personal policy, for the prose an agent writes in documentation, comments, docstrings, notebooks, commit messages and chat. It SHALL ask for what the reader needs, in the reader's words, without filler or hedging, and SHALL exclude semicolons between clauses, typographic quotes, em and en dashes, ellipses, arrows, section signs, bold lead-ins and slogans.
 
 #### Scenario: Load the rule
 
