@@ -13,7 +13,7 @@ interface Manager {
 const renovate = JSON.parse(readFileSync(join(repository, "renovate.json"), "utf8")) as {
 	customManagers: Manager[];
 	nix: { enabled: boolean };
-	automerge: boolean;
+	automerge?: boolean;
 	packageRules: { matchPackageNames?: string[]; groupName?: string; enabled?: boolean }[];
 };
 function extract(
@@ -54,7 +54,7 @@ test("Renovate extracts native pins under their actual upstream identities and k
 		{ dependency: "python", datasource: "python-version", value: "3.13" },
 	]);
 	expect(renovate.nix.enabled).toBe(false);
-	expect(renovate.automerge).toBe(false);
+	expect(renovate.automerge).toBeUndefined();
 	expect(
 		renovate.packageRules.find(rule => rule.matchPackageNames?.includes("pywinpty"))?.groupName,
 	).toBe("native Python terminal tooling");
@@ -74,7 +74,6 @@ test("OMP retains JSON extraction identity but requires manual whole-pin updates
 		rule.matchPackageNames?.includes("can1357/oh-my-pi"),
 	);
 	expect(ompRule?.enabled).toBe(false);
-	expect(renovate.automerge).toBe(false);
 	const scripts = JSON.parse(readFileSync(join(repository, "package.json"), "utf8")).scripts;
 	expect(scripts["sync:release-omp"]).toBe("bun scripts/sync-release-omp.ts");
 });
