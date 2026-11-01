@@ -206,7 +206,7 @@ The release gate SHALL validate the catalog and demonstrate install, complete ru
 #### Scenario: Observe the complete installed surface
 
 - **WHEN** the gate verifies a candidate release from its installed cache
-- **THEN** it observes both extension factories, the commit tool, all three annotation commands, every skill and support asset, always-applied policy, each workflow command exactly once and every LSP override
+- **THEN** it observes every extension factory, the commit and vault tools, every skill and support asset, always-applied policy, each workflow command exactly once and every LSP override
 - **AND** a list or doctor result alone does not satisfy runtime verification
 - **AND** deterministic executable probes prove configuration selection, not real language-server protocol or native-browser acceptance
 - **AND** no platform skips a positive or negative capability/upgrade control because its Unix process or terminal fixture is unavailable
@@ -290,7 +290,7 @@ The release gate SHALL validate the catalog and demonstrate install, complete ru
 
 ### Requirement: Plain prose rule
 
-The plugin SHALL ship an always-applied plain-prose rule, separate from the personal policy, for the prose an agent writes in documentation, comments, docstrings, notebooks, commit messages and chat. The rule SHALL ask for short factual sentences and SHALL exclude semicolons between clauses, typographic quotes and apostrophes, em and en dashes, ellipsis characters, arrows, section signs, bold bullet lead-ins and slogans.
+The plugin SHALL ship an always-applied plain-prose rule, separate from the personal policy, for the prose an agent writes in documentation, comments, docstrings, notebooks, commit messages and chat. The rule SHALL ask for factual sentences without filler or hedging and SHALL exclude semicolons between clauses, typographic quotes and apostrophes, em and en dashes, ellipsis characters, arrows, section signs, bold bullet lead-ins and slogans.
 
 #### Scenario: Load the rule
 
@@ -360,7 +360,7 @@ Repository development and Git hooks SHALL use the pinned native toolchain on Li
 - **THEN** its native child receives the correctly sanitized environment and runs frozen installation plus the fast local gate, without network audit or installed-release download/terminal checks
 - **AND** sanitization does not depend on POSIX shell substitution or mutate the parent environment
 - **AND** every PR still runs the complete gate, including audit and installed-release checks, on all three CI hosts
-- **AND** the local unit selector excludes real OpenSpec/commitlint/lefthook/Git command fixtures, compiled executable launchers and actual annotation process lifecycle, while preserving their complete CI and installed-cache coverage
+- **AND** the local unit selector excludes real OpenSpec/commitlint/lefthook/Git command fixtures and compiled executable launchers, while preserving their complete CI and installed-cache coverage
 - **AND** real external-toolchain and process-lifecycle integration tests retain explicit 30 s case budgets
 
 #### Scenario: A loaded native workstation pushes a change
@@ -385,14 +385,14 @@ The plugin SHALL ship a `notes` skill and a `weekly-review` skill for the person
 
 ### Requirement: Project handoff rule
 
-The plugin SHALL ship an always-applied handoff rule for papers, projects, supervisions, talks and topics in the notes vault. Agents SHALL link work through Workbench or find the matching note by repository URL, read its handoff before work and update it before finishing. Dated steps SHALL update dated tasks. Vault changes and commits SHALL follow the notes skill without duplicating its instructions. Agents SHALL skip handoffs when no matching note exists.
+The plugin SHALL ship an always-applied handoff rule for papers, projects, supervisions, talks and topics in the notes vault. Agents SHALL link work through Workbench or find the matching note by repository URL, and read the note before work. Vault changes and commits SHALL follow the notes skill without duplicating its instructions.
 
 #### Scenario: Start a repository session
 
 - **WHEN** OMP starts with the manager-installed personal plugin in a repository without loading the notes skill
 - **THEN** its system prompt contains the Project handoff rule
-- **AND** the rule directs the agent to link the session through the `workbench` tool, or to search the notes vault for the repository URL without the tool, and to read the matching note's handoff before work
-- **AND** Workbench returns the item's note and `Resume here:` line
+- **AND** the rule directs the agent to link the session through the `workbench` tool, or to search the notes vault for the repository URL without the tool, and to read the matching note before work
+- **AND** Workbench returns the item's note with its `Resume here:` line, steps, waiting follow-ups and repository work
 - **AND** a session started in the item's repository uses its existing link
 - **AND** without the tool, the matching note is found by its `links` containing the repository URL
 
@@ -401,11 +401,26 @@ The plugin SHALL ship an always-applied handoff rule for papers, projects, super
 - **WHEN** a session's work moves from one item to another
 - **THEN** the rule directs the agent to link the session to the other item with the `workbench` tool
 
+### Requirement: Handoff line and the places of its facts
+
+Before finishing, agents SHALL write a new `Resume here:` line that says where each piece of work in progress stands, in a sentence or two each, without finished work, work not started yet, or steps, decisions, commits and checks that the note, Git or Workbench already show. Agents SHALL give every other fact of the old line its place in a change, an issue, a task, a `#waiting` task or the Notes, or leave it out as history.
+
 #### Scenario: Finish work with a matching note
 
 - **WHEN** a session finishes work on a paper, project, supervision, talk or topic with a matching vault note
-- **THEN** the rule directs the agent to replace the handoff with the current state and next step, update dated tasks for dated steps, and follow the notes skill to change and commit the vault
-- **AND** the rewritten handoff lets a session with no other context continue
+- **THEN** the rule directs the agent to write a new `Resume here:` line that says where each piece of work in progress stands, in a sentence or two each, without finished work, work not started yet, or steps, decisions, commits and checks that the note, Git or Workbench already show
+- **AND** to give every fact of the old line that the new line leaves out its place in a change, an issue, a task, a `#waiting` task or the Notes, or to leave it out when it is history or Git, the repository or Workbench already show it
+- **AND** to follow the notes skill to change and commit the vault
+
+#### Scenario: The old line carries another session's work
+
+- **WHEN** the old line holds a constraint and steps that another session wrote, such as content a developer asked to keep unpublished
+- **THEN** the rule directs the agent to place them as it places its own facts
+- **AND** the new line mentions that work only where it is still in progress
+
+### Requirement: Handoff without a matching note
+
+Agents SHALL skip the handoff when no vault note matches the work.
 
 #### Scenario: Work without a matching note
 
@@ -448,3 +463,123 @@ The plugin SHALL keep vault profiles, approvals, cached unlock keys, `bw` data a
 - **THEN** it verifies vault tool registration from the installed cache without a real vault or provider credential
 - **AND** every vault state path stays within the redirected disposable home
 - **AND** absence or damage of the vault extension fails the gate
+
+### Requirement: Compare options skill
+
+The plugin SHALL ship a `compare-options` skill for deciding text that players see and visible design choices in game projects. The skill SHALL have the agent draft two to four options that differ in structure, drawn from how strong references handle the same situation, and ask which one to ship beside the current version and a way to reject all of them, with one option marked as recommended and its reason. Options SHALL state game behaviour only as observed in the running game.
+
+#### Scenario: Discover the skill
+
+- **WHEN** OMP starts with the manager-installed personal plugin in any working directory
+- **THEN** the `compare-options` skill is discoverable
+
+#### Scenario: Word text inside other work
+
+- **WHEN** an agent writes the player-facing text of a known game issue while fixing a data error
+- **THEN** the skill directs it to present options with a marked recommendation in Plannotator before the text ships
+
+### Requirement: Checked recommendations
+
+The `compare-options` skill SHALL have the agent check every option against the project's written reader-text rules and the wording earlier answers approved, say in the comparison which rule or approved wording an option breaks and which one decides between options, and recommend the option it judges best with a reason that is true of the option.
+
+#### Scenario: Recommend a heading
+
+- **WHEN** an agent recommends one of several headings for a known issue and earlier answers approved headings of one pattern
+- **THEN** the comparison says which headings break that pattern
+
+### Requirement: Elements the reader needs
+
+The `compare-options` skill SHALL have the agent ask of every element and sentence in the options whether the reader needs it on that page and what they can do with it, and offer an option without an element the reader may not need.
+
+#### Scenario: Question an added element
+
+- **WHEN** a comparison covers an element that an agent or a model reviewer added, such as a line in a link preview
+- **THEN** the options include leaving it out
+
+### Requirement: Open decisions named in chat
+
+The `compare-options` skill SHALL have the agent name the open decision, its options and the recommendation in chat beside the comparison's link.
+
+#### Scenario: Wait for an answer
+
+- **WHEN** a comparison is open for a person
+- **THEN** the agent's message names the decision, the options and the recommendation besides the link
+
+### Requirement: References written by people
+
+The `compare-options` skill SHALL have the agent model wording on text that people wrote, such as large game wikis, look at how the game itself shows a thing for a visible design choice, take only structure from other game projects whose text agents wrote, and show only references that answer the decision's question.
+
+#### Scenario: Draft a page another project has
+
+- **WHEN** an agent drafts a site's About page and another game project in the vault has one
+- **THEN** the skill directs it to take that page's structure and to model the wording on pages that people wrote
+
+### Requirement: Options shown in place
+
+The `compare-options` skill SHALL have the agent keep a comparison to what its decision needs, show each option in place with screenshots of the real page at the same widths, and look at every screenshot for layout defects before showing it.
+
+#### Scenario: Stray line break
+
+- **WHEN** a screenshot shows a line that wraps although the layout has room for it
+- **THEN** the skill directs the agent to fix or point out the break before it opens the comparison
+
+### Requirement: Comparison decisions in the notes vault
+
+The `compare-options` skill SHALL have the agent record each decision under the Notes of the vault item it belongs to, as the rule or wording that now holds, and SHALL change an existing record on the same subject instead of adding another. A record SHALL hold one exact example, where the decision applies, the person's words when they say more than the choice, the date and the comparison's file, and SHALL leave out the options, how the comparison went and the agent's inferences.
+
+#### Scenario: Record a decision
+
+- **WHEN** a person answers a comparison
+- **THEN** the skill directs the agent to record the rule or wording that now holds with one exact example, where it applies, the person's words when they say more than the choice, the date and the comparison's file under the Notes of the vault item the decision belongs to
+- **AND** to leave out the options, how the comparison went and its own inferences
+
+#### Scenario: An answer changes an earlier decision
+
+- **WHEN** an answer changes a subject that an earlier record covers
+- **THEN** the skill directs the agent to change that record and say what changed and when
+
+### Requirement: Earlier decisions as evidence
+
+The `compare-options` skill SHALL have the agent read earlier decisions from any project before drafting each decision. Decisions, specs and agent-written designs SHALL count as evidence that can be wrong or out of date.
+
+#### Scenario: Prepare the next decision
+
+- **WHEN** an agent prepares a new comparison
+- **THEN** the skill directs it to search the vault for earlier decisions, also from other projects, and to say what transfers and what does not
+
+### Requirement: Rounds after a rejection
+
+The `compare-options` skill SHALL have the agent, when an answer rejects its options, change what the answer names, look for the same problem elsewhere on the page, and keep what earlier answers approved unless the new answer changes it.
+
+#### Scenario: One sentence rejected
+
+- **WHEN** an answer calls one sentence of the recommended option irrelevant
+- **THEN** the next round leaves that sentence out, asks the same of the page's other sentences and keeps the parts that earlier answers approved
+
+### Requirement: Subagents return options
+
+A subagent whose work includes text players see or a visible design choice SHALL receive the path of the `compare-options` skill and SHALL return that text as options without committing, pushing or deploying it.
+
+#### Scenario: Delegate work that includes player-facing text
+
+- **WHEN** an agent hands a subagent work that includes player-facing text
+- **THEN** the skill directs it to give the subagent the skill's path
+- **AND** the subagent returns the text as options and does not commit, push or deploy it
+
+### Requirement: Compare options rule
+
+The plugin SHALL ship an always-applied rule that sends text players see and visible design choices in game projects through the `compare-options` skill before they ship, including text written inside other work or by subagents.
+
+#### Scenario: Load the rule
+
+- **WHEN** OMP starts a session or a subagent with the manager-installed personal plugin in any working directory
+- **THEN** the system prompt carries the compare-options rule
+
+### Requirement: Follow-up questions in Plannotator
+
+The `compare-options` skill SHALL have the agent ask a question that comes up while it applies an answer, such as a fact that changes the approved option, as a new comparison in Plannotator instead of in chat.
+
+#### Scenario: A fact changes the approved option
+
+- **WHEN** a lab run made while applying an answer shows that the approved option's claim does not hold
+- **THEN** the skill directs the agent to open a new comparison in Plannotator before the change ships
