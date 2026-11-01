@@ -124,6 +124,8 @@ bun run ci
 
 [package.json](package.json) defines the individual checks. [openspec/specs](openspec/specs) holds the behavior contracts. Documentation-only changes do not need a version bump. Runtime changes follow the release procedure in AGENTS.md.
 
+Before requesting review, inspect the pull request's individual CI checks. The [path-selection contract](openspec/specs/repository/ci-path-classification/spec.md) explains when native gates run or are skipped. A skipped native gate has no runner log to inspect. Shared OpenSpec validation must still pass, so fix artifact errors rather than treating skipped native work as complete validation. Follow [AGENTS.md](AGENTS.md#checks) for local checks.
+
 Select the OpenSpec CLI only through the exact development dependency in [package.json](package.json). Renovate leaves it alone, because a change to the manifest alone cannot pass. After updating it, install the updated dependencies and run `bun run sync:openspec-adapters` to refresh the reusable workflow, both offline-hook snippets above, and the generated adapters together. Refresh the independent [Nix npm lock](nix/openspec/package-lock.json) and its fixed hashes for the same selection. The native toolchain and adapter checks reject stale generated mirrors, and the native toolchain check also rejects a Nix lock with a different root version.
 
 ## License
