@@ -2,7 +2,7 @@
 
 ## Context
 
-The release gate already owns descendants by PID and creation time. Every Windows snapshot launches PowerShell and enumerates CIM processes, including repeated queries around completed CLI commands. Three recent successful Windows jobs took 493, 466 and 407 seconds. Their installed-release checks took 399.325, 373.902 and 305.019 seconds. Source runs are recorded in verification.md.
+The release gate already owns descendants by PID and creation time. Every Windows snapshot launches PowerShell and enumerates CIM processes, including repeated queries around completed CLI commands. The measured baseline and source runs are in verification.md.
 
 ## Goals / Non-Goals
 

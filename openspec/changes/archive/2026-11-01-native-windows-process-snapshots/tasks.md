@@ -7,6 +7,6 @@
 
 ## 2. Verification and publication
 
-- [ ] 2.1 Run the complete native gate and obtain green Linux, macOS, Windows and OpenSpec CI checks.
-- [ ] 2.2 Record per-part Windows baseline timings and at least three successful before and after Windows job durations.
-- [ ] 2.3 Archive this change in the reviewed PR, merge it after green checks and observe main CI.
+- [x] 2.1 Run the complete native gate and obtain green Linux, macOS, Windows and OpenSpec CI checks.
+- [x] 2.2 Record per-part Windows baseline timings and at least three successful before and after Windows job durations.
+- [x] 2.3 Synchronize the accepted ownership contract and archive the verified change inside its implementation PR.
