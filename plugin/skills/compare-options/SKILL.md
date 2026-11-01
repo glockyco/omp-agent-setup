@@ -1,6 +1,6 @@
 ---
 name: compare-options
-description: Use before shipping text that players see or a visible design choice in a game project, including text written inside other work, such as a known issue, a label or the reason a value is unknown.
+description: Use before shipping text that players see or a visible design choice in a game project, including posts about it, such as Ko-fi gallery items, and text written inside other work, such as a known issue, a label or the reason a value is unknown.
 ---
 
 # Compare options

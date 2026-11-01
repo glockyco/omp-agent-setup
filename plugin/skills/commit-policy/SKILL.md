@@ -37,7 +37,7 @@ type[(scope)]!: imperative summary
 
 The repository's hooks and CI define its permitted types, scopes, generated-file rules, and release policy. Do not repeat them here.
 
-Every commit needs a body that explains **why** the change exists: the failure, constraint, invariant, or need behind it. Do not just list edited files or restate the subject.
+Every commit needs a body that explains **why** the change exists: the failure, constraint, invariant, or need behind it. Do not just list edited files or restate the subject. Name the work a commit does, not its task number in a plan, because task numbers repeat across changes and plans get renumbered.
 
 Weak body:
 
