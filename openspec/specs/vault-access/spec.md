@@ -7,13 +7,18 @@ Give agents secrets from Bitwarden vaults through private files, with each entry
 
 ### Requirement: Value-free discovery and delivery
 
-The `vault` tool SHALL search entries and deliver field values without placing a value in a tool argument or tool result. Search SHALL return entry names, entry ids and available field names only. Delivery SHALL write the value to a new file under `~/.omp/vault/files/<vault>/` and return the file's path.
+The `vault` tool SHALL search entries and deliver field values without placing a secret value in a tool argument or tool result. Search SHALL return entry names, entry ids, usernames, URIs and available field names, and no other field value. Delivery SHALL write the value to a new file under `~/.omp/vault/files/<vault>/` and return the file's path.
 
 #### Scenario: Search entries
 
 - **WHEN** the agent searches an unlocked vault
-- **THEN** the result lists matching entry names, ids and field names
-- **AND** it contains no field value
+- **THEN** the result lists matching entry names, ids, usernames, URIs and field names
+- **AND** it contains no password, TOTP secret, note or custom field value
+
+#### Scenario: Tell entries with the same name apart
+
+- **WHEN** two entries share a name, such as `github.com`
+- **THEN** the search result shows each entry's username
 
 #### Scenario: Deliver a field
 
@@ -24,17 +29,22 @@ The `vault` tool SHALL search entries and deliver field values without placing a
 
 ### Requirement: Redaction of delivered values
 
-The extension SHALL replace every delivered value of at least six characters with the label `[vault:<vault>/<entry>/<field>]` in tool results, in the context sent to the model and in the final provider payload. It SHALL block a tool call whose arguments contain a delivered value. The set of delivered values SHALL be shared by all sessions in the OMP process and SHALL be reloaded from existing delivery files at session start.
+The extension SHALL replace every delivered value of at least six characters, except usernames, with the label `[vault:<vault>/<entry>/<field>]` in tool results, in the context sent to the model and in the final provider payload. It SHALL block a tool call whose arguments contain a redacted value. The set of redacted values SHALL be shared by all sessions in the OMP process and SHALL be reloaded from existing delivery files at session start.
 
 #### Scenario: A command prints a delivered value
 
-- **WHEN** a tool result contains a delivered value
+- **WHEN** a tool result contains a delivered password
 - **THEN** the saved result and the next provider request contain the label instead
+
+#### Scenario: A delivered username appears in output
+
+- **WHEN** a tool result or a message contains a delivered username
+- **THEN** it stays readable
 
 #### Scenario: Resume later the same day
 
 - **WHEN** a new OMP process starts while delivery files from earlier exist
-- **THEN** the values in those files are redacted again without a vault unlock
+- **THEN** the secret values in those files are redacted again without a vault unlock
 
 ### Requirement: Private login and unlock
 
