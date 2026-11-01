@@ -59,19 +59,29 @@ The `compare-options` skill SHALL have the agent keep a comparison to what its d
 - **WHEN** a screenshot shows a line that wraps although the layout has room for it
 - **THEN** the skill directs the agent to fix or point out the break before it opens the comparison
 
-### Requirement: Comparison cases in the notes vault
+### Requirement: Comparison decisions in the notes vault
 
-The `compare-options` skill SHALL have the agent record each decision as a case in the notes of the vault item the decision belongs to, and read earlier cases from any project before drafting each decision. Cases, specs and agent-written designs SHALL count as evidence that can be wrong or out of date, and what the agent infers from an answer SHALL stay labelled as inferred.
+The `compare-options` skill SHALL have the agent record each decision under the Notes of the vault item it belongs to, as the rule or wording that now holds, and SHALL change an existing record on the same subject instead of adding another. A record SHALL hold one exact example, where the decision applies, the person's words when they say more than the choice, the date and the comparison's file, and SHALL leave out the options, how the comparison went and the agent's inferences.
 
 #### Scenario: Record a decision
 
 - **WHEN** a person answers a comparison
-- **THEN** the skill directs the agent to record the question, the options with a link to the comparison, the answer verbatim, the outcome and the date in the notes of the vault item the decision belongs to
+- **THEN** the skill directs the agent to record the rule or wording that now holds with one exact example, where it applies, the person's words when they say more than the choice, the date and the comparison's file under the Notes of the vault item the decision belongs to
+- **AND** to leave out the options, how the comparison went and its own inferences
+
+#### Scenario: An answer changes an earlier decision
+
+- **WHEN** an answer changes a subject that an earlier record covers
+- **THEN** the skill directs the agent to change that record and say what changed and when
+
+### Requirement: Earlier decisions as evidence
+
+The `compare-options` skill SHALL have the agent read earlier decisions from any project before drafting each decision. Decisions, specs and agent-written designs SHALL count as evidence that can be wrong or out of date.
 
 #### Scenario: Prepare the next decision
 
 - **WHEN** an agent prepares a new comparison
-- **THEN** the skill directs it to search the vault for earlier cases, also from other projects, and to say what transfers and what does not
+- **THEN** the skill directs it to search the vault for earlier decisions, also from other projects, and to say what transfers and what does not
 
 ### Requirement: Rounds after a rejection
 
@@ -101,6 +111,15 @@ The plugin SHALL ship an always-applied rule that sends text players see and vis
 - **WHEN** OMP starts a session or a subagent with the manager-installed personal plugin in any working directory
 - **THEN** the system prompt carries the compare-options rule
 
+### Requirement: Follow-up questions in Plannotator
+
+The `compare-options` skill SHALL have the agent ask a question that comes up while it applies an answer, such as a fact that changes the approved option, as a new comparison in Plannotator instead of in chat.
+
+#### Scenario: A fact changes the approved option
+
+- **WHEN** a lab run made while applying an answer shows that the approved option's claim does not hold
+- **THEN** the skill directs the agent to open a new comparison in Plannotator before the change ships
+
 ## MODIFIED Requirements
 
 ### Requirement: Plain prose rule
@@ -112,12 +131,3 @@ The plugin SHALL ship an always-applied plain-prose rule, separate from the pers
 - **WHEN** OMP starts with the manager-installed personal plugin
 - **THEN** the system prompt carries the plain-prose rule beside the personal policy
 - **AND** the personal policy text is unchanged
-
-### Requirement: Follow-up questions in Plannotator
-
-The `compare-options` skill SHALL have the agent ask a question that comes up while it applies an answer, such as a fact that changes the approved option, as a new comparison in Plannotator instead of in chat.
-
-#### Scenario: A fact changes the approved option
-
-- **WHEN** a lab run made while applying an answer shows that the approved option's claim does not hold
-- **THEN** the skill directs the agent to open a new comparison in Plannotator before the change ships

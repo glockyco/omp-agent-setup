@@ -7,6 +7,7 @@
 - [x] 1.3 Audit the skill and the rule against the feedback and cases of 2026-10-26 to 2026-10-31 and against the signs of AI writing, revise them and the design and spec where they miss a lesson, and repeat 1.2 on the revision with the checks the design's verification lists. Verify that the revision passes those checks and that the change validates.
 
 - [x] 1.4 Have the skill ask a question that comes up while applying an answer as a new comparison in Plannotator, not in chat, in the skill, the design and the spec, and raise the version to the next patch release. Verify that the change validates and that the plugin-load and release-version checks pass.
+- [x] 1.5 Have the skill record each decision as the rule or wording that now holds, one record per subject that a later answer changes in place, without the options, how the comparison went or the agent's inferences, in the skill, the design and the spec, and raise the version to the next patch release. Verify that the change validates and that the plugin-load and release-version checks pass.
 
 ## 2. Plain prose
 
