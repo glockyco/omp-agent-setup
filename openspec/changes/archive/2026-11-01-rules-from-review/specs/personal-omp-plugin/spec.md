@@ -36,9 +36,9 @@ The plugin SHALL ship an always-applied rule that sends text players see and vis
 
 ### Requirement: Short personal policy
 
-The always-applied policy SHALL contain only personal deviations: host-native interface verification, regular atomic commit checkpoints with task-owned staging and no implicit push, checks after a push, questions in Plannotator, structured commit transport, causal commit bodies, and durable storage for work that should outlive a session. It SHALL NOT route writing tasks to Simplified Technical English.
+The always-applied policy SHALL contain only personal deviations: host-native interface verification, atomic commit checkpoints with task-owned staging, no implicit push, checks after a push, questions in Plannotator, structured commit transport, causal commit bodies, and durable storage for lasting work. It SHALL NOT route writing tasks to Simplified Technical English.
 
-The policy SHALL keep detailed commit instructions in their skill instead of duplicating them globally.
+Detailed commit instructions SHALL stay in their skill.
 
 #### Scenario: Read global policy
 
