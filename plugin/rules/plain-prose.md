@@ -1,6 +1,6 @@
 ---
 alwaysApply: true
-description: Plain punctuation in prose the agent writes.
+description: Plain wording and punctuation in prose the agent writes.
 ---
 
 # Plain prose
@@ -8,6 +8,9 @@ description: Plain punctuation in prose the agent writes.
 Applies to documentation, comments, docstrings, notebooks, commit messages and chat.
 Code, grammars, quotations and manuscripts such as papers and theses keep their own
 punctuation.
+
+Write what this reader needs to know or do, in the words they use, as someone who knows the
+subject would say it to them. Leave out what they don't need.
 
 - No semicolons between clauses. Write two sentences.
 - Straight quotes and apostrophes only. No em or en dashes, ellipsis characters,
