@@ -14,7 +14,7 @@ python -m venv .venv
 .venv/bin/python -m pip install --only-binary=:all: -r requirements-dev.txt
 ```
 
-Select the workflow's Python as `python` before creating the venv. In PowerShell, use `& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt` for the wheel installation. No separate `py` launcher is required. Check `$LASTEXITCODE` after native commands. `PYTHON_BIN` can select an explicit interpreter. Otherwise launchers use the platform's `.venv` interpreter. Windows-only pywinpty in `requirements-dev.txt` is development ConPTY tooling. Nothing installs global tools or changes user PATH. .NET SDK and actual language servers are host prerequisites only for relevant runtime capabilities.
+Select the workflow's Python as `python` before creating the venv. In PowerShell, use `& .\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements-dev.txt` for the wheel installation. No separate `py` launcher is required. Check `$LASTEXITCODE` after native commands. `PYTHON_BIN` can select an explicit interpreter. Otherwise launchers use the platform's `.venv` interpreter. `requirements-dev.txt` declares Windows terminal and process-ownership development tooling. Nothing installs global tools or changes user PATH. .NET SDK and actual language servers are host prerequisites only for relevant runtime capabilities.
 
 ## Source layout
 
@@ -32,7 +32,7 @@ Select the workflow's Python as `python` before creating the venv. In PowerShell
 
 ## Planning
 
-Use OpenSpec for permanent behavior changes. Read `openspec/specs/` before changing a capability. Create one change for a new contract, validate it with `openspec validate <change> --strict`, and archive it after all checks pass.
+Use OpenSpec for permanent behavior changes. Read `openspec/specs/` before changing a capability. Create one change for a new contract, validate it with `openspec validate <change> --strict`, and include its completed archive and accepted specs in the implementation pull request.
 
 Do not restore `omp-plans`, a global planning hook, or repository-level instructions that call one.
 
@@ -92,7 +92,7 @@ Run the complete native gate before release:
 bun run ci
 ```
 
-The native gate retains formatting, types, dead code, production audit, release tree/version, coverage, behavior, real hooks, toolchain parity, adapter freshness, strict active/archive validation and installed-release checks. The workflow runs equivalent native gates on all three configured hosts, the shared OpenSpec job and a separate Nix OpenSpec job. Require every applicable context for all actors, including administrators and automation, because native npm success does not establish Nix generator parity. Keep force-push and deletion disabled.
+The native gate retains formatting, types, dead code, production audit, release tree/version, coverage, behavior, real hooks, toolchain parity, adapter freshness, strict active/archive validation and installed-release checks. Pull requests changing only files under `openspec/` or Markdown files (`.md` or `.markdown`) skip the three native gates while retaining their required check names and the shared OpenSpec validation. Other changes and non-PR events run all three native gates. Classification failures fail the native checks. The workflow also runs a separate Nix OpenSpec job. Require every applicable context for all actors, including administrators and automation, because native npm success does not establish Nix generator parity. Keep force-push and deletion disabled.
 
 Pre-push `check:local` selects deterministic `*.unit.test.ts` through `check:test:unit`. Real OpenSpec/commitlint/lefthook/Git commands, compiled launchers and CLI entrypoints are `*.integration.test.ts`, with 30 s case budgets, and run in CI rather than pre-push. `check:test` runs both sets together with the unchanged per-file 80% coverage floor; the installed-cache runtime selector retains both runtime suites and explicit coverage. Do not reclassify or skip real-process scenarios merely to make a loaded workstation's hook timing deterministic.
 
@@ -104,7 +104,7 @@ LSP observation must include every probe that the scenario requires before judgi
 
 The full `nix flake check` verifies compatibility for retained flake consumers. CI also builds the platform-independent Nix OpenSpec version, adapter and contract checks. Keep `lib.openspecCheck` operational and source every Nix OpenSpec execution from the repository-owned package, not the `llm-agents` input, so unrelated lock updates cannot select another generator.
 
-Install hooks explicitly with `bun x --no-install lefthook install` after frozen installation. Use Bun's built-in `x` subcommand, not an optional `bunx` executable alias. Hooks run installed native tools without Nix or downloads: staged formatting/types on commit, authoritative commitlint on the message, and frozen install plus `bun run check:local` on push. The fast local gate covers toolchain, lint, types, dead code, release version, unit tests, adapter freshness and strict OpenSpec validation; it omits network audit and installed-release download/terminal checks. Every PR's three-host CI runs the complete `bun run ci`, including both omitted checks. The Bun hook runner strips `git rev-parse --local-env-vars` names only from its child environment, never the parent.
+Install hooks explicitly with `bun x --no-install lefthook install` after frozen installation. Use Bun's built-in `x` subcommand, not an optional `bunx` executable alias. Hooks run installed native tools without Nix or downloads: staged formatting/types on commit, authoritative commitlint on the message, and frozen install plus `bun run check:local` on push. The fast local gate covers toolchain, lint, types, dead code, release version, unit tests, adapter freshness and strict OpenSpec validation; it omits network audit and installed-release download/terminal checks. When selected by path classification, three-host CI runs the complete `bun run ci`, including both omitted checks. The Bun hook runner strips `git rev-parse --local-env-vars` names only from its child environment, never the parent.
 
 A permanent behavior change needs an observable test that fails for a plausible regression. Do not test source text when the behavior can be executed.
 
@@ -127,11 +127,12 @@ The workstation repository's [dependency-update runbook](https://github.com/gloc
 
 ## Release
 
-1. Raise the version in `.omp-plugin/marketplace.json`, `plugin/package.json`, and the root `package.json` in the same commit as any runtime change.
-2. Run the full native gate and obtain Linux/macOS/Windows and shared OpenSpec CI contexts, plus actual fresh Tern-managed Korolev/macbook-pro browser acceptance for changed visual behavior.
-3. With explicit authorization, merge the reviewed release and create the immutable tag `vX.Y.Z`.
-4. Install the published release into a disposable OMP profile and confirm its version and capabilities.
-5. Upgrade hosts with `omp plugin marketplace update glockyco` and `omp plugin upgrade --scope user personal@glockyco`, then verify the changed capability in a fresh OMP session in Tern.
+1. Prepare one pull request containing the runtime implementation, matching version bumps in `.omp-plugin/marketplace.json`, `plugin/package.json`, and the root `package.json`, and its completed archived OpenSpec change with accepted specs. Keep the version bumps in the same commit as the runtime change. Documentation-only changes need no runtime version bump.
+2. Run the full native gate for runtime releases and obtain all applicable required CI contexts. For changed visual behavior, also perform actual host UI acceptance in fresh Tern-managed OMP sessions on Korolev and macbook-pro, because isolated capability probes do not observe that interface.
+3. Use installed-release CI for routine candidate installation, fresh capability discovery, system-prompt rule checks and upgrade verification. Do not repeat routine release smoke or manually verify upgrades on each host.
+4. With explicit authorization, merge the reviewed release pull request and create the immutable tag `vX.Y.Z` on its reviewed release commit. Do not create a separate archive pull request.
+
+Host plugin upgrades run hourly through nix-config and are independent of release completion. The [README upgrade instructions](README.md#upgrade) remain available for manual use.
 
 Roll back by publishing known-good content as a newer version. The plugin and OMP versions are independent: `omp update` never upgrades the plugin, and a plugin release never updates OMP.
 
