@@ -7,8 +7,8 @@
 
 ## 2. Release
 
-- [ ] 2.1 Obtain the three native CI contexts and the OpenSpec context on the pull request, merge and tag `v0.11.6`.
-- [ ] 2.2 Upgrade the Mac and Korolev. Verify in a fresh OMP session on each host that the notes skill carries the new line.
+- [x] 2.1 Obtain the three native CI contexts and the OpenSpec context on the pull request, merge and tag `v0.11.6`.
+- [x] 2.2 Upgrade the Mac and Korolev. Verify in a fresh OMP session on each host that the notes skill carries the new line.
 
 ## Workflow follow-up
 
