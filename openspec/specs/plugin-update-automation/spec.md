@@ -68,7 +68,7 @@ A weekly and manually dispatchable central workflow SHALL update the retained pl
 
 ### Requirement: Enforced cross-system checks
 
-The main branch SHALL require the current Linux, macOS, Windows, and shared OpenSpec CI job contexts for all actors, including administrators and automation. Every native platform SHALL run equivalent formatting, type, dead-code, audit, release-tree/version, behavior/coverage, adapter-freshness, and isolated installed-release checks without Nix. Force-push and branch deletion SHALL remain disabled.
+The main branch SHALL require the current Linux, macOS, Windows, and shared OpenSpec CI job contexts for all actors, including administrators and automation. When selected by path classification, every native platform SHALL run equivalent formatting, type, dead-code, audit, release-tree/version, behavior/coverage, adapter-freshness, and isolated installed-release checks without Nix. Force-push and branch deletion SHALL remain disabled.
 
 #### Scenario: A required check fails
 
@@ -83,7 +83,7 @@ The main branch SHALL require the current Linux, macOS, Windows, and shared Open
 
 ### Requirement: Deliberate runtime release
 
-Renovate MAY merge minor, patch and lockfile development updates under the shared preset after required checks pass. Plugin behavior, native release-tool pins and retained `llm-agents` changes SHALL require human review, applicable gates and explicit authorization before publication or downstream consumption. Runtime releases SHALL use native marketplace delivery and fresh host-managed OMP sessions in Tern, not Nix runtime pins, wrappers or plugin-package activation.
+Renovate MAY merge minor, patch and lockfile development updates under the shared preset after required checks pass. Plugin behavior, native release-tool pins and retained `llm-agents` changes SHALL require human review, applicable gates and explicit authorization before publication or downstream consumption. Runtime releases SHALL use native marketplace delivery, not Nix runtime pins, wrappers or plugin-package activation.
 
 #### Scenario: Merge a behavior update
 
@@ -96,8 +96,10 @@ Renovate MAY merge minor, patch and lockfile development updates under the share
 
 #### Scenario: Verify the new deployment
 
-- **WHEN** the published personal plugin is upgraded through the native manager
-- **THEN** a fresh host-managed OMP session in Tern observes the advertised installed version and exercises the changed capability
+- **WHEN** isolated installed-release CI verifies a candidate through the native manager
+- **THEN** a fresh isolated OMP session observes the advertised version, complete capabilities and always-applied rules in the system prompt
+- **AND** no manual fresh-session check on macbook-pro or Korolev is required for routine release acceptance
+- **AND** nix-config owns hourly host plugin upgrades independently of release completion
 - **AND** no wrapper or Nix runtime-package activation is needed to expose the plugin
 - **AND** publication and plugin upgrades do not implicitly update upstream OMP or vice versa
 
@@ -105,7 +107,7 @@ Renovate MAY merge minor, patch and lockfile development updates under the share
 
 - **WHEN** release verification completes with an isolated official OMP binary
 - **THEN** Korolev's Tern-managed executable and real OMP state remain unchanged
-- **AND** actual host acceptance remains separate from that CI evidence
+- **AND** actual host UI acceptance for changed visual behavior remains required and separate from routine installed-release CI evidence
 
 #### Scenario: Safe development update is eligible for preset automerge
 
@@ -157,3 +159,18 @@ The release gate SHALL exercise catalog refresh and plugin upgrade to a newer fi
 - **WHEN** an installed personal plugin is disabled before the gate upgrades it
 - **THEN** its disabled state and persisted feature/settings selections remain unchanged
 - **AND** the gate does not mistake disabled discovery for missing installed release assets
+
+### Requirement: Single pull request per release
+
+Each plugin runtime release SHALL use one pull request containing the implementation, matching catalog, payload and root manifest version bumps, and its completed archived OpenSpec change. Publication SHALL retain an immutable version tag on the reviewed release commit. Release completion SHALL NOT require a separate archive pull request or routine manual per-host installation, upgrade or fresh-session smoke checks.
+
+#### Scenario: Review a runtime release
+
+- **WHEN** a runtime release pull request is ready to merge
+- **THEN** its implementation, matching version bumps, accepted specs and archived change are reviewed together after applicable checks pass
+- **AND** no later archive pull request or routine two-host smoke is needed
+
+#### Scenario: Documentation-only update
+
+- **WHEN** a pull request changes documentation or accepted procedure without changing the distributed runtime
+- **THEN** its plugin version may remain unchanged
