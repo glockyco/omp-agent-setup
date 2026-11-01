@@ -27,4 +27,3 @@ The `notes` vault holds work and personal notes. `Conventions.md` in the vault d
 - Leave out files changed in the last 15 minutes, because another session or Obsidian may still be editing them. A later commit picks them up.
 - Obsidian Sync brings the same edit to both clones. The rebase pull drops a change that upstream already has.
 - The pre-commit hook scans for secrets with gitleaks. Never bypass it. If it fails because `gitleaks` is missing from PATH, report that instead of committing.
-- On Korolev, `git push` needs Tern's desktop session, because an SSH session cannot reach Git's credentials.
