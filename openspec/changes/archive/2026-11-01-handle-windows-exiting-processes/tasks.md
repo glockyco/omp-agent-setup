@@ -8,4 +8,4 @@
 ## 2. Acceptance
 
 - [x] 2.1 Prove the transient-exit regression fails without the fix and passes with it, then run the native gate.
-- [ ] 2.2 Obtain green Windows CI for the issue-closing pull request without a plugin release.
+- [x] 2.2 Obtain green Windows CI for the issue-closing pull request without a plugin release.
