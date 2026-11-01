@@ -131,26 +131,45 @@ test("reusable gate exposes only optional root and native CI selects all require
 	expect(artifactSteps).toHaveLength(2);
 	expect(artifactSteps[1]?.run).toBe(artifactSteps[0]?.run);
 	expect(artifactSteps[1]?.env?.OPENSPEC_PROSPECTIVE).toBe("1");
-	const matrix = Bun.YAML.parse(
+	const workflow = Bun.YAML.parse(
 		readFileSync(join(repository, ".github/workflows/ci.yml"), "utf8"),
 	) as {
-		jobs: {
-			check: {
-				strategy: { matrix: { os: string[] } };
-				steps: Array<{ run?: string; id?: string; if?: string }>;
-			};
-			openspec: { uses: string };
-		};
+		jobs: Record<
+			string,
+			{
+				name?: string;
+				"runs-on"?: string;
+				needs?: string;
+				if?: string;
+				uses?: string;
+				steps?: Array<{ run?: string; id?: string; if?: string; env?: Record<string, string> }>;
+			}
+		>;
 	};
-	expect(matrix.jobs.check.strategy.matrix.os).toEqual([
-		"ubuntu-latest",
-		"macos-15",
-		"windows-latest",
-	]);
-	expect(matrix.jobs.openspec.uses).toBe("./.github/workflows/openspec.yml");
-	const steps = matrix.jobs.check.steps;
-	expect(steps.find(step => step.run === "bun run setup:release-omp")?.id).toBe("omp_setup");
-	expect(steps.find(step => step.run === "bun run setup:release-omp --cleanup")?.if).toBe(
-		"always() && steps.omp_setup.outcome == 'success'",
-	);
+	expect(workflow.jobs.openspec?.uses).toBe("./.github/workflows/openspec.yml");
+	expect(workflow.jobs.openspec?.needs).toBeUndefined();
+	for (const [id, host] of [
+		["linux", "ubuntu-latest"],
+		["macos", "macos-15"],
+		["windows", "windows-latest"],
+	]) {
+		const job = workflow.jobs[id ?? ""];
+		expect(job?.name).toBe(`check (${host})`);
+		expect(job?.["runs-on"]).toBe(host);
+		expect(job?.needs).toBe("changes");
+		expect(job?.if).toBe(
+			"always() && (needs.changes.result != 'success' || needs.changes.outputs.native != 'false')",
+		);
+		const steps = job?.steps ?? [];
+		expect(steps[0]?.run).toBe('test "$CHANGES_RESULT" = success\ntest "$NATIVE_REQUIRED" = true\n');
+		expect(steps[0]?.env).toEqual({
+			CHANGES_RESULT: `\${{ needs.changes.result }}`,
+			NATIVE_REQUIRED: `\${{ needs.changes.outputs.native }}`,
+		});
+		expect(steps.find(step => step.run === "bun run ci")).toBeDefined();
+		expect(steps.find(step => step.run === "bun run setup:release-omp")?.id).toBe("omp_setup");
+		expect(steps.find(step => step.run === "bun run setup:release-omp --cleanup")?.if).toBe(
+			"always() && steps.omp_setup.outcome == 'success'",
+		);
+	}
 });
