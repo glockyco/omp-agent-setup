@@ -321,6 +321,41 @@ class TerminalTests(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, "not found"):
                 tree.taskkill(123, True)
 
+    def test_windows_unsupported_termination_waits_for_owned_identity_to_exit(self):
+        tree = OwnedTree.__new__(OwnedTree)
+        unsupported = subprocess.CompletedProcess([], 128, "", "Reason: The operation attempted is not supported.")
+        for force in (False, True):
+            with self.subTest(force=force):
+                tree.survivors = Mock(side_effect=[[123], [123], []])
+                with patch.dict(os.environ, {"SystemRoot": str(Path.cwd())}), patch.object(subprocess, "CREATE_NO_WINDOW", 0, create=True), patch("release_gate.subprocess.run", return_value=unsupported) as run, patch("release_gate.time.monotonic", side_effect=[0, 0]), patch("release_gate.time.sleep") as sleep:
+                    tree.taskkill(123, force)
+                self.assertEqual(tree.survivors.call_count, 3)
+                run.assert_called_once()
+                sleep.assert_called_once_with(.05)
+
+    def test_windows_unsupported_termination_still_fails_for_survivor_or_unknown_reason(self):
+        tree = OwnedTree.__new__(OwnedTree)
+        tree.survivors = Mock(return_value=[123])
+        unsupported = "Reason: The operation attempted is not supported."
+        with patch.dict(os.environ, {"SystemRoot": str(Path.cwd())}), patch.object(subprocess, "CREATE_NO_WINDOW", 0, create=True), patch("release_gate.subprocess.run") as run, patch("release_gate.time.monotonic", side_effect=[0, 0, 1]), patch("release_gate.time.sleep") as sleep:
+            run.return_value = subprocess.CompletedProcess([], 128, "", unsupported)
+            with self.assertRaisesRegex(AssertionError, "not supported"):
+                tree.taskkill(123, True)
+            sleep.assert_called_once_with(.05)
+            for output in (unsupported + "\nReason: Access is denied.", unsupported + "\nReason: unknown utility error"):
+                tree.survivors.side_effect = [[123], []]
+                run.return_value = subprocess.CompletedProcess([], 128, "", output)
+                with self.assertRaisesRegex(AssertionError, "denied|unknown utility error"):
+                    tree.taskkill(123, True)
+
+    def test_windows_unsupported_termination_propagates_exit_query_failure(self):
+        tree = OwnedTree.__new__(OwnedTree)
+        tree.survivors = Mock(side_effect=[[123], [123], AssertionError("query denied")])
+        unsupported = subprocess.CompletedProcess([], 128, "", "Reason: The operation attempted is not supported.")
+        with patch.dict(os.environ, {"SystemRoot": str(Path.cwd())}), patch.object(subprocess, "CREATE_NO_WINDOW", 0, create=True), patch("release_gate.subprocess.run", return_value=unsupported), patch("release_gate.time.monotonic", side_effect=[0, 0]), patch("release_gate.time.sleep"):
+            with self.assertRaisesRegex(AssertionError, "query denied"):
+                tree.taskkill(123, True)
+
     def test_profile_failure_and_environment_remain_scratch_owned(self):
         profile = Profile()
         root = profile.root
