@@ -49,7 +49,12 @@ interface BwItem {
 	id: string;
 	name: string;
 	notes?: string | null;
-	login?: { username?: string | null; password?: string | null; totp?: string | null } | null;
+	login?: {
+		username?: string | null;
+		password?: string | null;
+		totp?: string | null;
+		uris?: string[];
+	} | null;
 	fields?: Array<{ name?: string | null; value?: string | null }> | null;
 }
 
@@ -226,7 +231,8 @@ export class VaultService {
 				await rm(join(filesRoot, vault), { recursive: true, force: true });
 				continue;
 			}
-			for (const delivery of deliveries) registerValue(delivery.value, delivery.label);
+			for (const delivery of deliveries)
+				if (!delivery.label.endsWith("/username]")) registerValue(delivery.value, delivery.label);
 		}
 	}
 
@@ -237,9 +243,13 @@ export class VaultService {
 		const parsed: unknown = JSON.parse(result.stdout);
 		const items = (Array.isArray(parsed) ? parsed : []).flatMap(entry => parseItem(entry) ?? []);
 		if (items.length === 0) return `No entries in ${vault} match "${query}".`;
-		const lines = items
-			.slice(0, 25)
-			.map(item => `- ${item.name} (id ${item.id}) fields: ${fieldNames(item).join(", ")}`);
+		const lines = items.slice(0, 25).map(item => {
+			const who = [
+				item.login?.username && `username ${item.login.username}`,
+				item.login?.uris?.length && `uri ${item.login.uris.join(", ")}`,
+			].filter(Boolean);
+			return `- ${item.name} (id ${item.id})${who.length ? ` ${who.join(", ")}` : ""} fields: ${fieldNames(item).join(", ")}`;
+		});
 		if (items.length > 25) lines.push(`${items.length - 25} more; refine the search.`);
 		return lines.join("\n");
 	}
@@ -273,7 +283,8 @@ export class VaultService {
 
 		const value = await this.#fieldValue(vault, item, request.field, key);
 		const content = formatValue(value, request.format, request.name);
-		registerValue(value, label);
+		// Usernames identify an entry and are shown by search, so only secrets are redacted.
+		if (request.field !== "username") registerValue(value, label);
 
 		const directory = join(this.#root, "files", vault);
 		await ensurePrivateDir(directory);
@@ -555,6 +566,14 @@ function parseItem(raw: unknown): BwItem | undefined {
 			username: "username" in login ? text(login.username) : undefined,
 			password: "password" in login ? text(login.password) : undefined,
 			totp: "totp" in login ? text(login.totp) : undefined,
+			uris:
+				"uris" in login && Array.isArray(login.uris)
+					? login.uris.flatMap(entry =>
+							entry && typeof entry === "object" && "uri" in entry && typeof entry.uri === "string"
+								? [entry.uri]
+								: [],
+						)
+					: undefined,
 		},
 		fields: fields.flatMap(field =>
 			field && typeof field === "object" && typeof field.name === "string"
@@ -752,10 +771,10 @@ export function createKeystore(
 
 const DESCRIPTION = [
 	"Use secrets from Bitwarden vaults without seeing them. Vaults: scch (SCCH Vaultwarden) and private.",
-	"search lists entry names, ids and field names. file writes one field to a private file and returns its path; the person approves each entry once.",
+	"search lists entry names, ids, usernames, URIs and field names, so entries with the same name can be told apart. file writes one field to a private file and returns its path; the person approves each entry once.",
 	"Use the path, never the value: --passwordfile PATH, $(cat PATH) inside a command, curl -H @PATH for header files, a dotenv loader for dotenv files,",
 	"or `await tab.fill(selector, (await Bun.file(PATH).text()))` in a JavaScript eval cell for browser logins.",
-	"Never print, cat or read a delivered file into the conversation. Delivered values are redacted to [vault:...] labels in every output.",
+	"Never print, cat or read a delivered file into the conversation. Delivered secrets are redacted to [vault:...] labels in every output. Usernames are not secret and are not redacted.",
 	"Files and the unlock last until midnight. lock locks a vault early and deletes its files.",
 ].join(" ");
 
