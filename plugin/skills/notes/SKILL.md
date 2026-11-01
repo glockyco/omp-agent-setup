@@ -23,6 +23,8 @@ The `notes` vault holds work and personal notes. `Conventions.md` in the vault d
 
 ## Commit
 
-- Only Korolev's copy is a Git repository. After changing the vault there, stage your changes, commit them with `personal_commit` and push to `origin` right away. Vault commits are the one exception to asking before a push, because the repository is the vault's backup.
+- Both machines keep a Git clone of the vault, and neither is special. After changing the vault, pull with rebase, stage all pending changes, not only your own, commit them with `personal_commit` and push to `origin` right away. Vault commits are the one exception to asking before a push, because the repository is the vault's backup.
+- Leave out files changed in the last 15 minutes, because another session or Obsidian may still be editing them. A later commit picks them up.
+- Obsidian Sync brings the same edit to both clones. The rebase pull drops a change that upstream already has.
 - The pre-commit hook scans for secrets with gitleaks. Never bypass it. If it fails because `gitleaks` is missing from PATH, report that instead of committing.
-- The Mac has no repository. Obsidian Sync carries its changes to Korolev, where the next commit includes them.
+- On Korolev, `git push` needs Tern's desktop session, because an SSH session cannot reach Git's credentials.
