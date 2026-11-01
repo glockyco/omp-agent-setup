@@ -8,8 +8,8 @@
 
 ## 2. Release
 
-- [ ] 2.1 Obtain the three native CI contexts and the OpenSpec context on the pull request, merge and tag `v0.11.8`.
-- [ ] 2.2 Upgrade the Mac and Korolev. Verify in a fresh OMP session on each host that a vault search shows usernames.
+- [x] 2.1 Obtain the three native CI contexts and the OpenSpec context on the pull request, merge and tag `v0.11.8`.
+- [x] 2.2 Upgrade the Mac and Korolev. Verify in a fresh OMP session on each host that a vault search shows usernames.
 
 ## Workflow follow-up
 
