@@ -18,20 +18,26 @@ export async function checkOpenSpec(
 	root = ".",
 	cli = join(repository, "node_modules/@fission-ai/openspec/bin/openspec.js"),
 ): Promise<number> {
-	const child = Bun.spawn(["node", "--input-type=module", "--eval", workflowGate(repository)], {
-		cwd: workspace,
-		env: {
-			...process.env,
-			GITHUB_WORKSPACE: workspace,
-			OPENSPEC_ROOT: root,
-			OPENSPEC_CLI: cli,
-			CI: "1",
-			OPENSPEC_TELEMETRY: "0",
-		},
-		stdout: "inherit",
-		stderr: "inherit",
-	});
-	return child.exited;
+	const script = workflowGate(repository);
+	for (const prospective of ["0", "1"]) {
+		const child = Bun.spawn(["node", "--input-type=module", "--eval", script], {
+			cwd: workspace,
+			env: {
+				...process.env,
+				GITHUB_WORKSPACE: workspace,
+				OPENSPEC_ROOT: root,
+				OPENSPEC_CLI: cli,
+				OPENSPEC_PROSPECTIVE: prospective,
+				CI: "1",
+				OPENSPEC_TELEMETRY: "0",
+			},
+			stdout: "inherit",
+			stderr: "inherit",
+		});
+		const code = await child.exited;
+		if (code !== 0) return code;
+	}
+	return 0;
 }
 
 if (import.meta.main) process.exitCode = await checkOpenSpec(join(import.meta.dir, ".."));

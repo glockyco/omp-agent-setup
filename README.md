@@ -69,6 +69,8 @@ The `vault` tool gives agents secrets from Bitwarden vaults without the values e
 
 This repository also publishes a reusable [OpenSpec validation workflow](.github/workflows/openspec.yml). It checks active and archived artifacts without requiring the plugin or the calling repository's dependencies.
 
+CI also archives every open change in a disposable copy of the OpenSpec artifacts and strictly validates the resulting specs. This catches invalid full requirements before merge, even when their deltas pass validation. The simulation leaves the checkout unchanged, accepts repositories with no open changes and does not require unfinished active tasks to be complete.
+
 Call it at job level, replacing the placeholder with a reviewed full release commit SHA:
 
 ```yaml
@@ -79,7 +81,7 @@ jobs:
 
 If `openspec/` is not at the repository root, pass `openspec-root` under `with` as the repository-relative directory that contains it. Keep the reference immutable so updates can be reviewed. The shared workflow owns the validation flags and uses a generated CLI pin from this repository's [development dependency](package.json). It cannot read that manifest from a caller's checkout. Do not copy its implementation or the plugin's generated adapters into the calling repository.
 
-Local hooks can run the same validation offline with a host-provisioned OpenSpec CLI. The expected versions below are generated from the same dependency. The commands stop when the CLI does not match or lacks `validate --archived`. Correct a mismatch through host provisioning, not with a download in the hook.
+Local hooks can validate active and archived artifacts offline with a host-provisioned OpenSpec CLI. These short commands do not simulate archive, so the shared CI check remains required for prospective specs. The expected versions below are generated from the same dependency. The commands stop when the CLI does not match or lacks `validate --archived`. Correct a mismatch through host provisioning, not with a download in the hook.
 
 POSIX:
 

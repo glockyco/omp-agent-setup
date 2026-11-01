@@ -33,9 +33,10 @@ jobs:
           CI: '1'
           OPENSPEC_TELEMETRY: '0'
         shell: bash
-        run: |
+        run: &openspec-gate |
           node --input-type=module <<'OPENSPEC_GATE'
-          import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+          import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+          import { cp } from 'node:fs/promises';
           import { tmpdir } from 'node:os';
           import { isAbsolute, join, relative, resolve, sep, win32 } from 'node:path';
           import { spawnSync } from 'node:child_process';
@@ -50,19 +51,36 @@ jobs:
           if (!within(artifacts)) throw new Error('OpenSpec artifacts escape the checkout.');
           const scratch = mkdtempSync(join(tmpdir(), 'fleet-openspec-artifacts-'));
           try {
-            cpSync(artifacts, join(scratch, 'openspec'), { recursive: true });
+            await cp(artifacts, join(scratch, 'openspec'), { recursive: true, dereference: true });
             const run = args => {
               const result = spawnSync(process.execPath, [process.env.OPENSPEC_CLI, ...args], { cwd: scratch, env: { ...process.env, CI: '1', OPENSPEC_TELEMETRY: '0' }, encoding: 'utf8' });
               if (result.error) throw result.error;
               if (result.status !== 0) throw new Error(`OpenSpec ${args.join(' ')} failed (${result.status}):\n${result.stdout}${result.stderr}`);
               return result.stdout;
             };
-            if (!run(['validate', '--help']).includes('--archived')) throw new Error('OpenSpec CLI lacks validate --archived; cannot verify archived task completion.');
-            const active = run(['validate', '--all', '--strict', '--no-interactive']);
-            if (active.trim() === 'No items found to validate.') throw new Error('OpenSpec root has no artifacts to validate.');
-            console.log(active);
-            console.log(run(['validate', '--archived', '--strict', '--no-interactive']));
+            if (process.env.OPENSPEC_PROSPECTIVE === '1') {
+              const { changes } = JSON.parse(run(['list', '--json']));
+              for (const { name } of changes.sort((a, b) => a.name.localeCompare(b.name))) {
+                console.log(run(['archive', name, '--yes']));
+              }
+              console.log(run(['validate', '--specs', '--strict', '--no-interactive']));
+            } else {
+              if (!run(['validate', '--help']).includes('--archived')) throw new Error('OpenSpec CLI lacks validate --archived; cannot verify archived task completion.');
+              const active = run(['validate', '--all', '--strict', '--no-interactive']);
+              if (active.trim() === 'No items found to validate.') throw new Error('OpenSpec root has no artifacts to validate.');
+              console.log(active);
+              console.log(run(['validate', '--archived', '--strict', '--no-interactive']));
+            }
           } finally {
             rmSync(scratch, { recursive: true, force: true });
           }
           OPENSPEC_GATE
+      - name: Validate specs after archiving every open change in scratch
+        env:
+          OPENSPEC_ROOT: ${{ inputs.openspec-root }}
+          OPENSPEC_CLI: ${{ runner.temp }}/openspec-cli/node_modules/@fission-ai/openspec/bin/openspec.js
+          OPENSPEC_PROSPECTIVE: '1'
+          CI: '1'
+          OPENSPEC_TELEMETRY: '0'
+        shell: bash
+        run: *openspec-gate

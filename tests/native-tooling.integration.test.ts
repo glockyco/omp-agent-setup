@@ -7,6 +7,7 @@ import {
 	readdirSync,
 	readFileSync,
 	rmSync,
+	symlinkSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -97,6 +98,100 @@ function artifacts(root: string, nested = ""): void {
 	put(root, join(nested, "openspec/config.yaml"), "schema: spec-driven\n");
 	put(root, join(nested, "openspec/specs/fixture/spec.md"), validSpec);
 }
+
+function openChange(root: string, name: string, requirement: string): void {
+	const change = `openspec/changes/${name}`;
+	put(root, `${change}/.openspec.yaml`, "schema: spec-driven\n");
+	put(
+		root,
+		`${change}/proposal.md`,
+		"# Proposal\n\n## Why\nExercise prospective archive validation without changing real repository artifacts.\n\n## What Changes\n- Extend the fixture.\n\n## Impact\nFixture only.\n",
+	);
+	put(root, `${change}/tasks.md`, "## 1. Fixture\n\n- [ ] 1.1 Implement the fixture change.\n");
+	put(
+		root,
+		`${change}/specs/fixture/spec.md`,
+		`## ADDED Requirements\n\n### Requirement: ${name}\n${requirement}\n\n#### Scenario: Validate ${name}\n- **WHEN** validation runs\n- **THEN** the fixture passes\n`,
+	);
+}
+
+function artifactBytes(root: string): Record<string, string> {
+	const bytes: Record<string, string> = {};
+	const artifacts = join(root, "openspec");
+	for (const entry of readdirSync(artifacts, { recursive: true, withFileTypes: true })) {
+		if (entry.isFile()) {
+			const file = join(entry.parentPath, entry.name);
+			bytes[file] = readFileSync(file).toString("base64");
+		}
+	}
+	return bytes;
+}
+
+test("prospective archive rejects an overlong requirement accepted by strict delta validation", async () => {
+	const root = fixture();
+	artifacts(root);
+	openChange(root, "overlong", "The fixture SHALL retain its behavior.");
+	put(
+		root,
+		"openspec/changes/overlong/specs/fixture/spec.md",
+		validSpec
+			.slice(validSpec.indexOf("## Requirements"))
+			.replace("## Requirements", "## MODIFIED Requirements")
+			.replace(
+				"The fixture SHALL be validated.",
+				`The fixture SHALL ${"retain a deliberately long requirement. ".repeat(20)}`,
+			),
+	);
+	const before = artifactBytes(root);
+	const active = Bun.spawn(["node", cli, "validate", "--all", "--strict", "--no-interactive"], {
+		cwd: root,
+		env: { ...process.env, CI: "1", OPENSPEC_TELEMETRY: "0" },
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+	expect(await active.exited).toBe(0);
+	expect(await checkOpenSpec(repository, root, ".", cli)).not.toBe(0);
+	expect(artifactBytes(root)).toEqual(before);
+});
+
+test("prospective archive handles every open change without changing source artifacts or requiring completed tasks", async () => {
+	const root = fixture();
+	artifacts(root);
+	openChange(root, "first-change", "The fixture SHALL retain the first behavior.");
+	openChange(root, "second-change", "The fixture SHALL retain the second behavior.");
+	const before = artifactBytes(root);
+	expect(await checkOpenSpec(repository, root, ".", cli)).toBe(0);
+	expect(artifactBytes(root)).toEqual(before);
+});
+
+test("prospective archive materializes linked specs instead of writing through to the checkout", async () => {
+	const root = fixture();
+	put(root, "openspec/config.yaml", "schema: spec-driven\n");
+	put(root, "linked-spec/spec.md", validSpec);
+	mkdirSync(join(root, "openspec/specs"), { recursive: true });
+	symlinkSync(join(root, "linked-spec"), join(root, "openspec/specs/fixture"), "junction");
+	openChange(root, "linked-change", "The fixture SHALL keep linked source artifacts unchanged.");
+	expect(await checkOpenSpec(repository, root, ".", cli)).toBe(0);
+	expect(readFileSync(join(root, "linked-spec/spec.md"), "utf8")).toBe(validSpec);
+});
+
+test("prospective archive errors fail without changing the triggering checkout", async () => {
+	const root = fixture();
+	artifacts(root);
+	openChange(root, "duplicate", "The fixture SHALL not duplicate a requirement.");
+	const delta = "openspec/changes/duplicate/specs/fixture/spec.md";
+	put(
+		root,
+		delta,
+		readFileSync(join(root, delta), "utf8").replace(
+			"Requirement: duplicate",
+			"Requirement: Valid fixture",
+		),
+	);
+	const before = artifactBytes(root);
+	expect(await checkOpenSpec(repository, root, ".", cli)).not.toBe(0);
+	expect(artifactBytes(root)).toEqual(before);
+});
 
 test("shared workflow gate accepts default and nested roots using the actual pinned CLI", async () => {
 	const root = fixture();
@@ -308,14 +403,14 @@ test("shared gate rejects an empty OpenSpec root instead of accepting a vacuous 
 	expect(await checkOpenSpec(repository, root, ".", cli)).not.toBe(0);
 });
 
-test("shared gate forwards exactly both strict commands with telemetry disabled", async () => {
+test("shared gate forwards strict validation and every sorted archive with telemetry disabled", async () => {
 	const root = fixture();
 	artifacts(root);
 	const log = join(root, "cli-arguments.jsonl");
 	const fake = join(root, "record-cli.cjs");
 	writeFileSync(
 		fake,
-		`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({args:process.argv.slice(2),ci:process.env.CI,telemetry:process.env.OPENSPEC_TELEMETRY})+'\\n'); if(process.argv.includes('--help')) console.log('--archived'); else console.log('valid');\n`,
+		`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({args:process.argv.slice(2),ci:process.env.CI,telemetry:process.env.OPENSPEC_TELEMETRY})+'\\n'); if(process.argv.includes('--help')) console.log('--archived'); else if(process.argv[2]==='list') console.log(JSON.stringify({changes:[{name:'z-change'},{name:'a-change'}]})); else console.log('valid');\n`,
 	);
 	expect(await checkOpenSpec(repository, root, ".", fake)).toBe(0);
 	expect(
@@ -327,5 +422,9 @@ test("shared gate forwards exactly both strict commands with telemetry disabled"
 		{ args: ["validate", "--help"], ci: "1", telemetry: "0" },
 		{ args: ["validate", "--all", "--strict", "--no-interactive"], ci: "1", telemetry: "0" },
 		{ args: ["validate", "--archived", "--strict", "--no-interactive"], ci: "1", telemetry: "0" },
+		{ args: ["list", "--json"], ci: "1", telemetry: "0" },
+		{ args: ["archive", "a-change", "--yes"], ci: "1", telemetry: "0" },
+		{ args: ["archive", "z-change", "--yes"], ci: "1", telemetry: "0" },
+		{ args: ["validate", "--specs", "--strict", "--no-interactive"], ci: "1", telemetry: "0" },
 	]);
 });
