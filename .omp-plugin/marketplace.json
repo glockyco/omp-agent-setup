@@ -12,7 +12,7 @@
       "name": "personal",
       "description": "Personal policy, plain-prose rule, skills, OpenSpec workflow commands, commit tool, vault tool, and LSP overrides.",
       "source": "./plugin",
-      "version": "0.11.3",
+      "version": "0.11.4",
       "lspServers": "./lsp/lsp.json",
       "repository": "https://github.com/glockyco/omp-agent-setup",
       "homepage": "https://github.com/glockyco/omp-agent-setup",
