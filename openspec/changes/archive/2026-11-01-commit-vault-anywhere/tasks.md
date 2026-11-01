@@ -8,8 +8,8 @@
 
 ## 2. Release
 
-- [ ] 2.1 Obtain the three native CI contexts and the OpenSpec context on the pull request, merge and tag `v0.11.9`.
-- [ ] 2.2 Upgrade the Mac and Korolev. Verify in a fresh OMP session on each host that the notes skill says both machines keep a clone.
+- [x] 2.1 Obtain the three native CI contexts and the OpenSpec context on the pull request, merge and tag `v0.11.9`.
+- [x] 2.2 Upgrade the Mac and Korolev. Verify in a fresh OMP session on each host that the notes skill says both machines keep a clone.
 
 ## Workflow follow-up
 
