@@ -409,20 +409,23 @@ The plugin SHALL ship an always-applied handoff rule for papers, projects, super
 
 ### Requirement: Handoff line and the places of its facts
 
-Before finishing, agents SHALL write a new `Resume here:` line that says where each piece of work in progress stands, in a sentence or two each, without finished work, work not started yet, or steps, decisions, commits and checks that the note, Git or Workbench already show. Agents SHALL give every other fact of the old line its place in a change, an issue, a task, a `#waiting` task or the Notes, or leave it out as history.
+Before finishing, agents SHALL rewrite the item's `Resume here:` line and put each fact it leaves out where `Conventions.md` says under Item notes. The handoff rule SHALL describe the line as how to pick the work up without duplicating the vault's rules for its content or the placement of facts.
 
 #### Scenario: Finish work with a matching note
 
 - **WHEN** a session finishes work on a paper, project, supervision, talk or topic with a matching vault note
-- **THEN** the rule directs the agent to write a new `Resume here:` line that says where each piece of work in progress stands, in a sentence or two each, without finished work, work not started yet, or steps, decisions, commits and checks that the note, Git or Workbench already show
-- **AND** to give every fact of the old line that the new line leaves out its place in a change, an issue, a task, a `#waiting` task or the Notes, or to leave it out when it is history or Git, the repository or Workbench already show it
+- **THEN** the rule directs the agent to rewrite the item's `Resume here:` line and put each fact it leaves out where `Conventions.md` says under Item notes
 - **AND** to follow the notes skill to change and commit the vault
 
 #### Scenario: The old line carries another session's work
 
-- **WHEN** the old line holds a constraint and steps that another session wrote, such as content a developer asked to keep unpublished
-- **THEN** the rule directs the agent to place them as it places its own facts
-- **AND** the new line mentions that work only where it is still in progress
+- **WHEN** the old line holds facts that another session wrote
+- **THEN** the rule directs the agent to put each fact it leaves out where `Conventions.md` says under Item notes
+
+#### Scenario: The vault changes its item note conventions
+
+- **WHEN** `Conventions.md` changes how an item note resumes work or places facts
+- **THEN** the handoff rule directs the agent to those conventions without retaining a competing copy
 
 ### Requirement: Handoff without a matching note
 
@@ -649,12 +652,12 @@ The personal policy SHALL have agents wait for the checks of a push and fix or r
 
 ### Requirement: Notes hold current decisions
 
-The `notes` skill SHALL say that vault notes keep dates and who decided what, as the vault's conventions note describes for Notes. It SHALL NOT say that Notes sections keep history.
+The `notes` skill SHALL direct agents to write notes as `Conventions.md` says rather than duplicate its rules for dates, decision makers or editing.
 
 #### Scenario: A decision recorded in an item's Notes changes
 
 - **WHEN** an agent records a changed decision in an item's Notes
-- **THEN** the skill directs it to the conventions note's form for Notes instead of to a history of entries
+- **THEN** the skill directs it to follow `Conventions.md`
 
 ### Requirement: Windows terminal cleanup verifies process exit
 
@@ -736,12 +739,23 @@ The `compare-options` skill SHALL have the agent keep one topic in one post, wit
 
 ### Requirement: Current vault decisions
 
-The `notes` skill SHALL distinguish vault notes from repository documentation, retain each decision's date and decision maker under `Conventions.md`, and fix wrong or outdated notes in place so they state what holds now. Git SHALL keep their previous content rather than a change log in Notes.
+The documentation rule SHALL distinguish vault notes from repository documentation and say that the vault's `Conventions.md` governs them. The `notes` skill SHALL direct agents to propose convention changes in Plannotator and make them only once approved, never as a side effect of other work. It SHALL retain the instruction to describe a plugin's behavior in its README.
 
 #### Scenario: Correct an outdated note
 
-- **WHEN** an agent corrects a reversed decision
-- **THEN** the note states the current decision with its date and decision maker without retaining contradictory previous rules
+- **WHEN** an agent corrects an outdated note
+- **THEN** the notes skill directs it to follow `Conventions.md` rather than a separate plugin rule for note content
+
+#### Scenario: Change a vault convention
+
+- **WHEN** an agent needs to change `Conventions.md`
+- **THEN** the skill requires a proposal in Plannotator and approval before the change
+- **AND** it prohibits making the convention change as a side effect of other work
+
+#### Scenario: Describe plugin behavior
+
+- **WHEN** an agent documents a plugin's behavior
+- **THEN** the notes skill directs it to the plugin's README
 
 ### Requirement: Preserve open todos
 
