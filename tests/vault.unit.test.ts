@@ -49,6 +49,7 @@ interface BwOptions {
 	/** Two-step methods the account has, by bw provider id, with the code each accepts. */
 	twoFactor?: Record<string, string>;
 	newDevice?: boolean;
+	unlockError?: string;
 }
 
 /** A stub `bw` keyed by data directory, close enough to the real CLI's status machine. */
@@ -87,7 +88,7 @@ function fakeBw(options: BwOptions = {}) {
 				return ok("You are logged in!");
 			case "unlock --passwordenv": {
 				const variable = flag("--passwordenv") ?? "";
-				if (env[variable] !== MASTER) return fail("Invalid master password.");
+				if (env[variable] !== MASTER) return fail(options.unlockError ?? "Invalid master password.");
 				return ok(newKey());
 			}
 			case "lock":
@@ -140,7 +141,7 @@ function memoryKeystore(): Keystore & { data: Map<string, string> } {
 }
 
 /** Scripted UI: each select/input takes the next answer and records the prompt. */
-function scriptedContext(answers: string[], hasUI = true) {
+function scriptedContext(answers: Array<string | undefined>, hasUI = true) {
 	const prompts: Array<{ title: string; secret: boolean; kind: string }> = [];
 	const take = (kind: string, title: string, secret = false) => {
 		prompts.push({ title, secret, kind });
@@ -288,9 +289,49 @@ describe("login and unlock", () => {
 		] as const;
 		for (const [code, reason] of cases) {
 			const { call } = setup({ twoFactor: { "3": YUBIKEY_CODE } });
-			const { ctx } = scriptedContext(["me@scch.at", MASTER, code]);
+			const { ctx, prompts } = scriptedContext(["me@scch.at", MASTER, code]);
 			await expect(call({ action: "search", vault: "scch", query: "" }, ctx)).rejects.toThrow(reason);
+			expect(prompts).toHaveLength(3);
+			expect(prompts.some(prompt => prompt.title.includes("API key"))).toBe(false);
 		}
+	});
+
+	test("rejected login credentials and two-step codes explain how to re-enter privately", async () => {
+		const login = setup();
+		await expect(
+			login.call({ action: "search", vault: "scch" }, scriptedContext(["me@scch.at", "typo"]).ctx),
+		).rejects.toThrow(/may have been mistyped.*Retry this vault call.*private prompts/);
+		await login.call(
+			{ action: "search", vault: "scch" },
+			scriptedContext(["me@scch.at", MASTER]).ctx,
+		);
+
+		const twoStep = setup({ twoFactor: { "0": "246810" } });
+		await expect(
+			twoStep.call(
+				{ action: "search", vault: "scch" },
+				scriptedContext(["me@scch.at", MASTER, "000000"]).ctx,
+			),
+		).rejects.toThrow(/two-step code was rejected or expired.*Retry this vault call.*fresh code/);
+		await twoStep.call(
+			{ action: "search", vault: "scch" },
+			scriptedContext(["me@scch.at", MASTER, "246810"]).ctx,
+		);
+	});
+
+	test("an expired two-step code requests fresh private input, not API credentials", async () => {
+		const bw = fakeBw({ twoFactor: { "0": "246810" } });
+		const run: ProcessRunner = (command, options) =>
+			command.includes("--code")
+				? Promise.resolve({ exitCode: 1, stdout: "", stderr: "The code has expired." })
+				: bw.run(command, options);
+		const { call } = load({ home, run, keystore: memoryKeystore(), now: () => clock });
+		const { ctx, prompts } = scriptedContext(["me@scch.at", MASTER, "246810"]);
+		await expect(call({ action: "search", vault: "scch" }, ctx)).rejects.toThrow(
+			/two-step code was rejected or expired.*Retry this vault call.*fresh code/,
+		);
+		expect(prompts).toHaveLength(3);
+		expect(prompts.some(prompt => prompt.title.includes("API key"))).toBe(false);
 	});
 
 	test("falls back to the personal API key for new-device verification and reuses the password", async () => {
@@ -325,6 +366,14 @@ describe("login and unlock", () => {
 		await expect(call({ action: "search", vault: "scch", query: "" }, ctx)).rejects.toThrow(
 			/interactive OMP session/,
 		);
+	});
+
+	test("a cancelled private prompt can be requested again without sending credentials in chat", async () => {
+		const { call } = setup();
+		await expect(
+			call({ action: "search", vault: "scch" }, scriptedContext(["me@scch.at", undefined]).ctx),
+		).rejects.toThrow(/cancelled or left empty.*retry this vault call.*never in chat/);
+		await call({ action: "search", vault: "scch" }, scriptedContext(["me@scch.at", MASTER]).ctx);
 	});
 
 	test("a new process reuses the unlock until midnight, then locks and asks again", async () => {
@@ -404,6 +453,7 @@ describe("delivery", () => {
 			expect(result).toContain("[vault:scch/ANITA vLLM external/");
 			for (const secret of [PASSWORD, "tok_canary_9f8e7d", "multi\nline"])
 				expect(result).not.toContain(secret);
+			expect(result).toContain("If the path is missing or expired, call file again");
 			if (process.platform !== "win32") expect(statSync(path).mode & 0o777).toBe(0o600);
 		}
 	});
@@ -417,7 +467,9 @@ describe("delivery", () => {
 		const { bw, call } = await unlocked();
 		await call({ ...deliver, field: "username" }, scriptedContext(["Allow once"]).ctx);
 		const again = scriptedContext(["Deny"]);
-		await expect(call({ ...deliver, field: "username" }, again.ctx)).rejects.toThrow(/denied/);
+		await expect(call({ ...deliver, field: "username" }, again.ctx)).rejects.toThrow(
+			/denied and that decision is saved.*Do not retry or edit approvals/,
+		);
 		expect(again.prompts).toHaveLength(1);
 
 		const fetches = bw.calls.filter(entry => entry.args[1] === "item").length;
@@ -427,6 +479,16 @@ describe("delivery", () => {
 		);
 		expect(third.prompts).toHaveLength(0);
 		expect(bw.calls.filter(entry => entry.args[1] === "item")).toHaveLength(fetches);
+	});
+
+	test("a dismissed approval is not a saved denial and can be requested again", async () => {
+		const { call } = await unlocked();
+		await expect(
+			call({ ...deliver, field: "password" }, scriptedContext([undefined]).ctx),
+		).rejects.toThrow(/dialog was closed.*dismissed accidentally, retry this vault call/);
+		const retry = scriptedContext(["Allow once"]);
+		await call({ ...deliver, field: "password" }, retry.ctx);
+		expect(retry.prompts).toHaveLength(1);
 	});
 });
 
@@ -503,8 +565,8 @@ describe("redaction", () => {
 });
 
 describe("errors and lifecycle", () => {
-	async function unlocked() {
-		const harness = setup();
+	async function unlocked(options: BwOptions = {}) {
+		const harness = setup(options);
 		await harness.call(
 			{ action: "search", vault: "scch", query: "" },
 			scriptedContext(["me@scch.at", MASTER]).ctx,
@@ -534,15 +596,146 @@ describe("errors and lifecycle", () => {
 		expect(retry.prompts).toHaveLength(2);
 	});
 
+	test("master-key decryption failures reuse bounded retries and a later call prompts again", async () => {
+		for (const unlockError of [
+			"Invalid master password.",
+			"ERROR bitwarden_crypto::keys::master_key: error=The decryption operation failed",
+		]) {
+			const { call } = await unlocked({ unlockError });
+			await call({ action: "lock", vault: "scch" }, scriptedContext([]).ctx);
+			const retry = scriptedContext(["typo", MASTER]);
+			await call({ action: "search", vault: "scch" }, retry.ctx);
+			expect(retry.prompts).toHaveLength(2);
+			await call({ action: "lock", vault: "scch" }, scriptedContext([]).ctx);
+			const exhausted = scriptedContext(["wrong", "wrong", "wrong"]);
+			await expect(call({ action: "search", vault: "scch" }, exhausted.ctx)).rejects.toThrow(
+				/three master-password attempts.*Retry this vault call.*fresh private prompts/,
+			);
+			expect(exhausted.prompts).toHaveLength(3);
+			const later = scriptedContext([MASTER]);
+			await call({ action: "search", vault: "scch" }, later.ctx);
+			expect(later.prompts).toHaveLength(1);
+		}
+	});
+
+	test("network errors name the SCCH VPN or the private server's network", async () => {
+		for (const vault of ["scch", "private"]) {
+			const bw = fakeBw();
+			const run: ProcessRunner = (command, options) =>
+				command[1] === "login"
+					? Promise.resolve({
+							exitCode: 1,
+							stdout: "",
+							stderr: `Unable to fetch ServerConfig: getaddrinfo ENOTFOUND ${vault === "scch" ? "password.scch.at" : "vault.bitwarden.eu"}`,
+						})
+					: bw.run(command, options);
+			const { call } = load({ home, run, keystore: memoryKeystore(), now: () => clock });
+			const answers =
+				vault === "scch"
+					? ["me@scch.at", MASTER]
+					: ["Bitwarden EU (vault.bitwarden.eu)", "me@example.org", MASTER];
+			await expect(call({ action: "search", vault }, scriptedContext(answers).ctx)).rejects.toThrow(
+				vault === "scch"
+					? /SCCH network or FortiClient VPN.*retry this vault call.*private vault for personal and university/
+					: /server could not be reached.*network connection.*retry this vault call/,
+			);
+		}
+	});
+
+	test("Bitwarden operation failures retain their diagnostic and give the matching next step", async () => {
+		const { deps, call } = await unlocked();
+		const original = deps.run;
+		const cases: Array<[string[], Record<string, unknown>, RegExp]> = [
+			[
+				["status"],
+				{ action: "search", vault: "scch" },
+				/bw status failed: test failure\nCheck that bw works/,
+			],
+			[
+				["list", "items"],
+				{ action: "search", vault: "scch" },
+				/bw list failed: test failure\nRetry the search/,
+			],
+			[
+				["get", "item"],
+				{ ...deliver, field: "password" },
+				/bw get failed: test failure\nRun vault action search/,
+			],
+			[
+				["get", "totp"],
+				{ ...deliver, field: "totp" },
+				/bw get totp failed: test failure\nCheck that this entry has a valid TOTP setup/,
+			],
+		];
+		for (const [args, params, expected] of cases) {
+			deps.run = (command, options) =>
+				args.every((arg, i) => command[i + 1] === arg)
+					? Promise.resolve({ exitCode: 1, stdout: "", stderr: "test failure" })
+					: original(command, options);
+			await expect(call(params, scriptedContext(["Allow always"]).ctx)).rejects.toThrow(expected);
+		}
+	});
+
+	test("setup failures name the host or private-input recovery", async () => {
+		for (const [operation, answers, expected] of [
+			["config", [], /server URL.*retry this vault call/],
+			["sync", ["me@scch.at", MASTER], /Retry this vault call to sync again/],
+		] as const) {
+			const bw = fakeBw();
+			const run: ProcessRunner = (command, options) =>
+				command[1] === operation
+					? Promise.resolve({ exitCode: 1, stdout: "", stderr: "test failure" })
+					: bw.run(command, options);
+			const { call } = load({ home, run, keystore: memoryKeystore(), now: () => clock });
+			await expect(
+				call({ action: "search", vault: "scch" }, scriptedContext([...answers]).ctx),
+			).rejects.toThrow(expected);
+		}
+	});
+
+	test("unknown statuses and missing session keys ask for host repair or private re-entry", async () => {
+		for (const [operation, stdout, answers, expected] of [
+			["status", '{"status":"unknown"}', [], /unknown status.*Check or update.*retry this vault call/],
+			[
+				"login",
+				"no key",
+				["me@scch.at", MASTER],
+				/no session key.*Retry this vault call.*private login/,
+			],
+		] as const) {
+			const bw = fakeBw();
+			const run: ProcessRunner = (command, options) =>
+				command[1] === operation
+					? Promise.resolve({ exitCode: 0, stdout, stderr: "" })
+					: bw.run(command, options);
+			const { call } = load({ home, run, keystore: memoryKeystore(), now: () => clock });
+			await expect(
+				call({ action: "search", vault: "scch" }, scriptedContext([...answers]).ctx),
+			).rejects.toThrow(expected);
+		}
+	});
+
+	test("an invalid cached session explains how to clear it before retrying", async () => {
+		const { deps, call } = await unlocked();
+		const original = deps.run;
+		deps.run = (command, options) =>
+			command[1] === "status"
+				? Promise.resolve({ exitCode: 1, stdout: "", stderr: "Invalid session." })
+				: original(command, options);
+		await expect(call({ action: "search", vault: "scch" }, scriptedContext([]).ctx)).rejects.toThrow(
+			/Call vault action lock with vault scch, then retry the original vault call/,
+		);
+	});
+
 	test("missing fields, unknown entries and bad vault names fail with a usable message", async () => {
 		const { call } = await unlocked();
 		await expect(
 			call({ ...deliver, field: "pin" }, scriptedContext(["Allow always"]).ctx),
-		).rejects.toThrow(/no field "pin".*username, password/);
+		).rejects.toThrow(/no field "pin".*username, password.*Retry file with an available field/);
 		await expect(call({ ...deliver }, scriptedContext([]).ctx)).rejects.toThrow(/needs id and field/);
 		await expect(
 			call({ ...deliver, id: "missing", field: "password" }, scriptedContext([]).ctx),
-		).rejects.toThrow(/bw get failed: Not found/);
+		).rejects.toThrow(/bw get failed: Not found.*\nRun vault action search in scch/);
 		await expect(
 			call({ action: "search", vault: "Bad Name", query: "" }, scriptedContext([]).ctx),
 		).rejects.toThrow(/vault names/);
@@ -552,6 +745,7 @@ describe("errors and lifecycle", () => {
 		const { call } = await unlocked();
 		const totp = await call({ ...deliver, field: "totp" }, scriptedContext(["Allow always"]).ctx);
 		expect(readFileSync(totp.match(/is in (.+)\n/u)?.[1] ?? "", "utf8")).toBe("123456");
+		expect(totp).toContain("Request a fresh totp file immediately before use");
 		const token = await call({ ...deliver, field: "api token" }, scriptedContext([]).ctx);
 		expect(readFileSync(token.match(/is in (.+)\n/u)?.[1] ?? "", "utf8")).toBe("tok_canary_9f8e7d");
 	});
