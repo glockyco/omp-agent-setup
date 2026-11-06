@@ -6,9 +6,11 @@
 - [x] 1.2 Replace the 15-minute exclusion bullet in `plugin/skills/notes/SKILL.md` with the approved distinction between other editors' recent changes and the current session's finished edits.
 - [x] 1.3 Raise the version to 0.11.12 in `.omp-plugin/marketplace.json`, `plugin/package.json` and `package.json`.
 - [x] 1.4 Run `openspec validate apply-weekly-review-2026-11-06 --strict` and `bun run check:local` successfully, then commit the implementation locally on main.
+- [x] 1.5 Update comparison lookup and decision records, current-state vault editing, and deliberate todo changes in the skills, rules and spec delta.
+- [x] 1.6 Strictly validate the expanded change, run `bun run check:local` and unit tests, and commit the approved additions.
 
-## 2. Release (requires authorization)
+## 2. Authorized release
 
-- [ ] 2.1 When the release scope is settled, archive this change and sync its accepted specs in the release pull request.
-- [ ] 2.2 With explicit push approval, push the release pull request and obtain all required CI contexts, including the complete native release gate.
-- [ ] 2.3 With explicit release authorization, merge the reviewed pull request and tag `v0.11.12` on its reviewed release commit.
+- [ ] 2.1 Archive this change and sync its accepted specs in the release pull request.
+- [ ] 2.2 Push the release pull request and obtain all required CI contexts, including the complete native release gate.
+- [ ] 2.3 Merge the reviewed pull request and tag `v0.11.12` on its reviewed release commit.
