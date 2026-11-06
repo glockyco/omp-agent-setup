@@ -11,6 +11,6 @@
 
 ## 2. Authorized release
 
-- [ ] 2.1 Archive this change and sync its accepted specs in the release pull request.
-- [ ] 2.2 Push the release pull request and obtain all required CI contexts, including the complete native release gate.
-- [ ] 2.3 Merge the reviewed pull request and tag `v0.11.12` on its reviewed release commit.
+- [x] 2.1 Archive this change and sync its accepted specs in the release pull request.
+
+After this implementation archive, push the release pull request and obtain all required CI contexts, including the complete native release gate. Then merge the reviewed pull request and tag `v0.11.12` on its reviewed release commit. These publication steps are authorized and their results belong to the pull request and tag.

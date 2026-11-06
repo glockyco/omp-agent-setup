@@ -326,12 +326,12 @@ The plugin SHALL ship a separate always-applied rule for repository documentatio
 - **AND** agent instructions phrase what needs a person's decision as an instruction
 - **AND** a README opens with what the project does and for whom, then setup and use, then further reading
 - **AND** the README points to specs, docs and agent instructions instead of repeating them
-- **AND** notes in the personal notes vault retain dates, history and decision owners under the vault's own conventions
+- **AND** notes in the personal notes vault retain dates and decision owners under the vault's own conventions
 
 #### Scenario: Edit a vault note
 
 - **WHEN** an agent records a reversed decision in a note of the notes vault
-- **THEN** the documentation rule does not ask it to remove the date, the earlier choice or who decided
+- **THEN** the documentation rule retains the decision date and who decided without requiring the earlier choice
 
 #### Scenario: Introduce a repository
 
@@ -545,18 +545,28 @@ The `compare-options` skill SHALL have the agent check the composition of every 
 
 ### Requirement: Comparison decisions in the notes vault
 
-The `compare-options` skill SHALL have the agent record each decision under the Notes of the vault item it belongs to, as the rule or wording that now holds, and SHALL change an existing record on the same subject instead of adding another. A record SHALL hold one exact example, where the decision applies, the person's words when they say more than the choice, the date and the comparison's file, and SHALL leave out the options, how the comparison went and the agent's inferences.
+The `compare-options` skill SHALL record current decisions in the repository's OpenSpec specs or active change, otherwise in the vault item's Notes. Records SHALL contain one exact example, scope and a one-sentence reason when needed, replacing the same subject without options, comparison history or inferences. Further questions SHALL use a new Plannotator comparison, not chat.
 
 #### Scenario: Record a decision
 
-- **WHEN** a person answers a comparison
-- **THEN** the skill directs the agent to record the rule or wording that now holds with one exact example, where it applies, the person's words when they say more than the choice, the date and the comparison's file under the Notes of the vault item the decision belongs to
-- **AND** to leave out the options, how the comparison went and its own inferences
+- **WHEN** a person answers a comparison for a project with a repository
+- **THEN** the skill directs the agent to record the current rule in that repository's OpenSpec specs or active change with one exact example, its scope and a one-sentence reason when needed
+- **AND** the comparison need not quote the person's words
+
+#### Scenario: Record a decision without a repository
+
+- **WHEN** the project has no repository
+- **THEN** the decision belongs under the Notes of its vault item
 
 #### Scenario: An answer changes an earlier decision
 
 - **WHEN** an answer changes a subject that an earlier record covers
-- **THEN** the skill directs the agent to change that record and say what changed and when
+- **THEN** the skill directs the agent to replace that record without options, comparison history or inferences
+
+#### Scenario: Applying an answer raises a question
+
+- **WHEN** a fact changes the approved option while applying an answer
+- **THEN** the skill directs the agent to ask a new comparison in Plannotator rather than chat
 
 ### Requirement: Earlier decisions as evidence
 
@@ -565,7 +575,7 @@ The `compare-options` skill SHALL have the agent read earlier decisions from any
 #### Scenario: Prepare the next decision
 
 - **WHEN** an agent prepares a new comparison
-- **THEN** the skill directs it to search the vault for earlier decisions, also from other projects, and to say what transfers and what does not
+- **THEN** the skill directs it to search the project's specs and the notes vault for earlier decisions, also from other projects, and to say what transfers and what does not
 
 ### Requirement: Rounds after a rejection
 
@@ -668,7 +678,7 @@ The Windows release gate SHALL accept an unsupported-operation termination refus
 
 ### Requirement: Vault commits from either machine
 
-The `notes` skill SHALL have agents commit all pending vault changes, not only their own, on whichever machine they work, after a pull with rebase, and push right away. It SHALL have them leave out files changed in the last 15 minutes, because another session or Obsidian may still be editing them.
+The `notes` skill SHALL have agents commit all pending vault changes, not only their own, on whichever machine they work, after a pull with rebase, and push right away. It SHALL have them leave out files that another session or Obsidian changed in the last 15 minutes, because they may still be editing them. It SHALL have agents commit their own finished edits right away.
 
 #### Scenario: Another session left changes
 
@@ -677,8 +687,13 @@ The `notes` skill SHALL have agents commit all pending vault changes, not only t
 
 #### Scenario: A file is still in work
 
-- **WHEN** a pending file changed five minutes ago
+- **WHEN** another session or Obsidian changed a pending file five minutes ago
 - **THEN** the agent leaves it out of the commit
+
+#### Scenario: The current session finished its edit
+
+- **WHEN** an agent finishes its own vault edit less than 15 minutes ago and no other session or Obsidian changed that file in the last 15 minutes
+- **THEN** the skill directs it to commit that finished edit right away
 
 ### Requirement: Efficient Windows release ownership queries
 
@@ -709,3 +724,35 @@ The `notes` skill SHALL NOT require a particular kind of session for vault pushe
 
 - **WHEN** an agent commits the vault in an SSH session on Korolev
 - **THEN** the skill has it push from that session
+
+### Requirement: One topic per announcement
+
+The `compare-options` skill SHALL have the agent keep one topic in one post, with several images when needed and its link once, because readers should not piece one announcement together from several.
+
+#### Scenario: Announce one topic with several images
+
+- **WHEN** an agent prepares one announcement that needs several images and a link
+- **THEN** the skill directs it to keep the topic and images in one post with the link once
+
+### Requirement: Current vault decisions
+
+The `notes` skill SHALL distinguish vault notes from repository documentation, retain each decision's date and decision maker under `Conventions.md`, and fix wrong or outdated notes in place so they state what holds now. Git SHALL keep their previous content rather than a change log in Notes.
+
+#### Scenario: Correct an outdated note
+
+- **WHEN** an agent corrects a reversed decision
+- **THEN** the note states the current decision with its date and decision maker without retaining contradictory previous rules
+
+### Requirement: Preserve open todos
+
+The personal policy SHALL direct agents to add requests or side tasks with `todo append` and update, finish or drop existing todos one by one. Agents SHALL use `todo init` only when no todo is open or after carrying every open todo into the replacement list.
+
+#### Scenario: A request arrives during open work
+
+- **WHEN** an agent receives a side task while todos remain open
+- **THEN** the policy directs it to append that task without replacing the open list
+
+#### Scenario: Replace a todo list
+
+- **WHEN** an agent initializes a replacement list with open todos
+- **THEN** every open todo is carried into the new list
