@@ -17,8 +17,8 @@ The `notes` vault holds work and personal notes. `Conventions.md` in the vault d
 
 ## Write
 
-- The documentation rule does not cover vault notes, so notes keep dates and who decided what, as `Conventions.md` describes for Notes.
-- Fix wrong or outdated notes in place. When a decision is reversed, record what changed and when.
+- The documentation rule does not cover vault notes. Notes keep the date of each decision and who made it, as `Conventions.md` describes for Notes.
+- Fix wrong or outdated notes in place, so they state what holds now. Git keeps what they said before.
 - Propose a change to `Conventions.md` in Plannotator and make it only once approved, never as a side effect of other work. Describe a plugin's behavior in its README.
 
 ## Commit
