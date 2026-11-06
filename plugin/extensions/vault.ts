@@ -171,14 +171,25 @@ export function redactDeep<T>(input: T): T {
 
 export function formatValue(value: string, format: FileFormat, name?: string): string {
 	if (format === "raw") return value;
-	if (!name) throw new Error(`format ${format} needs a name`);
+	if (!name)
+		throw new Error(
+			`format ${format} needs a name. Set name to the variable or header name, or use format raw.`,
+		);
 	if (format === "dotenv") {
-		if (!ENV_NAME.test(name)) throw new Error("dotenv name must be a valid variable name");
+		if (!ENV_NAME.test(name))
+			throw new Error(
+				"dotenv name must be a valid variable name. Use letters, digits and underscores, starting with a letter or underscore.",
+			);
 		return `${name}=${quoteDotenv(value)}\n`;
 	}
-	if (!HEADER_NAME.test(name)) throw new Error("header name must be a valid HTTP header name");
+	if (!HEADER_NAME.test(name))
+		throw new Error(
+			"header name must be a valid HTTP header name. Use a name such as Authorization or X-Api-Key.",
+		);
 	if (/[\r\n]/u.test(value))
-		throw new Error("the value contains a line break and cannot be a header");
+		throw new Error(
+			"the value contains a line break and cannot be a header. Use format raw or dotenv instead.",
+		);
 	return `${name}: ${value}\n`;
 }
 
@@ -239,10 +250,17 @@ export class VaultService {
 	async search(vault: string, query: string, ctx: ExtensionContext): Promise<string> {
 		const key = await this.unlock(vault, ctx);
 		const result = await this.#bw(vault, ["list", "items", "--search", query], { BW_SESSION: key });
-		if (result.exitCode !== 0) throw new VaultError(`bw list failed: ${firstLine(result)}`);
+		if (result.exitCode !== 0)
+			throw bwFailure(
+				vault,
+				"bw list",
+				result,
+				"Retry the search. If it still fails, check the Bitwarden CLI's reported error before continuing.",
+			);
 		const parsed: unknown = JSON.parse(result.stdout);
 		const items = (Array.isArray(parsed) ? parsed : []).flatMap(entry => parseItem(entry) ?? []);
-		if (items.length === 0) return `No entries in ${vault} match "${query}".`;
+		if (items.length === 0)
+			return `No entries in ${vault} match "${query}". Try a shorter query, the service's domain or the other vault if the account belongs there.`;
 		const lines = items.slice(0, 25).map(item => {
 			const who = [
 				item.login?.username && `username ${item.login.username}`,
@@ -261,16 +279,31 @@ export class VaultService {
 	): Promise<{ path: string; label: string }> {
 		const approvals = await this.#readApprovals();
 		const approvalKey = `${vault}/${request.id}`;
-		if (approvals[approvalKey] === "deny") throw new VaultError("This entry is denied for agents.");
+		if (approvals[approvalKey] === "deny")
+			throw new VaultError(
+				"This entry is denied for agents. Do not retry or edit approvals to bypass that decision. Use another approved entry, or ask the person to change the approval.",
+			);
 		const key = await this.unlock(vault, ctx);
 		const got = await this.#bw(vault, ["get", "item", request.id], { BW_SESSION: key });
-		if (got.exitCode !== 0) throw new VaultError(`bw get failed: ${firstLine(got)}`);
+		if (got.exitCode !== 0)
+			throw bwFailure(
+				vault,
+				"bw get",
+				got,
+				`Run vault action search in ${vault} and use an entry id from its result.`,
+			);
 		const item = parseItem(JSON.parse(got.stdout));
-		if (!item) throw new VaultError("bw returned an entry without id or name.");
+		if (!item)
+			throw new VaultError(
+				"bw returned an entry without id or name. Run vault action search again and use a returned entry id. If the entry is still malformed, repair it in Bitwarden before retrying.",
+			);
 		const label = `[vault:${vault}/${item.name}/${request.field}]`;
 
 		if (approvals[approvalKey] !== "always") {
-			if (!ctx.hasUI) throw new VaultError("Approving this entry needs an interactive OMP session.");
+			if (!ctx.hasUI)
+				throw new VaultError(
+					"Approving this entry needs an interactive OMP session. Retry this file request there so the person can approve it. Do not ask for the secret in chat.",
+				);
 			const choice = await ctx.ui.select?.(
 				`Allow the agent to use "${item.name}" (${request.field}) from ${vault}? Purpose: ${request.purpose}`,
 				[...APPROVAL_CHOICES],
@@ -278,7 +311,11 @@ export class VaultService {
 			if (choice === "Deny") await this.#writeApproval(approvalKey, "deny");
 			if (choice === "Allow always") await this.#writeApproval(approvalKey, "always");
 			if (choice !== "Allow always" && choice !== "Allow once")
-				throw new VaultError("The request was denied.");
+				throw new VaultError(
+					choice === "Deny"
+						? "The request was denied and that decision is saved. Do not retry or edit approvals to bypass it. Use another approved entry, or ask the person to change the approval."
+						: "The approval dialog was closed without allowing access. If it was dismissed accidentally, retry this vault call to ask again. Do not use the entry without approval.",
+				);
 		}
 
 		const value = await this.#fieldValue(vault, item, request.field, key);
@@ -312,7 +349,11 @@ export class VaultService {
 	/** Return a valid session key, asking the person to log in or unlock when needed. */
 	unlock(vault: string, ctx: ExtensionContext): Promise<string> {
 		if (!VAULT_NAME.test(vault))
-			return Promise.reject(new VaultError("vault names are lowercase words such as scch"));
+			return Promise.reject(
+				new VaultError(
+					"vault names are lowercase words such as scch or private. Set vault to the intended vault name and retry.",
+				),
+			);
 		const pending = this.#pending.get(vault);
 		if (pending) return pending;
 		const next = this.#unlock(vault, ctx).finally(() => this.#pending.delete(vault));
@@ -328,7 +369,7 @@ export class VaultService {
 		const status = await this.#status(vault);
 		if (!ctx.hasUI)
 			throw new VaultError(
-				`The ${vault} vault is ${status}, and unlocking it needs an interactive OMP session.`,
+				`The ${vault} vault is ${status}, and unlocking it needs an interactive OMP session. Retry this vault call there to get private login prompts. Do not ask for credentials in chat.`,
 			);
 		if (status === "unauthenticated") {
 			const outcome = await this.#login(vault, ctx);
@@ -351,7 +392,13 @@ export class VaultService {
 		}
 		if (!this.#synced.has(vault)) {
 			const sync = await this.#bw(vault, ["sync"], { BW_SESSION: key });
-			if (sync.exitCode !== 0) throw new VaultError(`bw sync failed: ${firstLine(sync)}`);
+			if (sync.exitCode !== 0)
+				throw bwFailure(
+					vault,
+					"bw sync",
+					sync,
+					"Retry this vault call to sync again. If it still fails, resolve the reported Bitwarden sync error before using entries.",
+				);
 			this.#synced.add(vault);
 		}
 		return key;
@@ -375,18 +422,32 @@ export class VaultService {
 
 	async #status(vault: string, key?: string): Promise<"unauthenticated" | "locked" | "unlocked"> {
 		const result = await this.#bw(vault, ["status"], key ? { BW_SESSION: key } : {});
-		if (result.exitCode !== 0) throw new VaultError(`bw status failed: ${firstLine(result)}`);
+		if (result.exitCode !== 0)
+			throw bwFailure(
+				vault,
+				"bw status",
+				result,
+				"Check that bw works on this host, then retry this vault call.",
+			);
 		const parsed: unknown = JSON.parse(result.stdout);
 		const status =
 			parsed && typeof parsed === "object" && "status" in parsed ? parsed.status : undefined;
 		if (status === "unauthenticated" || status === "locked" || status === "unlocked") return status;
-		throw new VaultError(`bw reported an unknown status: ${status}`);
+		throw new VaultError(
+			`bw reported an unknown status: ${status}. Check or update the Bitwarden CLI on this host, then retry this vault call.`,
+		);
 	}
 
 	async #login(vault: string, ctx: ExtensionContext): Promise<{ key?: string; password: string }> {
 		const server = await this.#server(vault, ctx);
 		const config = await this.#bw(vault, ["config", "server", server], {});
-		if (config.exitCode !== 0) throw new VaultError(`bw config server failed: ${firstLine(config)}`);
+		if (config.exitCode !== 0)
+			throw bwFailure(
+				vault,
+				"bw config server",
+				config,
+				"Check the vault server URL and the Bitwarden CLI configuration, then retry this vault call.",
+			);
 		const email = await ask(ctx, `Email for the ${vault} vault (${server})`, false);
 		const password = await ask(ctx, `Master password for ${email} (${vault})`, true);
 
@@ -396,7 +457,13 @@ export class VaultService {
 			});
 		let result = await attempt([]);
 		if (result.exitCode === 0) return { key: sessionKey(result), password };
-		if (!needsCode(result)) throw new VaultError(`Login failed: ${firstLine(result)}`);
+		if (!needsCode(result))
+			throw bwFailure(
+				vault,
+				"Login",
+				result,
+				"Retry this vault call to enter the email and master password again in private prompts. If the same error persists, check the account in Bitwarden.",
+			);
 
 		const code = await ask(
 			ctx,
@@ -423,10 +490,16 @@ export class VaultService {
 				[YUBIKEY]: "a YubiKey",
 			};
 			throw new VaultError(
-				`Login failed: the account does not use ${names[method]} for two-step login.`,
+				`Login failed: the account does not use ${names[method]} for two-step login. Retry this vault call and use a method enabled for this account: a registered YubiKey, an authenticator code, or an empty code for email.`,
 			);
 		}
-		if (!needsCode(result)) throw new VaultError(`Login failed: ${firstLine(result)}`);
+		if (!needsCode(result))
+			throw bwFailure(
+				vault,
+				"Login",
+				result,
+				"Retry this vault call for new private login prompts. Check the account's enabled two-step method if it still fails.",
+			);
 
 		// The remaining code is new-device verification, which bw only completes in a terminal.
 		// A personal API key skips it.
@@ -440,7 +513,13 @@ export class VaultService {
 			BW_CLIENTID: clientId,
 			BW_CLIENTSECRET: clientSecret,
 		});
-		if (apiLogin.exitCode !== 0) throw new VaultError(`API key login failed: ${firstLine(apiLogin)}`);
+		if (apiLogin.exitCode !== 0)
+			throw bwFailure(
+				vault,
+				"API key login",
+				apiLogin,
+				"Retry this vault call and enter the account's client_id and client_secret from Bitwarden Settings > Security > Keys in the private prompts. Do not paste them in chat.",
+			);
 		return { password };
 	}
 
@@ -456,13 +535,23 @@ export class VaultService {
 				},
 			);
 			if (result.exitCode === 0) return sessionKey(result);
-			if (!/invalid master password/iu.test(`${result.stdout}\n${result.stderr}`)) {
-				throw new VaultError(`Unlock failed: ${firstLine(result)}`);
+			if (!wrongMasterPassword(result)) {
+				throw bwFailure(
+					vault,
+					"Unlock",
+					result,
+					"Retry this vault call for a private master-password prompt. If the same error persists, check that the account can be unlocked in Bitwarden.",
+				);
 			}
-			ctx.ui.notify(`Wrong master password for the ${vault} vault.`, "warning");
+			ctx.ui.notify(
+				`The master password did not decrypt the ${vault} vault. It may have been mistyped. Enter it again in the private prompt.`,
+				"warning",
+			);
 			password = undefined;
 		}
-		throw new VaultError("Unlock failed after three attempts.");
+		throw new VaultError(
+			"Unlock failed after three master-password attempts. The input did not decrypt the vault. Retry this vault call to get fresh private prompts. Do not send the password in chat.",
+		);
 	}
 
 	async #server(vault: string, ctx: ExtensionContext): Promise<string> {
@@ -474,11 +563,16 @@ export class VaultService {
 			...SERVER_CHOICES.keys(),
 			CUSTOM_SERVER,
 		]);
-		if (choice === undefined) throw new VaultError("Login cancelled.");
+		if (choice === undefined)
+			throw new VaultError(
+				"Login cancelled at server selection. If this was accidental, retry this vault call to select the server again.",
+			);
 		const server =
 			SERVER_CHOICES.get(choice) ?? (await ask(ctx, `Server URL for the ${vault} vault`, false));
 		if (!/^https:\/\/\S+$/u.test(server))
-			throw new VaultError("The server URL must start with https://.");
+			throw new VaultError(
+				"The server URL must start with https://. Retry this vault call and enter the full HTTPS server URL in the private prompt.",
+			);
 		profiles[vault] = server;
 		await ensurePrivateDir(this.#root);
 		await writePrivate(file, JSON.stringify(profiles, null, "\t"));
@@ -487,11 +581,19 @@ export class VaultService {
 
 	async #fieldValue(vault: string, item: BwItem, field: string, key: string): Promise<string> {
 		const fail = () =>
-			new VaultError(`"${item.name}" has no field "${field}". Fields: ${fieldNames(item).join(", ")}`);
+			new VaultError(
+				`"${item.name}" has no field "${field}". Fields: ${fieldNames(item).join(", ")}. Retry file with an available field name, or search for the correct entry.`,
+			);
 		if (field === "totp") {
 			if (!item.login?.totp) throw fail();
 			const totp = await this.#bw(vault, ["get", "totp", item.id], { BW_SESSION: key });
-			if (totp.exitCode !== 0) throw new VaultError(`bw get totp failed: ${firstLine(totp)}`);
+			if (totp.exitCode !== 0)
+				throw bwFailure(
+					vault,
+					"bw get totp",
+					totp,
+					"Check that this entry has a valid TOTP setup in Bitwarden, then request a fresh totp file immediately before use.",
+				);
 			return totp.stdout.trim();
 		}
 		const builtin =
@@ -524,7 +626,16 @@ export class VaultService {
 					"The Bitwarden CLI (bw) is not on PATH. Install it on this machine first.",
 				);
 			}
-			throw error;
+			throw bwFailure(
+				vault,
+				`bw ${args[0]}`,
+				{
+					exitCode: 1,
+					stdout: "",
+					stderr: error instanceof Error ? error.message : String(error),
+				},
+				"Check that the Bitwarden CLI runs on this host, then retry this vault call.",
+			);
 		});
 	}
 
@@ -619,7 +730,10 @@ function needsCode(result: CommandResult): boolean {
 
 function sessionKey(result: CommandResult): string {
 	const key = result.stdout.trim();
-	if (!/^[A-Za-z0-9+/=]{20,}$/u.test(key)) throw new VaultError("bw returned no session key.");
+	if (!/^[A-Za-z0-9+/=]{20,}$/u.test(key))
+		throw new VaultError(
+			"bw returned no session key. Retry this vault call for private login or unlock prompts. If it repeats, check or update the Bitwarden CLI.",
+		);
 	return key;
 }
 
@@ -629,6 +743,56 @@ function firstLine(result: CommandResult): string {
 	return redactText(text) || `exit code ${result.exitCode}`;
 }
 
+function wrongMasterPassword(result: CommandResult): boolean {
+	return /invalid master password|decryption operation failed/iu.test(
+		`${result.stdout}\n${result.stderr}`,
+	);
+}
+
+function bwFailure(
+	vault: string,
+	operation: string,
+	result: CommandResult,
+	next: string,
+): VaultError {
+	const diagnostic = `${result.stdout}\n${result.stderr}`;
+	const prefix = `${operation} failed: ${firstLine(result)}`;
+	if (
+		/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|ECONNRESET|fetch failed|unable to fetch/iu.test(
+			diagnostic,
+		)
+	) {
+		return new VaultError(
+			`${prefix}\n${
+				vault === "scch"
+					? "The SCCH vault is reachable only on the SCCH network or FortiClient VPN. Connect, then retry this vault call, or use the private vault for personal and university accounts."
+					: `The ${vault} vault server could not be reached. Check the network connection and the server URL, then retry this vault call.`
+			}`,
+		);
+	}
+	if (wrongMasterPassword(result) || /username or password is incorrect/iu.test(diagnostic)) {
+		return new VaultError(
+			`${prefix}\nThe email or master password was not accepted. It may have been mistyped. Retry this vault call to enter it again in private prompts. Do not send credentials in chat.`,
+		);
+	}
+	if (
+		operation === "Login" &&
+		/(?:two-step|token|code).*(?:invalid|incorrect|expired)|(?:invalid|incorrect|expired).*(?:two-step|token|code)/iu.test(
+			diagnostic,
+		)
+	) {
+		return new VaultError(
+			`${prefix}\nThe two-step code was rejected or expired. Retry this vault call for fresh private prompts, then enter a fresh code or touch the registered YubiKey again. Do not send the code in chat.`,
+		);
+	}
+	if (/vault is locked|invalid session|session.*(?:invalid|expired)/iu.test(diagnostic)) {
+		return new VaultError(
+			`${prefix}\nThe vault session is no longer unlocked. Call vault action lock with vault ${vault}, then retry the original vault call for fresh private unlock prompts.`,
+		);
+	}
+	return new VaultError(`${prefix}\n${next}`);
+}
+
 async function ask(
 	ctx: ExtensionContext,
 	title: string,
@@ -636,7 +800,10 @@ async function ask(
 	optional = false,
 ): Promise<string> {
 	const answer = await ctx.ui.input?.(title, undefined, { secret });
-	if (answer === undefined || (!answer && !optional)) throw new VaultError("Login cancelled.");
+	if (answer === undefined || (!answer && !optional))
+		throw new VaultError(
+			"Login stopped because a private prompt was cancelled or left empty. If this was accidental, retry this vault call to get fresh prompts. Enter credentials only there, never in chat.",
+		);
 	return secret ? answer : answer.trim();
 }
 
@@ -722,7 +889,9 @@ export function createKeystore(
 			async write(vault, data) {
 				const result = await powershell(DPAPI_PROTECT, data);
 				if (result.exitCode !== 0)
-					throw new VaultError("Windows DPAPI could not protect the unlock key.");
+					throw new VaultError(
+						"Windows DPAPI could not protect the unlock key. Check that Windows data protection works for the current account, then retry this vault call. Do not save the key in plaintext.",
+					);
 				await ensurePrivateDir(join(home, ".omp", "vault", "cache"));
 				await writePrivate(file(vault), result.stdout.trim());
 			},
@@ -748,7 +917,9 @@ export function createKeystore(
 					stdin: `add-generic-password -U -s "${KEYCHAIN_SERVICE}" -a ${vault} -X ${hex}\n`,
 				});
 				if (result.exitCode !== 0)
-					throw new VaultError("The macOS Keychain could not store the unlock key.");
+					throw new VaultError(
+						"The macOS Keychain could not store the unlock key. Unlock the login keychain and allow OMP access, then retry this vault call. Do not save the key in plaintext.",
+					);
 			},
 			async remove(vault) {
 				await run(["security", "delete-generic-password", "-s", KEYCHAIN_SERVICE, "-a", vault], {
@@ -770,12 +941,12 @@ export function createKeystore(
 // ---------------------------------------------------------------------------
 
 const DESCRIPTION = [
-	"Use secrets from Bitwarden vaults without seeing them. Vaults: scch (SCCH Vaultwarden) and private.",
-	"search lists entry names, ids, usernames, URIs and field names, so entries with the same name can be told apart. file writes one field to a private file and returns its path; the person approves each entry once.",
-	"Use the path, never the value: --passwordfile PATH, $(cat PATH) inside a command, curl -H @PATH for header files, a dotenv loader for dotenv files,",
-	"or `await tab.fill(selector, (await Bun.file(PATH).text()))` in a JavaScript eval cell for browser logins.",
-	"Never print, cat or read a delivered file into the conversation. Delivered secrets are redacted to [vault:...] labels in every output. Usernames are not secret and are not redacted.",
-	"Files and the unlock last until midnight. lock locks a vault early and deletes its files.",
+	"Log in to websites, APIs and command-line tools with the passwords, API keys, tokens and TOTP codes stored in your Bitwarden vaults, without seeing them: `private` (personal and university accounts, such as aau.at) and `scch` (SCCH accounts, reachable only on the SCCH network or FortiClient VPN). Use it whenever a sign-in page, a password prompt or a missing token blocks work, before asking the person.",
+	"search returns entry names, ids, usernames, URIs and field names, not secrets. file delivers one field to a private file and returns its path after entry approval.",
+	"Use the path without printing or reading the value into the conversation: --passwordfile PATH, $(cat PATH) inside a command, curl -H @PATH for header files, or a dotenv loader for dotenv files.",
+	"For browser sign-in, use `await tab.fill(selector, (await Bun.file(PATH).text()))` in a JavaScript eval cell.",
+	"Delivered secrets are redacted to [vault:...] labels in outputs. Usernames stay readable.",
+	"Files and unlocks expire at local midnight. lock ends access early and deletes files. If a path is missing or expired, call file again for the same entry and field and use the new path. Request a fresh totp file immediately before use because the code expires sooner.",
 ].join(" ");
 
 export function createVaultExtension(deps: VaultDeps): (pi: ExtensionAPI) => void {
@@ -809,7 +980,10 @@ export function createVaultExtension(deps: VaultDeps): (pi: ExtensionAPI) => voi
 					.describe("file: what the value is for, shown to the person when approving"),
 			}),
 			async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-				if (signal?.aborted) throw new Error("vault request cancelled");
+				if (signal?.aborted)
+					throw new Error(
+						"vault request cancelled before execution. Retry this vault call only if the task is still wanted.",
+					);
 				const vault = String(params.vault ?? "");
 				try {
 					if (params.action === "search") {
@@ -820,7 +994,9 @@ export function createVaultExtension(deps: VaultDeps): (pi: ExtensionAPI) => voi
 						return text(`Locked the ${vault} vault and deleted its files.`);
 					}
 					if (typeof params.id !== "string" || typeof params.field !== "string") {
-						throw new VaultError("file needs id and field.");
+						throw new VaultError(
+							"file needs id and field. Run vault action search, then set id to a returned entry id and field to an available field name.",
+						);
 					}
 					const { path, label } = await service.deliver(
 						vault,
@@ -834,11 +1010,13 @@ export function createVaultExtension(deps: VaultDeps): (pi: ExtensionAPI) => voi
 						},
 						ctx,
 					);
-					return text(`${label} is in ${path}\nUse the path. Do not print the file.`);
+					return text(
+						`${label} is in ${path}\nUse the path. Do not print the file. Files are deleted at local midnight or when the vault locks. If the path is missing or expired, call file again for this entry and field and use the new path.${params.field === "totp" ? " TOTP codes expire sooner. Request a fresh totp file immediately before use." : ""}`,
+					);
 				} catch (error) {
 					if (error instanceof VaultError) throw new Error(error.message);
 					throw new Error(
-						`vault failed: ${redactText(error instanceof Error ? error.message : String(error))}`,
+						`vault failed: ${redactText(error instanceof Error ? error.message : String(error))}\nCorrect the reported input or host error, then retry this vault call. Keep credentials in private prompts, never in chat.`,
 					);
 				}
 			},

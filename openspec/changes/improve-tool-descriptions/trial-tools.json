@@ -1,0 +1,92 @@
+[
+  {
+    "name": "personal_commit",
+    "description": "Preview, create, or amend a Conventional Commit from separate subject and causal body fields. Does not stage or push.",
+    "parameters": {
+      "type": "object",
+      "shape": {
+        "action": {
+          "required": true,
+          "type": "enum",
+          "values": [
+            "commit",
+            "amend",
+            "preview"
+          ]
+        },
+        "subject": {
+          "required": true,
+          "type": "string"
+        },
+        "body": {
+          "required": true,
+          "type": "string",
+          "description": "why the change exists, not who asked for it"
+        },
+        "repo": {
+          "required": false,
+          "type": "string",
+          "description": "repository to commit in; relative paths resolve against the session directory, and the default is the session repository"
+        }
+      }
+    }
+  },
+  {
+    "name": "vault",
+    "description": "Log in to websites, APIs and command-line tools with the passwords, API keys, tokens and TOTP codes stored in your Bitwarden vaults, without seeing them: `private` (personal and university accounts, such as aau.at) and `scch` (SCCH accounts, reachable only on the SCCH network or FortiClient VPN). Use it whenever a sign-in page, a password prompt or a missing token blocks work, before asking the person. search returns entry names, ids, usernames, URIs and field names, not secrets. file delivers one field to a private file and returns its path after entry approval. Use the path without printing or reading the value into the conversation: --passwordfile PATH, $(cat PATH) inside a command, curl -H @PATH for header files, or a dotenv loader for dotenv files. For browser sign-in, use `await tab.fill(selector, (await Bun.file(PATH).text()))` in a JavaScript eval cell. Delivered secrets are redacted to [vault:...] labels in outputs. Usernames stay readable. Files and unlocks expire at local midnight. lock ends access early and deletes files. If a path is missing or expired, call file again for the same entry and field and use the new path. Request a fresh totp file immediately before use because the code expires sooner.",
+    "parameters": {
+      "type": "object",
+      "shape": {
+        "action": {
+          "required": true,
+          "type": "enum",
+          "values": [
+            "search",
+            "file",
+            "lock"
+          ]
+        },
+        "vault": {
+          "required": true,
+          "type": "string",
+          "description": "vault name: scch or private"
+        },
+        "query": {
+          "required": false,
+          "type": "string",
+          "description": "search: words in the entry name"
+        },
+        "id": {
+          "required": false,
+          "type": "string",
+          "description": "file: entry id from search"
+        },
+        "field": {
+          "required": false,
+          "type": "string",
+          "description": "file: username, password, totp, notes or a custom field name"
+        },
+        "format": {
+          "required": false,
+          "type": "enum",
+          "values": [
+            "raw",
+            "dotenv",
+            "header"
+          ],
+          "description": "file: raw value (default), NAME=value line or Name: value line"
+        },
+        "name": {
+          "required": false,
+          "type": "string",
+          "description": "file: variable or header name for dotenv and header formats"
+        },
+        "purpose": {
+          "required": false,
+          "type": "string",
+          "description": "file: what the value is for, shown to the person when approving"
+        }
+      }
+    }
+  }
+]
