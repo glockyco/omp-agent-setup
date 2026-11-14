@@ -81,7 +81,7 @@ beforeAll(async () => {
 
 afterAll(() => {
 	if (root) rmSync(root, { recursive: true, force: true });
-});
+}, 30000);
 
 function fixture() {
 	const directory = canonicalScratchRoot(mkdtempSync(join(root, "case ")));
