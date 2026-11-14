@@ -60,6 +60,10 @@ DURABLE_WORK_RULE = (
     "Write work that should outlive the session into its repository, the `notes` vault or a synced documents folder, "
     "never into a temporary directory, because the system deletes files there."
 )
+TRANSFERRED_TASK_RULE = (
+    "Before archiving an OpenSpec change whose remaining tasks moved to another change or repository, "
+    "record the transfer and its destination in `tasks.md` and turn the transferred tasks into plain bullets."
+)
 LANGUAGE_SERVERS = ["marksman", "markdown-oxide", "Microsoft.CodeAnalysis.LanguageServer", "svelteserver"]
 
 # Variables that would select another profile, agent directory or provider.
@@ -573,6 +577,8 @@ def capability_findings(commands, prompt, errors):
             findings.append(f"always-applied rule {rule} not in the system prompt")
     if DURABLE_WORK_RULE not in prompt:
         findings.append("durable work storage instruction not in the system prompt")
+    if TRANSFERRED_TASK_RULE not in prompt:
+        findings.append("transferred OpenSpec task instruction not in the system prompt")
     findings.extend(f"extension error: {error}" for error in errors)
     return findings
 
@@ -845,6 +851,15 @@ class LostCapabilities(unittest.TestCase):
 
         findings = self.findings_after(remove_instruction)
         self.assertIn("durable work storage instruction not in the system prompt", findings)
+        self.assertNotIn("always-applied rule personal-policy not in the system prompt", findings)
+
+    def test_missing_transferred_task_instruction(self):
+        def remove_instruction(release):
+            policy = release / PAYLOAD / "rules" / "personal-policy.md"
+            policy.write_text(policy.read_text().replace(TRANSFERRED_TASK_RULE, ""))
+
+        findings = self.findings_after(remove_instruction)
+        self.assertIn("transferred OpenSpec task instruction not in the system prompt", findings)
         self.assertNotIn("always-applied rule personal-policy not in the system prompt", findings)
 
     def test_missing_plain_prose_rule(self):
