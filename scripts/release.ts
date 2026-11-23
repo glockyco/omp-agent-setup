@@ -12,7 +12,6 @@ export const EXTENSIONS = ["./extensions/personal-commit.ts", "./extensions/vaul
 export const SKILLS = [
 	"commit-policy",
 	"compare-options",
-	"literature-survey",
 	"notes",
 	"openspec-apply-change",
 	"openspec-archive-change",
@@ -35,7 +34,8 @@ export const COMMANDS = [
 ];
 /** Support files that a skill reads at run time; losing one breaks the skill, not discovery. */
 export const SKILL_ASSETS = [
-	"skills/literature-survey/scripts/search_index.py",
+	"skills/research-evidence/scripts/search_index.py",
+	"skills/research-evidence/scripts/survey.py",
 	"skills/research-evidence/scripts/fetch_pdf.py",
 	"skills/research-paper-writing/LICENSE",
 	"skills/research-paper-writing/references/introduction.md",

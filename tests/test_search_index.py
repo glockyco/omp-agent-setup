@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 sys.dont_write_bytecode = True
 
 PLUGIN_ROOT = Path(os.environ.get("PERSONAL_PLUGIN_DIR", Path(__file__).parents[1] / "plugin"))
-SCRIPT = PLUGIN_ROOT / "skills" / "literature-survey" / "scripts" / "search_index.py"
+SCRIPT = PLUGIN_ROOT / "skills" / "research-evidence" / "scripts" / "search_index.py"
 SPEC = importlib.util.spec_from_file_location("search_index", SCRIPT)
 search_index = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -67,8 +67,8 @@ class Scripted:
     def __init__(self, clock, answers):
         self.clock, self.answers, self.calls = clock, list(answers), []
 
-    def __call__(self, url, headers):
-        self.calls.append((self.clock.now(), url, dict(headers)))
+    def __call__(self, url, headers, body=None):
+        self.calls.append((self.clock.now(), url, dict(headers), body))
         return self.answers.pop(0)
 
 
@@ -109,6 +109,15 @@ class SearchIndexTests(unittest.TestCase):
         self.assertEqual(len(getter.calls), 2)
         self.assertGreaterEqual(getter.calls[1][0] - getter.calls[0][0], 7.0)
         self.assertEqual(self.log()[-1]["status"], "ok")
+
+    def test_semantic_scholar_backs_off_exponentially_and_tries_longer(self):
+        snippet = json.dumps({"data": [{"paper": {"corpusId": "7", "title": "T"}, "snippet": {"text": "s"}}]}).encode()
+        answers = [(429, b"", None)] * 4 + [(200, snippet, None)]
+        (_, works), getter = self.query("semanticscholar", "q", answers, mode="snippet", key=KEY)
+        gaps = [b[0] - a[0] for a, b in zip(getter.calls, getter.calls[1:])]
+        self.assertEqual([round(g) for g in gaps], [2, 4, 8, 16])
+        self.assertEqual(works[0]["s2"], "7")
+        self.assertIn(("x-api-key", KEY), getter.calls[0][2].items())
 
     def test_query_fails_after_the_last_attempt_and_says_so(self):
         with self.assertRaises(search_index.SearchError):
@@ -155,7 +164,7 @@ class SearchIndexTests(unittest.TestCase):
 
     def test_key_goes_into_a_header_and_never_into_the_url_or_the_log(self):
         _, getter = self.query("openalex", "topic", [(200, openalex(("W1", None, "T")), None)], key=KEY)
-        _, url, headers = getter.calls[0]
+        _, url, headers, _ = getter.calls[0]
         self.assertEqual(headers["Authorization"], "Bearer " + KEY)
         self.assertNotIn(KEY, url)
         self.assertNotIn(KEY, (self.out / "query-log.jsonl").read_text())
@@ -172,6 +181,32 @@ class SearchIndexTests(unittest.TestCase):
     def test_citing_works_use_the_citation_filter(self):
         _, getter = self.query("openalex", "W123", [(200, openalex(("W9", None, "Citer")), None)], mode="citing", key=KEY)
         self.assertIn("cites%3AW123", getter.calls[0][1])
+
+    def test_semantic_search_sends_plain_words_in_one_page_of_at_most_fifty(self):
+        works = [("W{}".format(i), None, "T{}".format(i)) for i in range(50)]
+        (_, returned), getter = self.query(
+            "openalex", 'Does code "match" guidelines? (yes, no)', [(200, openalex(*works), None)], mode="semantic", key=KEY, limit=200
+        )
+        self.assertEqual(len(getter.calls), 1)
+        self.assertIn("search.semantic=Does+code+match+guidelines+yes+no", getter.calls[0][1])
+        self.assertIn("per-page=50", getter.calls[0][1])
+        self.assertEqual(len(returned), 50)
+
+    def test_semantic_scholar_batch_posts_ids_and_maps_them_to_dois_and_preprints(self):
+        papers = json.dumps([
+            {"externalIds": {"CorpusId": 1, "DOI": "10.1/A"}, "title": "A", "abstract": "x"},
+            None,
+            {"externalIds": {"CorpusId": 3, "ArXiv": "2507.11687"}, "title": "B", "abstract": "y"},
+        ]).encode()
+        (_, works), getter = self.query("semanticscholar", "CorpusId:1,CorpusId:2,CorpusId:3", [(200, papers, None)], mode="papers", key=KEY, limit=500)
+        self.assertEqual(json.loads(getter.calls[0][3]), {"ids": ["CorpusId:1", "CorpusId:2", "CorpusId:3"]})
+        self.assertEqual([w["id"] for w in works], ["doi:10.1/a", "arxiv:2507.11687"])
+
+    def test_related_and_lookup_use_their_filters(self):
+        _, related = self.query("openalex", "W5", [(200, openalex(("W6", None, "R")), None)], mode="related", key=KEY)
+        _, lookup = self.query("openalex", "10.1/a|10.1/b", [(200, openalex(("W7", "10.1/a", "L")), None)], mode="lookup", key=KEY)
+        self.assertIn("related_to%3AW5", related.calls[0][1])
+        self.assertIn("doi%3A10.1%2Fa%7C10.1%2Fb", lookup.calls[0][1])
 
     def test_command_reports_failure_as_no_evidence_of_absence(self):
         stderr = io.StringIO()

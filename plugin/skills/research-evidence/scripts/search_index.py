@@ -14,29 +14,39 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ElementTree
 
-INDEXES = ("openalex", "arxiv", "crossref", "dblp")
+INDEXES = ("openalex", "arxiv", "crossref", "dblp", "semanticscholar")
 # Seconds between two requests to one index, shared by every process that uses the same state directory.
-SPACING = {"openalex": 0.5, "arxiv": 4.0, "crossref": 1.0, "dblp": 2.5}
+# Semantic Scholar allows one request per second for a key across all endpoints.
+SPACING = {"openalex": 0.5, "arxiv": 4.0, "crossref": 1.0, "dblp": 2.5, "semanticscholar": 1.1}
 # OpenAlex bills searches and refuses them without a key on a busy network address.
-NEEDS_KEY = ("openalex",)
+# Semantic Scholar refuses almost every request without a key.
+NEEDS_KEY = ("openalex", "semanticscholar")
+S2_PAPER_FIELDS = "externalIds,title,abstract,authors,year,venue,publicationDate"
 MAX_ATTEMPTS = 3
+# Waits of 2, 4, 8, 16, 32 and 64 seconds between seven attempts.
+S2_ATTEMPTS = 7
 MAX_WAIT = 120.0
 TIMEOUT = 45.0
 EXIT_FAILED = 2
+SEMANTIC_MAX = 50
+# The documentation allows 2,000 characters, but the API answers 400 from about 1,530 on.
+SEMANTIC_CHARS = 1500
 ATOM = "{http://www.w3.org/2005/Atom}"
 
 # (status, body, seconds the index asks to wait or None)
 Response = Tuple[int, bytes, Optional[float]]
-Getter = Callable[[str, Dict[str, str]], Response]
+# (url, headers, JSON body for a POST or None)
+Getter = Callable[[str, Dict[str, str], Optional[bytes]], Response]
 
 
 class SearchError(RuntimeError):
     """The query could not be answered. This is not evidence that nothing exists."""
 
 
-def http_get(url: str, headers: Dict[str, str]) -> Response:
+def http_get(url: str, headers: Dict[str, str], body: Optional[bytes] = None) -> Response:
     try:
-        with urlopen(Request(url, headers=headers), timeout=TIMEOUT) as response:
+        request = Request(url, data=body, headers=dict(headers, **({"Content-Type": "application/json"} if body else {})))
+        with urlopen(request, timeout=TIMEOUT) as response:
             return response.status, response.read(), None
     except HTTPError as error:
         retry_after = error.headers.get("Retry-After") if error.headers else None
@@ -104,6 +114,11 @@ class Pacer:
         self._locked(name, lambda: action() or None)
 
 
+def semantic_text(text: str) -> str:
+    """Keep the words of a description. OpenAlex rejects some punctuation in a semantic query."""
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s\-]", " ", text)).strip()[:SEMANTIC_CHARS]
+
+
 def work_id(doi: Optional[str], arxiv: Optional[str], fallback: str) -> str:
     doi = (doi or "").lower().replace("https://doi.org/", "")
     match = re.match(r"10\.48550/arxiv\.(.+)", doi)
@@ -114,10 +129,22 @@ def work_id(doi: Optional[str], arxiv: Optional[str], fallback: str) -> str:
 
 def build_url(index: str, mode: str, query: str, year_from: Optional[int], sort: str, start: int, rows: int, mail: str) -> str:
     if index == "openalex":
+        select = "id,doi,title,publication_date,authorships,primary_location,abstract_inverted_index,cited_by_count"
+        if mode == "semantic":
+            # Semantic search matches by meaning, returns at most 50 works and accepts only a few filters.
+            params = {"search.semantic": semantic_text(query), "per-page": str(min(rows, SEMANTIC_MAX)), "select": select}
+            if year_from:
+                params["filter"] = "publication_year:>{}".format(year_from - 1)
+            return "https://api.openalex.org/works?" + urlencode(params)
         if mode == "citing":
             filters = ["cites:" + query]
         elif mode == "cited":
             filters = ["cited_by:" + query]
+        elif mode == "related":
+            filters = ["related_to:" + query]
+        elif mode == "lookup":
+            # DOIs separated by "|". An arXiv preprint has the DOI 10.48550/arxiv.<id>.
+            filters = ["doi:" + query]
         else:
             filters = ["title_and_abstract.search:" + query.replace(",", " ")]
         if year_from:
@@ -126,7 +153,7 @@ def build_url(index: str, mode: str, query: str, year_from: Optional[int], sort:
             "filter": ",".join(filters),
             "per-page": str(rows),
             "page": str(start // rows + 1),
-            "select": "id,doi,title,publication_date,authorships,primary_location,abstract_inverted_index,cited_by_count",
+            "select": select,
         }
         if sort == "date":
             params["sort"] = "publication_date:desc"
@@ -160,7 +187,19 @@ def build_url(index: str, mode: str, query: str, year_from: Optional[int], sort:
         if mail:
             params["mailto"] = mail
         return "https://api.crossref.org/works?" + urlencode(params)
+    if index == "semanticscholar":
+        if mode == "papers":
+            # A batch lookup: the IDs travel in the POST body that request_body builds.
+            return "https://api.semanticscholar.org/graph/v1/paper/batch?" + urlencode({"fields": S2_PAPER_FIELDS})
+        # Snippet search matches passages of full text and abstracts by meaning.
+        return "https://api.semanticscholar.org/graph/v1/snippet/search?" + urlencode({"query": query, "limit": str(rows)})
     return "https://dblp.org/search/publ/api?" + urlencode({"q": query, "format": "json", "h": str(rows), "f": str(start)})
+
+
+def request_body(index: str, mode: str, query: str) -> Optional[bytes]:
+    if index == "semanticscholar" and mode == "papers":
+        return json.dumps({"ids": [i.strip() for i in query.split(",") if i.strip()]}).encode()
+    return None
 
 
 def _clean(text: Optional[str]) -> str:
@@ -187,6 +226,31 @@ def parse(index: str, body: bytes) -> Tuple[Optional[int], List[dict]]:
             )
         return (int(total) if total else None), works
     data = json.loads(body)
+    if index == "semanticscholar":
+        if isinstance(data, list):
+            works = []
+            for paper in [p for p in data if p]:
+                ids = paper.get("externalIds") or {}
+                corpus = str(ids.get("CorpusId") or paper.get("corpusId") or "")
+                works.append(
+                    {
+                        "id": work_id(ids.get("DOI"), ids.get("ArXiv"), "s2:" + corpus),
+                        "s2": corpus,
+                        "title": _clean(paper.get("title")),
+                        "authors": [a.get("name", "") for a in paper.get("authors") or []],
+                        "date": paper.get("publicationDate") or str(paper.get("year") or ""),
+                        "venue": _clean(paper.get("venue")),
+                        "abstract": _clean(paper.get("abstract")),
+                    }
+                )
+            return len(works), works
+        seen = {}  # type: Dict[str, dict]
+        for item in data.get("data") or []:
+            paper = item.get("paper") or {}
+            corpus = str(paper.get("corpusId") or "")
+            if corpus and corpus not in seen:
+                seen[corpus] = {"id": "s2:" + corpus, "s2": corpus, "title": _clean(paper.get("title")), "snippet": _clean((item.get("snippet") or {}).get("text"))}
+        return len(seen), list(seen.values())
     if index == "openalex":
         for item in data.get("results") or []:
             words = []  # type: List[Tuple[int, str]]
@@ -281,26 +345,31 @@ def run_query(
     if index in NEEDS_KEY and not key:
         log(status="failed", reason="no key file")
         raise SearchError(
-            "{} bills searches and refuses them without a key. Pass --key-file with the path that the vault "
+            "{} refuses searches without a key. Pass --key-file with the path that the vault "
             "delivered. No request was sent.".format(index)
         )
-    headers = {"User-Agent": "literature-survey/1.0" + (" (mailto:{})".format(mail) if mail else "")}
-    if key:
+    headers = {"User-Agent": "research-evidence/1.0" + (" (mailto:{})".format(mail) if mail else "")}
+    if key and index == "semanticscholar":
+        headers["x-api-key"] = key
+    elif key:
         headers["Authorization"] = "Bearer " + key
-    rows = min(limit, 100 if index != "arxiv" else 50)
+    rows = min(limit, SEMANTIC_MAX if mode == "semantic" else 100 if index not in ("arxiv",) else 50)
     works, total, start = [], None, 0  # type: List[dict], Optional[int], int
     while len(works) < limit:
         body = None
         reason = ""
-        for _ in range(MAX_ATTEMPTS):
+        # Semantic Scholar refuses a varying share of keyed requests under load and asks clients to back off exponentially.
+        attempts = S2_ATTEMPTS if index == "semanticscholar" else MAX_ATTEMPTS
+        for attempt in range(attempts):
             pacer.wait_turn(index)
-            status, payload, wait = getter(build_url(index, mode, query, year_from, sort, start, rows, mail), headers)
+            status, payload, wait = getter(build_url(index, mode, query, year_from, sort, start, rows, mail), headers, request_body(index, mode, query))
             if status == 200:
                 body = payload
                 break
             reason = "HTTP {}".format(status) if status else "no answer"
             if status in (429, 503) or status == 0:
-                pacer.push_back(index, min(wait if wait is not None else 20.0, MAX_WAIT))
+                default = 2.0 ** (attempt + 1) if index == "semanticscholar" else 20.0
+                pacer.push_back(index, min(wait if wait is not None else default, MAX_WAIT))
                 if wait is not None and wait > MAX_WAIT:
                     reason += ", the index asks to wait {:.0f} s".format(wait)
                     break
@@ -316,7 +385,7 @@ def run_query(
             raise SearchError("{} returned an unreadable answer.".format(index)) from error
         works.extend(page)
         start += rows
-        if len(page) < rows or (total is not None and start >= total):
+        if index == "semanticscholar" or mode == "semantic" or len(page) < rows or (total is not None and start >= total):
             break
     works = [work for work in works[:limit] if work["id"]]
     label = "{}:{}:{}".format(index, mode, query)
@@ -338,9 +407,19 @@ def run_query(
                 record["queries"].append(label)
         temporary = corpus.with_suffix(".tmp")
         temporary.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in records.values()), encoding="utf-8")
-        os.replace(temporary, corpus)
+        # Sync clients such as OneDrive hold a file open for a moment after it changes, and Windows then refuses the replace.
+        for attempt in range(20):
+            try:
+                os.replace(temporary, corpus)
+                break
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.5)
 
-    pacer.exclusive("corpus", merge)
+    # Snippet hits carry no identifier but the Semantic Scholar corpus ID. The caller resolves them to works first.
+    if mode != "snippet":
+        pacer.exclusive("corpus", merge)
     log(status="ok", hits=total, returned=len(works))
     return total, works
 
@@ -378,8 +457,8 @@ def emit(lines: List[str]) -> None:
 def main(argv: Optional[List[str]] = None, getter: Getter = http_get) -> int:
     parser = argparse.ArgumentParser(description="Search a literature index into a survey directory")
     parser.add_argument(
-        "mode", choices=("search", "citing", "cited", "unscreened"),
-        help="citing and cited need --index openalex and an OpenAlex ID as the query. unscreened lists corpus records without a decision in screening.jsonl",
+        "mode", choices=("search", "semantic", "citing", "cited", "related", "lookup", "snippet", "papers", "unscreened"),
+        help="semantic, citing, cited, related and lookup need --index openalex, snippet and papers --index semanticscholar. citing, cited and related take an OpenAlex ID as the query, lookup DOIs separated by |, papers IDs such as CorpusId:123 separated by commas. unscreened lists corpus records without a decision in screening.jsonl",
     )
     parser.add_argument("--index", choices=INDEXES)
     parser.add_argument("--query", help="search words, arXiv field syntax, or an OpenAlex work ID such as W2741809807")
@@ -399,8 +478,9 @@ def main(argv: Optional[List[str]] = None, getter: Getter = http_get) -> int:
         return 0
     if not args.index or not args.query:
         parser.error("{} needs --index and --query".format(args.mode))
-    if args.mode != "search" and args.index != "openalex":
-        parser.error("citing and cited need --index openalex")
+    s2_modes = ("snippet", "papers")
+    if (args.mode in s2_modes) != (args.index == "semanticscholar") or (args.mode not in s2_modes + ("search",) and args.index != "openalex"):
+        parser.error("{} does not work with --index {}".format(args.mode, args.index))
     key = Path(args.key_file).read_text(encoding="utf-8").strip() if args.key_file else None
     try:
         total, works = run_query(
@@ -412,7 +492,11 @@ def main(argv: Optional[List[str]] = None, getter: Getter = http_get) -> int:
         return EXIT_FAILED
     lines = ["OK {} {} {!r}: {} hits in the index, {} returned".format(args.index, args.mode, args.query, total, len(works))]
     for work in works:
-        lines.append("- {} | {} | {} | {} | abstract: {}".format(work["id"], work["date"], work["title"], work["venue"], "yes" if work["abstract"] else "no"))
+        lines.append(
+            "- {} | {} | {} | {} | abstract: {}".format(
+                work["id"], work.get("date", ""), work.get("title", ""), work.get("venue", ""), "yes" if work.get("abstract") else "no"
+            )
+        )
     emit(lines)
     return 0
 

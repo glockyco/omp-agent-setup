@@ -37,7 +37,6 @@ COMMANDS = ["opsx-apply", "opsx-archive", "opsx-explore", "opsx-propose", "opsx-
 SKILLS = [
     "commit-policy",
     "compare-options",
-    "literature-survey",
     "notes",
     "openspec-apply-change",
     "openspec-archive-change",
@@ -709,7 +708,8 @@ class InstalledRelease(unittest.TestCase):
         self.assertEqual(payload_files(path), payload_files(REPOSITORY / PAYLOAD))
         for helper in (
             path / "skills/research-evidence/scripts/fetch_pdf.py",
-            path / "skills/literature-survey/scripts/search_index.py",
+            path / "skills/research-evidence/scripts/search_index.py",
+            path / "skills/research-evidence/scripts/survey.py",
         ):
             self.assertTrue(os.access(helper, os.R_OK), helper)
             if os.name != "nt":
