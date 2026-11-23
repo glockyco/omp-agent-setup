@@ -345,11 +345,44 @@ def run_query(
     return total, works
 
 
+def unscreened(out: Path) -> Tuple[int, List[dict]]:
+    """Return the corpus size and the corpus records that screening.jsonl has no decision for."""
+    records = []  # type: List[dict]
+    corpus = out / "corpus.jsonl"
+    if corpus.exists():
+        records = [json.loads(line) for line in corpus.read_text(encoding="utf-8").splitlines() if line.strip()]
+    decided = set()
+    screening = out / "screening.jsonl"
+    if screening.exists():
+        for line in screening.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                decided.add(json.loads(line).get("id"))
+    return len(records), [record for record in records if record["id"] not in decided]
+
+
+def emit(lines: List[str]) -> None:
+    # Titles hold characters that a Windows pipe's default encoding rejects.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    try:
+        print("\n".join(lines))
+        sys.stdout.flush()
+    except OSError:
+        # The reader closed the pipe, as `head` does. The log and the corpus are already written.
+        try:
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        except (OSError, ValueError, AttributeError):
+            pass
+
+
 def main(argv: Optional[List[str]] = None, getter: Getter = http_get) -> int:
     parser = argparse.ArgumentParser(description="Search a literature index into a survey directory")
-    parser.add_argument("mode", choices=("search", "citing", "cited"), help="citing and cited need --index openalex and an OpenAlex ID as the query")
-    parser.add_argument("--index", choices=INDEXES, required=True)
-    parser.add_argument("--query", required=True, help="search words, arXiv field syntax, or an OpenAlex work ID such as W2741809807")
+    parser.add_argument(
+        "mode", choices=("search", "citing", "cited", "unscreened"),
+        help="citing and cited need --index openalex and an OpenAlex ID as the query. unscreened lists corpus records without a decision in screening.jsonl",
+    )
+    parser.add_argument("--index", choices=INDEXES)
+    parser.add_argument("--query", help="search words, arXiv field syntax, or an OpenAlex work ID such as W2741809807")
     parser.add_argument("--out", required=True, help="survey directory: query-log.jsonl, corpus.jsonl and the shared pacing state")
     parser.add_argument("--year-from", type=int)
     parser.add_argument("--limit", type=int, default=25)
@@ -357,6 +390,15 @@ def main(argv: Optional[List[str]] = None, getter: Getter = http_get) -> int:
     parser.add_argument("--key-file", help="file that holds the index key, as the vault delivers it")
     parser.add_argument("--who", default="", help="agent name for the query log")
     args = parser.parse_args(argv)
+    if args.mode == "unscreened":
+        total, open_records = unscreened(Path(args.out))
+        lines = ["{} of {} corpus records have no screening decision.".format(len(open_records), total)]
+        for record in open_records[: max(1, args.limit)]:
+            lines.append("- {} | {} | {}\n  abstract: {}".format(record["id"], record.get("date", ""), record.get("title", ""), record.get("abstract") or "none"))
+        emit(lines)
+        return 0
+    if not args.index or not args.query:
+        parser.error("{} needs --index and --query".format(args.mode))
     if args.mode != "search" and args.index != "openalex":
         parser.error("citing and cited need --index openalex")
     key = Path(args.key_file).read_text(encoding="utf-8").strip() if args.key_file else None
@@ -368,9 +410,10 @@ def main(argv: Optional[List[str]] = None, getter: Getter = http_get) -> int:
     except SearchError as error:
         print("FAILED {} {}: {} A failed query is no evidence that nothing exists.".format(args.index, args.mode, error), file=sys.stderr)
         return EXIT_FAILED
-    print("OK {} {} {!r}: {} hits in the index, {} returned".format(args.index, args.mode, args.query, total, len(works)))
+    lines = ["OK {} {} {!r}: {} hits in the index, {} returned".format(args.index, args.mode, args.query, total, len(works))]
     for work in works:
-        print("- {} | {} | {} | {} | abstract: {}".format(work["id"], work["date"], work["title"], work["venue"], "yes" if work["abstract"] else "no"))
+        lines.append("- {} | {} | {} | {} | abstract: {}".format(work["id"], work["date"], work["title"], work["venue"], "yes" if work["abstract"] else "no"))
+    emit(lines)
     return 0
 
 

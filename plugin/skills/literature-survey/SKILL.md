@@ -17,6 +17,8 @@ Pick one survey directory in the repository's research folder or a synced docume
 
 Each question needs all three. They find different works.
 
+One wording finds one community. Before you search, write down at least three ways the field could name the subject, such as the task, the method and the artifact. Search each in every channel. When a kept abstract uses a term you did not search, search that term too.
+
 1. An index, through the bundled helper. Resolve `skill://literature-survey/scripts/search_index.py` to its path and run it with host Python 3:
 
    ```bash
@@ -27,8 +29,8 @@ Each question needs all three. They find different works.
    - `arxiv`: the newest preprints. It accepts `abs:`, `ti:` and `cat:cs.SE` with `AND` and quoted phrases.
    - `crossref`: titles and DOIs of published work. It matches loosely, so use it for names and phrases more than for topics.
    - `dblp`: computer-science venues and authors, without abstracts. On some networks it answers scripts with a challenge and the query fails. Then use `openalex` for the same venue or author.
-2. The web, with `web_search`. Note each query for the report.
-3. Citation links of the closest works, once you know them:
+2. The web, with `web_search`, once for every naming and again for every new term. It shows works that the indexes rank low or do not hold yet. Note each query for the report.
+3. Citation links of every work you keep as close to the question, as soon as you know it. Works that name the subject differently turn up here and nowhere else:
 
    ```bash
    python3 "<path>/search_index.py" citing --index openalex --query <OpenAlex ID such as W2741809807> --out "<survey directory>" --key-file "<path>"
@@ -41,7 +43,15 @@ Search the indexes only through the helper. Direct calls from several agents get
 
 ## 2. Screen
 
-Decide on title and abstract, never on the title alone. Write each decision to `screening.jsonl` in the survey directory as `{"id", "decision", "reason"}` with `keep`, `reject` or `undecided` and one factual reason. A record without an abstract gets one from another index or the work's page, or stays `undecided`.
+Every record in the corpus gets a decision, because the works that answer the question under another name sit among those you did not search for. Decide on title and abstract, never on the title alone and never by keywords. Write each decision to `screening.jsonl` in the survey directory as `{"id", "decision", "reason"}` with `keep`, `reject` or `undecided`. The reason says in a few words what the work does, such as "survey of SQL generation from text", so that a reader can check the decision. A record without an abstract gets one from another index or the work's page, or stays `undecided`.
+
+List the records that still lack a decision, with their abstracts, in batches:
+
+```bash
+python3 "<path>/search_index.py" unscreened --out "<survey directory>" --limit 40
+```
+
+Screening is done when it reports 0 records without a decision. Searches that you add later add records, so run it again before the report.
 
 ## 3. Read
 
@@ -51,7 +61,7 @@ Hand kept works to the `research-evidence` skill. Subagents can screen and read 
 
 Write the report into the survey directory with these parts:
 
-- How it was checked: the three channels and whether each ran, the number of queries, the date range and the failures.
+- How it was checked: the three channels and whether each ran, the number of queries, the date range, the failures, and how many corpus records were screened.
 - What is established, with a link for every work.
 - What was not found. Say "not found by these queries", and name the channels that ran.
 - How much of each cited work was read, and by whom: you, a named subagent, or nobody beyond the abstract.

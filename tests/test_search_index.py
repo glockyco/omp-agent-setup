@@ -183,6 +183,25 @@ class SearchIndexTests(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertIn("no evidence that nothing exists", stderr.getvalue())
 
+    def test_a_closed_pipe_after_the_search_is_still_success(self):
+        class Closed(io.StringIO):
+            def write(self, text):
+                raise BrokenPipeError(22, "closed")
+
+        with contextlib.redirect_stdout(Closed()):
+            status = search_index.main(
+                ["search", "--index", "crossref", "--query", "topic", "--out", str(self.out)],
+                getter=Scripted(self.clock, [(200, crossref(("10.1/a", "A")), None)]),
+            )
+        self.assertEqual(status, 0)
+        self.assertEqual(len((self.out / "query-log.jsonl").read_text(encoding="utf-8").splitlines()), 1)
+
+    def test_unscreened_lists_only_records_without_a_decision(self):
+        self.query("crossref", "a", [(200, crossref(("10.1/a", "A"), ("10.1/b", "B")), None)])
+        (self.out / "screening.jsonl").write_text(json.dumps({"id": "doi:10.1/a", "decision": "reject", "reason": "x"}) + "\n")
+        total, open_records = search_index.unscreened(self.out)
+        self.assertEqual((total, [record["id"] for record in open_records]), (2, ["doi:10.1/b"]))
+
     def test_log_entry_has_every_field(self):
         self.query("crossref", "a", [(200, crossref(("10.1/a", "A")), None)], year_from=2024, who="Scout", sort="date")
         entry = self.log()[-1]
