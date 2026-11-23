@@ -391,7 +391,7 @@ The plugin SHALL ship a `notes` skill and a `weekly-review` skill for the person
 
 ### Requirement: Project handoff rule
 
-The plugin SHALL ship an always-applied handoff rule for papers, projects, supervisions, talks and topics in the notes vault. Agents SHALL link work through Workbench or find the matching note by repository URL, and read the note before work. Vault changes and commits SHALL follow the notes skill without duplicating its instructions.
+The plugin SHALL ship an always-applied handoff rule for papers, projects, supervisions, talks and topics in the notes vault. Agents SHALL link work through Workbench or find the matching note by repository URL, and read the note before work. Vault changes and commits SHALL follow the notes skill without duplicating its instructions. The rule SHALL NOT name a search mechanism for the vault.
 
 #### Scenario: Start a repository session
 
@@ -406,6 +406,11 @@ The plugin SHALL ship an always-applied handoff rule for papers, projects, super
 
 - **WHEN** a session's work moves from one item to another
 - **THEN** the rule directs the agent to link the session to the other item with the `workbench` tool
+
+#### Scenario: The vault is reached in another way
+
+- **WHEN** the way to search the vault changes or one route stops working
+- **THEN** the rule needs no change, because it points to the notes skill for reaching the vault
 
 ### Requirement: Handoff line and the places of its facts
 
@@ -429,12 +434,18 @@ Before finishing, agents SHALL rewrite the item's `Resume here:` line and put ea
 
 ### Requirement: Handoff without a matching note
 
-Agents SHALL skip the handoff when no vault note matches the work.
+Agents SHALL skip the handoff when no vault note matches the work. A search that fails or cannot run SHALL NOT count as no note.
 
 #### Scenario: Work without a matching note
 
 - **WHEN** no note exists for the work
 - **THEN** the rule directs the agent to skip both reading and updating the handoff
+
+#### Scenario: The search for the note fails
+
+- **WHEN** the agent cannot search the vault, or its search returns nothing although the vault holds item notes
+- **THEN** the rule directs the agent to reach the vault another way or to say that the handoff could not be read
+- **AND** not to skip the handoff as if no note existed
 
 ### Requirement: Persona trials skill
 
@@ -786,3 +797,13 @@ The always-applied personal policy SHALL require recording a transfer and its de
 - **WHEN** a fresh OMP session loads the manager-installed personal plugin
 - **THEN** the system prompt includes the transfer-record and plain-bullet instruction
 - **AND** the installed-release gate rejects a candidate that omits this instruction while retaining the rest of the personal policy
+
+### Requirement: Checks in a fresh Tern session
+
+The always-applied personal policy SHALL forbid telling the person to restart OMP or to open a terminal in order to check something. It SHALL direct the agent to start a fresh session through Tern, observe the result there and end that session.
+
+#### Scenario: A check needs a new environment
+
+- **WHEN** a session must confirm something that only a newly started session shows, such as a host variable set after it started
+- **THEN** the policy directs the agent to start a Tern session, observe the result and end the session
+- **AND** not to ask the person for a restart
