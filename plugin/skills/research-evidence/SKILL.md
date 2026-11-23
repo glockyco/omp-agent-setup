@@ -62,7 +62,7 @@ Do not request these hosts with `read`, `curl` or a script. They answer with an 
 
 The browser relay drives the person's own browser, which is signed in to the institution's subscriptions. It reaches the published version on the hosts above when no scripted route does. Open the page in eval with `browser.open({ app: "relay", url: "https://doi.org/<doi>" })`, read the article there or download its PDF, and close the tab afterwards.
 
-Use the relay when a work is reachable only on a refusing host, and when the helper reports `MANUSCRIPT` or `FAIL` for a work that has a published version. If the relay is not connected or the page still shows a paywall, ask the person for the file.
+Use the relay when a work is reachable only on a refusing host, when the helper reports `MANUSCRIPT` or `FAIL` for a work that has a published version, and when the helper cannot run because the host configuration is missing. If the relay is not connected or the page still shows a paywall, ask the person for the file.
 
 ## 2. Screen
 
