@@ -193,25 +193,50 @@ class FetchPdfResultTests(unittest.TestCase):
         self.assertTrue(out.startswith("OK key:"))
         self.assertEqual(saved, b"%PDF-repository")
 
-    def test_arxiv_doi_is_an_ordinary_success(self):
+    def test_doi_unknown_to_the_lookup_is_no_failure(self):
         api = "https://api.unpaywall.org/v2/10.48550/arXiv.2401.00001?email=writer@example.org"
         status, out, _, _ = self.run_main(
             ["--doi", "10.48550/arXiv.2401.00001", "--arxiv", "2401.00001"],
-            {api: fetch_pdf.AcquisitionError("not found"), "https://arxiv.org/pdf/2401.00001": b"%PDF-arxiv"},
+            {
+                api: fetch_pdf.AcquisitionError("HTTP Error 404: Not Found", 404),
+                "https://arxiv.org/pdf/2401.00001": b"%PDF-arxiv",
+            },
         )
         self.assertEqual(status, 0)
         self.assertTrue(out.startswith("OK key:"))
 
-    def test_failed_lookup_is_named_and_later_sources_are_still_tried(self):
+    def test_failed_lookup_stops_before_any_source(self):
+        getter = FixtureGetter(
+            {
+                self.api: fetch_pdf.AcquisitionError("timed out"),
+                "https://arxiv.org/pdf/2401.00001": b"%PDF-arxiv",
+            }
+        )
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "paper.pdf"
+            with (
+                mock.patch.dict(os.environ, {"UNPAYWALL_EMAIL": "writer@example.org"}),
+                contextlib.redirect_stderr(stderr),
+            ):
+                status = fetch_pdf.main(
+                    ["key", "--doi", self.doi, "--arxiv", "2401.00001", "--out", str(output)],
+                    getter,
+                    ("https://sci.test",),
+                )
+            self.assertFalse(output.exists())
+        self.assertEqual(status, 2)
+        self.assertIn("open-access lookup failed", stderr.getvalue())
+        self.assertIn("No source was tried", stderr.getvalue())
+        self.assertEqual([call[0] for call in getter.calls], [self.api])
+
+    def test_unreadable_lookup_answer_stops_before_any_source(self):
         status, _, err, saved = self.run_main(
             ["--doi", self.doi, "--arxiv", "2401.00001"],
-            {self.api: fetch_pdf.AcquisitionError("timed out")},
+            {self.api: b"<html>maintenance</html>", "https://arxiv.org/pdf/2401.00001": b"%PDF-arxiv"},
         )
-        self.assertEqual(status, 1)
-        self.assertIn("open-access lookup failed", err)
-        self.assertNotIn("publisher OA", err)
-        self.assertNotIn("repository OA", err)
-        self.assertIn("arXiv", err)
+        self.assertEqual(status, 2)
+        self.assertIn("unreadable answer", err)
         self.assertIsNone(saved)
 
     def test_work_without_open_access_copy_lists_the_sources_tried(self):

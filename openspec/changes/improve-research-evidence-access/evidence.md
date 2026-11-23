@@ -139,7 +139,22 @@ Fresh subagents on 2026-11-23, one with the released skill and one with the cand
 - Neither task separates the two skills. The released skill avoided the refusing host and found the published version on its own.
 - The preprint was too easy, because its arXiv page names the venue.
 - Neither agent used the browser relay after acquisition stopped. The candidate's relay rule covered a helper result only, so it now also covers a helper that cannot run.
-- The manuscript trial and the keyed search trial wait for the host variable and the vault entry.
+- The manuscript trial and the keyed search trial waited for the host variable and the vault entry.
+
+## Trials, second round
+
+Fresh OMP sessions in print mode on 2026-11-23, each started in its own Tern session with `tern new session`, so that they received the host variable set that day. The outcomes were confirmed from the session transcripts and the saved files.
+
+| Task | Released skill | Candidate |
+|---|---|---|
+| Full text of an IEEE paper from 2023 that is open only as an arXiv manuscript | Looked up Unpaywall itself with an invented address, although the host variable was set. Downloaded the arXiv PDF with `curl`. Did not run the helper and skipped Sci-Hub by its own choice. Asked whether the manuscript is enough. | Ran the helper, which reported `MANUSCRIPT` with exit status 3. Opened the DOI through the browser relay, found a paywall and closed the tab. Asked whether it may use the preprint or will get the published PDF. |
+| OpenAlex search with the key | Sent two requests without a key, both refused with HTTP 429. Then found the vault entry, whose delivery needs an interactive approval. Reported the refusal. | Asked the vault first, was refused for the same reason, sent one request without a key, which was refused with HTTP 429, and reported that searches are refused. |
+| Repeat of the paywalled ACM article with the widened relay rule and no host variable | Not run. | No scripted request to the ACM host. Abstract from OpenAlex. Did not run the helper and typed no address. Opened the DOI through the browser relay and saved the published PDF of 2,294,901 bytes. |
+
+- The invented Unpaywall address is the one behavior of the released skill that the trials reproduced from the history.
+- The relay delivered the published version on the ACM host and met a paywall on the IEEE host.
+- A run without an interactive session cannot get the key, because the entry was approved once and not always. The skill now says so.
+- The four tasks end alike in three cases. The trials show that the new rules are followed, not that they change outcomes often. The repeated history measurement has to show that.
 
 ## Limits
 

@@ -34,6 +34,10 @@ Getter = Callable[[str, str, Optional[str], float], bytes]
 class AcquisitionError(RuntimeError):
     """A configuration or acquisition boundary prevented a valid result."""
 
+    def __init__(self, message: str, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
+
 
 class _ViewerParser(HTMLParser):
     def __init__(self) -> None:
@@ -72,7 +76,7 @@ def _network_get(url: str, accept: str, referer: Optional[str], timeout: float) 
         with urlopen(request, timeout=timeout) as response:
             return response.read()
     except (URLError, TimeoutError, ValueError) as error:
-        raise AcquisitionError(str(error)) from error
+        raise AcquisitionError(str(error), getattr(error, "code", None)) from error
 
 
 def _get_pdf(url: Optional[str], getter: Getter, referer: Optional[str] = None) -> Optional[bytes]:
@@ -91,10 +95,22 @@ def _unpaywall(doi: str, email: str, getter: Getter) -> Dict[str, Optional[str]]
     url = "https://api.unpaywall.org/v2/{}?email={}".format(doi, quote(email, safe="@"))
     try:
         record = json.loads(getter(url, "application/json", None, PAGE_TIMEOUT))
-    except (AcquisitionError, json.JSONDecodeError, UnicodeDecodeError):
-        return {"lookup_failed": "yes"}
+    except AcquisitionError as error:
+        if error.status == 404:
+            # Unpaywall does not know the DOI, as for arXiv DOIs: no open-access data, not a failure.
+            return {}
+        # Going on without the lookup could return a manuscript where an open published copy exists.
+        raise AcquisitionError(
+            "the open-access lookup failed ({}). No source was tried. Run it again.".format(error)
+        ) from error
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise AcquisitionError(
+            "the open-access lookup returned an unreadable answer. No source was tried. Run it again."
+        ) from error
     if not isinstance(record, dict):
-        return {"lookup_failed": "yes"}
+        raise AcquisitionError(
+            "the open-access lookup returned an unreadable answer. No source was tried. Run it again."
+        )
     genre = record.get("genre")
     if not record.get("is_oa"):
         return {"genre": genre}
@@ -226,17 +242,12 @@ def main(
         return EXIT_CONFIGURATION
 
     if not data or not source:
-        if info.get("lookup_failed"):
-            attempted = "Sci-Hub"
-            prefix = "the open-access lookup failed, so publisher and repository copies are unknown. No PDF"
-        else:
-            attempted = "publisher OA, Sci-Hub, repository OA"
-            prefix = "no PDF"
+        attempted = "publisher OA, Sci-Hub, repository OA"
         if args.arxiv:
             attempted += ", arXiv"
         print(
-            "FAIL {}: {} via {}. Obtain an author or institutional copy and save it to {}.".format(
-                args.key, prefix, attempted, output
+            "FAIL {}: no PDF via {}. Obtain an author or institutional copy and save it to {}.".format(
+                args.key, attempted, output
             ),
             file=sys.stderr,
         )

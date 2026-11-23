@@ -42,15 +42,20 @@ The acquisition helper SHALL report a distinct result when the DOI names a publi
 - **WHEN** the open-access metadata describes the DOI as posted content and a repository returns a valid PDF
 - **THEN** the helper reports an ordinary success
 
-### Requirement: Visible open-access lookup failure
+### Requirement: Failed open-access lookup stops acquisition
 
-When the open-access metadata service cannot be reached or returns an unreadable answer, the acquisition helper SHALL say so in its result. It SHALL NOT report that the work has no open-access copy.
+When the open-access metadata service cannot be reached or returns an unreadable answer, the acquisition helper SHALL stop with a failure that names the lookup and SHALL try no source. An answer that the service does not know the DOI is not a failure.
 
-#### Scenario: Lookup fails and no later source succeeds
+#### Scenario: Lookup times out
 
-- **WHEN** the open-access lookup fails and no later source returns a valid PDF
-- **THEN** the failure message states that the lookup failed
-- **AND** it does not list publisher or repository open access among the sources that were tried
+- **WHEN** the open-access lookup fails for a DOI while a manuscript copy is reachable
+- **THEN** the helper requests no source and saves no file
+- **AND** its failure message says that the lookup failed and that it can be run again
+
+#### Scenario: Service does not know the DOI
+
+- **WHEN** the open-access service answers that it has no record of the DOI
+- **THEN** the helper goes on to the later sources
 
 ### Requirement: Published version check for preprints
 
@@ -68,7 +73,7 @@ Before the workflow registers a preprint, it SHALL check authoritative indexes f
 
 ### Requirement: Keyed OpenAlex access
 
-The skill SHALL direct agents to obtain the OpenAlex key through the `vault` tool and to send it in a request header read from the delivered file. The key SHALL NOT appear in a URL, a tool argument or a log. Without a key, the skill SHALL limit keyless use to single-record lookups and SHALL have the agent report that searches may be refused.
+The skill SHALL direct agents to obtain the OpenAlex key through the `vault` tool and to send it in a request header read from the delivered file. The key SHALL NOT appear in a URL, a tool argument or a log. Without the key, the skill SHALL have the agent stop the search and ask the person for the entry or its approval. It SHALL NOT direct a search without the key.
 
 #### Scenario: Key is available
 
@@ -79,7 +84,8 @@ The skill SHALL direct agents to obtain the OpenAlex key through the `vault` too
 #### Scenario: Key is not available
 
 - **WHEN** the vault holds no OpenAlex entry or the delivery is refused
-- **THEN** the agent looks up single records without a key and reports that searches may be refused
+- **THEN** the agent sends no search without the key
+- **AND** it asks the person to add or approve the entry
 
 ## MODIFIED Requirements
 
