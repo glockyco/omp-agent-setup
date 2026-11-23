@@ -123,6 +123,10 @@ Requests from the Windows host on 2026-11-23, without a key and after the keyles
 
 The OpenAlex record by DOI therefore serves the abstract for all three publishers, and it answers while searches are refused. The skill names it as the route and Crossref as the fallback for metadata. No scripted route to OpenReview worked, so the skill names the copy elsewhere and the browser relay. The relay route on a publisher page is checked in the trials.
 
+## Keyed OpenAlex check
+
+On 2026-11-23 the key was delivered by `vault file` from the `private` vault and sent as a bearer token built from the delivered file. `/rate-limit` reported a daily budget of $1 with $0.9993 left, 30 requests per second, and prices of $0 for a single record, $0.0001 for a list and $0.001 for a search. A keyed search returned HTTP 200. The same search without the key returned HTTP 429 at the same moment.
+
 ## Trials, first round
 
 Fresh subagents on 2026-11-23, one with the released skill and one with the candidate per task. The host had no `UNPAYWALL_EMAIL` and no OpenAlex entry in the vault.

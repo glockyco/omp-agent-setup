@@ -14,7 +14,7 @@
 
 - [x] 3.1 Run each candidate route against its refusing host, record refusal and success in evidence.md, and write the list with one route per host. Verify that every listed route has a recorded success.
 - [ ] 3.2 Add the rule for HTML full text with location and version, and the published-version check before registration. Verify with the registration trial in group 4.
-- [ ] 3.3 Add keyed OpenAlex access through `vault` with the bearer header built from the delivered file, and the keyless fallback. Verify with a live `/rate-limit` call that reports the key's own budget and with a keyed search that returns HTTP 200.
+- [x] 3.3 Add keyed OpenAlex access through `vault` with the bearer header built from the delivered file, and the keyless fallback. Verify with a live `/rate-limit` call that reports the key's own budget and with a keyed search that returns HTTP 200.
 - [ ] 3.4 State that `UNPAYWALL_EMAIL` comes from the host environment only. Verify with the acquisition trial in group 4 on a host without the variable.
 
 ## 4. Trials
