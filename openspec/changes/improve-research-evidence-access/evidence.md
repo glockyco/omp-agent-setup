@@ -34,11 +34,11 @@ Semantic Scholar received 4 search calls and about 38 lookups, mostly for an ope
 | ACL Anthology | 150 | 17,717 |
 | Springer | 85 | 21,955 |
 
-The acquisition helper ran for 185 papers in 8 sessions. Most full-text reading therefore never passed through it.
+The acquisition helper ran for 216 papers. Most full-text reading therefore never passed through it.
 
 ## Acquisition helper outcomes
 
-Of 185 attempts, 124 returned a PDF and 61 failed.
+Of 216 attempts, 124 returned a PDF and 92 failed. The counts come from [measure_history.py](measure_history.py), which also reads long batch commands that a first pass had cut off.
 
 | Source of the PDF | Count |
 |---|---|
@@ -53,7 +53,7 @@ By the year in the citation key:
 |---|---|---|---|
 | Before 2022 | 52 | 9 | 36 |
 | 2022 or later | 1 | 25 | 16 |
-| No year | 6 | 31 | 9 |
+| No year | 6 | 31 | 40 |
 
 For works from 2022 on, the published version came from neither Sci-Hub nor an open publisher copy in all but one case. It is reachable only through the browser session or the person.
 
@@ -97,7 +97,7 @@ A rerunnable script repeated the counts on the MacBook Pro, whose history runs f
 | ResearchGate reads, refused | 8 of 14 | 4 of 4 |
 | OpenReview pages under 1,500 characters | 31 of 32 | 3 of 3 |
 | arXiv HTML reads | 648 | 61 |
-| Acquisition helper attempts | 185 | 9 |
+| Acquisition helper attempts | 216 | 9 |
 | Sessions with five or more scholarly calls that read the skill | 29 of 32 | 9 of 10 |
 | OpenAlex calls with a key | 0 | 0 |
 
@@ -105,9 +105,27 @@ The refusing hosts refuse on both hosts. Index calls on the MacBook Pro rarely f
 
 A third host, the MacBook Air, could not be reached and is not included.
 
+## Route checks
+
+Requests from the Windows host on 2026-11-23, without a key and after the keyless OpenAlex budget for the day was spent:
+
+| Request | Result |
+|---|---|
+| ACM Digital Library article page | HTTP 403 |
+| ScienceDirect article page | HTTP 400 |
+| ResearchGate publication page | HTTP 403 |
+| OpenReview PDF and its API | HTTP 403 |
+| IEEE Xplore document page | HTTP 202 without the article |
+| OpenAlex record by DOI of an ACM article | HTTP 200, abstract of 200 distinct words |
+| OpenAlex record by DOI of an Elsevier article | HTTP 200, abstract of 87 distinct words |
+| OpenAlex record by DOI of an IEEE article | HTTP 200, abstract of 119 distinct words |
+| Crossref record of the same three DOIs | HTTP 200, abstract for the ACM article only |
+
+The OpenAlex record by DOI therefore serves the abstract for all three publishers, and it answers while searches are refused. The skill names it as the route and Crossref as the fallback for metadata. No scripted route to OpenReview worked, so the skill names the copy elsewhere and the browser relay. The relay route on a publisher page is checked in the trials.
+
 ## Limits
 
 - One person. The corrections, the query classification and the helper outcomes rest on the Windows host.
 - A read counts once per call. A script inside `eval` or `bash` can issue many requests in one call.
-- Year in key is a proxy for the publication year, and 46 attempts had no year.
+- Year in key is a proxy for the publication year, and 77 attempts had no year.
 - The pairing of a DOI with its result reads the command text and can miss cases, so 10 is a lower bound.

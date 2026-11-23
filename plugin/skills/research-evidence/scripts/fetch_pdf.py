@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import re
 import sys
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from urllib.error import URLError
 from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
@@ -24,6 +24,10 @@ SCIHUB_MIRRORS = (
 )
 PAGE_TIMEOUT = 30.0
 PDF_TIMEOUT = 90.0
+ARXIV_DOI_PREFIX = "10.48550/"
+EXIT_NO_PDF = 1
+EXIT_CONFIGURATION = 2
+EXIT_MANUSCRIPT = 3
 Getter = Callable[[str, str, Optional[str], float], bytes]
 
 
@@ -88,9 +92,12 @@ def _unpaywall(doi: str, email: str, getter: Getter) -> Dict[str, Optional[str]]
     try:
         record = json.loads(getter(url, "application/json", None, PAGE_TIMEOUT))
     except (AcquisitionError, json.JSONDecodeError, UnicodeDecodeError):
-        return {}
+        return {"lookup_failed": "yes"}
+    if not isinstance(record, dict):
+        return {"lookup_failed": "yes"}
+    genre = record.get("genre")
     if not record.get("is_oa"):
-        return {}
+        return {"genre": genre}
     locations = sorted(
         record.get("oa_locations") or [],
         key=lambda item: item.get("version") == "publishedVersion",
@@ -112,7 +119,7 @@ def _unpaywall(doi: str, email: str, getter: Getter) -> Dict[str, Optional[str]]
         ),
         None,
     )
-    return {"publisher_pdf": publisher, "repository_pdf": repository}
+    return {"publisher_pdf": publisher, "repository_pdf": repository, "genre": genre}
 
 
 def _from_scihub(
@@ -133,6 +140,40 @@ def _from_scihub(
     return None, None
 
 
+def acquire_with_lookup(
+    doi: Optional[str],
+    arxiv_id: Optional[str],
+    email: Optional[str],
+    getter: Getter = _network_get,
+    mirrors: Iterable[str] = SCIHUB_MIRRORS,
+) -> Tuple[Optional[bytes], Optional[str], Dict[str, Optional[str]]]:
+    """Acquire bytes and return the open-access lookup that guided the order."""
+    info = _unpaywall(doi, email or "", getter) if doi else {}
+
+    publisher_url = info.get("publisher_pdf")
+    publisher = _get_pdf(publisher_url, getter)
+    if publisher:
+        return publisher, "OA publisher {}".format(publisher_url), info
+
+    if doi:
+        data, source = _from_scihub(doi, getter, mirrors)
+        if data:
+            return data, source, info
+
+    repository_url = info.get("repository_pdf")
+    repository = _get_pdf(repository_url, getter)
+    if repository:
+        return repository, "OA repository {}".format(repository_url), info
+
+    if arxiv_id:
+        arxiv_url = "https://arxiv.org/pdf/{}".format(arxiv_id)
+        arxiv = _get_pdf(arxiv_url, getter)
+        if arxiv:
+            return arxiv, "arxiv {}".format(arxiv_url), info
+
+    return None, None, info
+
+
 def acquire(
     doi: Optional[str],
     arxiv_id: Optional[str],
@@ -141,65 +182,78 @@ def acquire(
     mirrors: Iterable[str] = SCIHUB_MIRRORS,
 ) -> Tuple[Optional[bytes], Optional[str]]:
     """Acquire bytes through publisher, Sci-Hub, repository, then arXiv."""
-    info = _unpaywall(doi, email or "", getter) if doi else {}
-
-    publisher_url = info.get("publisher_pdf")
-    publisher = _get_pdf(publisher_url, getter)
-    if publisher:
-        return publisher, "OA publisher {}".format(publisher_url)
-
-    if doi:
-        data, source = _from_scihub(doi, getter, mirrors)
-        if data:
-            return data, source
-
-    repository_url = info.get("repository_pdf")
-    repository = _get_pdf(repository_url, getter)
-    if repository:
-        return repository, "OA repository {}".format(repository_url)
-
-    if arxiv_id:
-        arxiv_url = "https://arxiv.org/pdf/{}".format(arxiv_id)
-        arxiv = _get_pdf(arxiv_url, getter)
-        if arxiv:
-            return arxiv, "arxiv {}".format(arxiv_url)
-
-    return None, None
+    data, source, _ = acquire_with_lookup(doi, arxiv_id, email, getter, mirrors)
+    return data, source
 
 
-def main() -> int:
+def is_manuscript_of_published_work(
+    doi: Optional[str], source: str, info: Dict[str, Optional[str]]
+) -> bool:
+    """Tell whether the copy is a manuscript although the DOI names a published work.
+
+    An unknown genre counts as published, because a needless question costs
+    less than an unnoticed manuscript.
+    """
+    if not doi or doi.lower().startswith(ARXIV_DOI_PREFIX):
+        return False
+    if info.get("genre") == "posted-content":
+        return False
+    return source.startswith(("OA repository ", "arxiv "))
+
+
+def main(
+    argv: Optional[List[str]] = None,
+    getter: Getter = _network_get,
+    mirrors: Iterable[str] = SCIHUB_MIRRORS,
+) -> int:
     parser = argparse.ArgumentParser(description="Acquire a validated paper PDF")
     parser.add_argument("key", help="BibTeX key; the default output is papers/<key>.pdf")
     parser.add_argument("--doi")
     parser.add_argument("--arxiv")
     parser.add_argument("--out")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if not args.doi and not args.arxiv:
         parser.error("provide --doi and/or --arxiv")
 
     output = Path(args.out or "papers/{}.pdf".format(args.key))
     try:
-        data, source = acquire(args.doi, args.arxiv, os.environ.get("UNPAYWALL_EMAIL"))
+        data, source, info = acquire_with_lookup(
+            args.doi, args.arxiv, os.environ.get("UNPAYWALL_EMAIL"), getter, mirrors
+        )
     except AcquisitionError as error:
         print("FAIL {}: {}".format(args.key, error), file=sys.stderr)
-        return 2
+        return EXIT_CONFIGURATION
 
-    if not data:
-        attempted = "publisher OA, Sci-Hub, repository OA"
+    if not data or not source:
+        if info.get("lookup_failed"):
+            attempted = "Sci-Hub"
+            prefix = "the open-access lookup failed, so publisher and repository copies are unknown. No PDF"
+        else:
+            attempted = "publisher OA, Sci-Hub, repository OA"
+            prefix = "no PDF"
         if args.arxiv:
             attempted += ", arXiv"
         print(
-            "FAIL {}: no PDF via {}. Obtain an author or institutional copy and save it to {}.".format(
-                args.key, attempted, output
+            "FAIL {}: {} via {}. Obtain an author or institutional copy and save it to {}.".format(
+                args.key, prefix, attempted, output
             ),
             file=sys.stderr,
         )
-        return 1
+        return EXIT_NO_PDF
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(data)
-    print("OK {}: {} KB from {} -> {}".format(args.key, len(data) // 1024, source, output))
+    size = len(data) // 1024
+    if is_manuscript_of_published_work(args.doi, source, info):
+        print(
+            "MANUSCRIPT {}: {} KB from {} -> {}. The DOI names a published work and its "
+            "published version was not obtained. Ask before citing from this copy.".format(
+                args.key, size, source, output
+            )
+        )
+        return EXIT_MANUSCRIPT
+    print("OK {}: {} KB from {} -> {}".format(args.key, size, source, output))
     return 0
 
 
