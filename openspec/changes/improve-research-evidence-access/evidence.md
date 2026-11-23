@@ -103,7 +103,7 @@ A rerunnable script repeated the counts on the MacBook Pro, whose history runs f
 
 The refusing hosts refuse on both hosts. Index calls on the MacBook Pro rarely failed, with 3 failures in 149 calls that touched OpenAlex, and no response there carried the key notice. Its helper commands held an address 3 times, each time the second address. The helper's outcomes by source and year rest on the Windows host alone.
 
-A third host, the MacBook Air, could not be reached and is not included.
+A third host, a borrowed MacBook Air, was measured through the MacBook Pro. Its history runs from 2026-03-13 to 2026-08-11 with 5,666 transcript files and 392,766 tool calls. It refused the same hosts: 35 of 68 reads of the ACM Digital Library failed and 52 returned under 1,500 characters, and ResearchGate refused 9 of 10 and ScienceDirect 4 of 4. Its 133 calls to MCP servers went to a context tool, a game editor and a database, none to a literature service. The helper ran for 30 papers there, with 14 fetched and 16 failed.
 
 ## Route checks
 
