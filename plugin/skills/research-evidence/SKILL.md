@@ -1,6 +1,6 @@
 ---
 name: research-evidence
-description: Find, screen, acquire, read, verify, characterize, and register computer-science and adjacent technical evidence. Use for literature searches, related work, paper PDFs, citation graphs, evidence for technical claims, DOI verification, and BibTeX additions or cleanup.
+description: Find, screen, acquire, read, verify, characterize, and register computer-science and adjacent technical evidence for individual works. Use for a citation, related work for a claim, paper PDFs, citation graphs, evidence for technical claims, DOI verification, and BibTeX additions or cleanup. For what exists on a whole topic, use literature-survey.
 ---
 
 # Research and evidence
@@ -14,6 +14,8 @@ search -> screen -> acquire -> read -> verify metadata -> register
 For metadata-only DOI verification or bibliography maintenance, verify authoritative metadata and update the registration. Do not search for, acquire, or read full text unless that work is necessary to resolve the metadata.
 
 Never fabricate metadata. Never characterize a paper without reading the relevant full text.
+
+A question about what exists on a topic, such as the state of the art, prior art or whether an idea has been studied, belongs to the `literature-survey` skill. Read it and follow it, and come back here for each work.
 
 When a step is blocked by something the person can remove, such as a vault approval, a missing key, a login or a host setting, stop that step and ask for exactly that. Never continue on a weaker source, a weaker copy or a search with less reach instead, because the result then looks complete when it is not.
 
@@ -68,10 +70,9 @@ Use the relay when a work is reachable only on a refusing host, when the helper 
 
 ## 2. Screen
 
-1. Screen titles as keep, reject, or uncertain. Record one factual reason.
-2. Read abstracts for survivors.
-3. For uncertain papers, read the introduction and method.
-4. Expand forward or backward citations only while results remain relevant.
+1. Screen on title and abstract as keep, reject, or uncertain. Never reject on the title alone. Record one factual reason.
+2. For uncertain papers, read the introduction and method.
+3. Expand forward or backward citations only while results remain relevant.
 
 ## 3. Acquire
 

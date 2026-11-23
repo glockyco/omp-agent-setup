@@ -12,6 +12,7 @@ export const EXTENSIONS = ["./extensions/personal-commit.ts", "./extensions/vaul
 export const SKILLS = [
 	"commit-policy",
 	"compare-options",
+	"literature-survey",
 	"notes",
 	"openspec-apply-change",
 	"openspec-archive-change",
@@ -34,6 +35,7 @@ export const COMMANDS = [
 ];
 /** Support files that a skill reads at run time; losing one breaks the skill, not discovery. */
 export const SKILL_ASSETS = [
+	"skills/literature-survey/scripts/search_index.py",
 	"skills/research-evidence/scripts/fetch_pdf.py",
 	"skills/research-paper-writing/LICENSE",
 	"skills/research-paper-writing/references/introduction.md",
@@ -167,16 +169,18 @@ export function validateReleaseTree(root: string, platform = process.platform): 
 	for (const asset of SKILL_ASSETS) {
 		if (!existsSync(join(payload, asset))) findings.push(`skill asset missing: ${asset}`);
 	}
-	const helper = join(payload, SKILL_ASSETS[0] as string);
-	if (existsSync(helper)) {
+	// Every helper script must be a readable file, and executable where the platform has mode bits.
+	for (const asset of SKILL_ASSETS.filter(name => name.endsWith(".py"))) {
+		const helper = join(payload, asset);
+		if (!existsSync(helper)) continue;
 		try {
 			accessSync(helper, constants.R_OK);
 			if (!statSync(helper).isFile()) throw new Error("not a regular file");
 		} catch (error) {
-			findings.push(`skill asset is not readable: ${SKILL_ASSETS[0]} (${reason(error)})`);
+			findings.push(`skill asset is not readable: ${asset} (${reason(error)})`);
 		}
 		if (platform !== "win32" && (statSync(helper).mode & 0o111) === 0) {
-			findings.push(`skill asset is not executable: ${SKILL_ASSETS[0]}`);
+			findings.push(`skill asset is not executable: ${asset}`);
 		}
 	}
 	for (const rule of RULES) {
