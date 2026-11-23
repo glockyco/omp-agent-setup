@@ -86,9 +86,28 @@ Standing instructions in those messages: full texts are required for key papers,
 
 The person handed over PDFs by hand in 9 sessions. Agents drove a browser tab on a publisher page in 11 sessions.
 
+## Second host
+
+A rerunnable script repeated the counts on the MacBook Pro, whose history runs from 2026-08-07 to 2026-11-23 with 3,378 transcript files and 604,089 tool calls. No call went to an MCP server there either. Literature work on that host is a small part of this:
+
+| Count | Windows host | MacBook Pro |
+|---|---|---|
+| ACM Digital Library reads, refused | 112 of 122 | 32 of 36 |
+| ScienceDirect reads, refused | 35 of 36 | 4 of 4 |
+| ResearchGate reads, refused | 8 of 14 | 4 of 4 |
+| OpenReview pages under 1,500 characters | 31 of 32 | 3 of 3 |
+| arXiv HTML reads | 648 | 61 |
+| Acquisition helper attempts | 185 | 9 |
+| Sessions with five or more scholarly calls that read the skill | 29 of 32 | 9 of 10 |
+| OpenAlex calls with a key | 0 | 0 |
+
+The refusing hosts refuse on both hosts. Index calls on the MacBook Pro rarely failed, with 3 failures in 149 calls that touched OpenAlex, and no response there carried the key notice. Its helper commands held an address 3 times, each time the second address. The helper's outcomes by source and year rest on the Windows host alone.
+
+A third host, the MacBook Air, could not be reached and is not included.
+
 ## Limits
 
-- One host and one person. The second host's history is not included.
+- One person. The corrections, the query classification and the helper outcomes rest on the Windows host.
 - A read counts once per call. A script inside `eval` or `bash` can issue many requests in one call.
 - Year in key is a proxy for the publication year, and 46 attempts had no year.
 - The pairing of a DOI with its result reads the command text and can miss cases, so 10 is a lower bound.
