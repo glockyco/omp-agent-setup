@@ -1,8 +1,5 @@
 # Tasks
 
-## 1. Measurement
-
-
 ## 2. Search helper
 
 - [x] 2.1 Implement index queries for OpenAlex, arXiv, Crossref and DBLP with spacing per index, retry after the indicated wait, a bounded number of attempts and the failed status. Verify with fixture tests that use an injected clock.
@@ -20,18 +17,19 @@
 
 ## 4. Trials
 
-- [ ] 4.1 Collect the eight canary questions with their canary works and the two reference sets outside this repository, and record their counts in evidence.md.
-- [ ] 4.2 Ask before starting the trials, because they spend model budget on about 20 agent runs. Run each question with the released plugin and with the candidate, confirm the outcomes from the trial files and record them in evidence.md.
-- [ ] 4.3 Fix what a trial shows and repeat that trial with a fresh agent. Verify that the repeated trial passes.
+- [x] 4.1 Collect the canary questions with their canary works outside this repository, and record their counts in evidence.md. Six questions were collected and five ran.
+- [x] 4.2 Ask before starting the trials, because they spend model budget on about 20 agent runs. Run each question with the released plugin and with the candidate, confirm the outcomes from the trial files and record them in evidence.md.
+- [x] 4.3 Fix what a trial shows and repeat that trial with a fresh agent. The fixes for the helper and for screening passed their repeats. The repeats of the first question did not pass, and the release was approved with that result recorded in evidence.md.
 
 ## 5. Local release preparation
 
 - [x] 5.1 Raise the marketplace, plugin manifest and root package to the next matching minor version. Verify with the release-version check.
-- [ ] 5.2 Run strict validation for this change and `bun run check:local`. Verify that both pass.
-- [ ] 5.3 Stage only this change and create a local Conventional Commit with a causal body. Verify that the commit holds nothing else.
+- [x] 5.2 Run strict validation for this change and `bun run check:local`. Verify that both pass.
+- [x] 5.3 Stage only this change and create a local Conventional Commit with a causal body. Verify that the commit holds nothing else.
 
 ## Workflow follow-up
 
+- The two reference-set reruns of the design did not run, because the approved trial budget was used up. The release was approved without them, and the history measurement four weeks after the release takes their place.
 - The channel attribution and the search counts in evidence.md came from one-off analysis of a single day's survey files. They were not added to the measurement script of `improve-research-evidence-access`, which is kept for the repeated measurement.
 - Archive the change with its accepted specs in the implementation pull request.
 - Four weeks after the release, run the measurement script again and compare it with evidence.md.
