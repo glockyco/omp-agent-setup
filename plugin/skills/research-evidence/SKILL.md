@@ -15,6 +15,8 @@ For metadata-only DOI verification or bibliography maintenance, verify authorita
 
 Never fabricate metadata. Never characterize a paper without reading the relevant full text.
 
+When a step is blocked by something the person can remove, such as a vault approval, a missing key, a login or a host setting, stop that step and ask for exactly that. Never continue on a weaker source, a weaker copy or a search with less reach instead, because the result then looks complete when it is not.
+
 ## 1. Search
 
 Optimize the default search for computer science and adjacent technical literature. Use another domain-specific index only when the task or repository requires it.
@@ -47,7 +49,7 @@ For searches and lists, send the key as a bearer token:
 1. Find the entry with `vault search private --query openalex` and deliver its password with `vault file`. The result is the path of a private file.
 2. Build the header from that file inside the command: `curl -sS -H "Authorization: Bearer $(cat "<path>")" "<url>"`.
 
-Never put the key into a URL, a tool argument or a log. The vault blocks a call that contains it. If the vault holds no entry or refuses the delivery, look up single records without a key and report that searches may be refused.
+Never put the key into a URL, a tool argument or a log. The vault blocks a call that contains it. The first delivery of the entry needs the person's approval in an interactive session. If the vault holds no entry or refuses the delivery, stop the search and ask the person to add or approve the entry, and to allow it always when runs without a person need it. Do not search without the key.
 
 ### Hosts that refuse scripted requests
 
@@ -55,7 +57,7 @@ Do not request these hosts with `read`, `curl` or a script. They answer with an 
 
 - ACM Digital Library (`dl.acm.org`), ScienceDirect (`sciencedirect.com`) and IEEE Xplore (`ieeexplore.ieee.org`): take title, venue and abstract from the OpenAlex record of the DOI, and get the full text through the acquisition order in step 3.
 - ResearchGate and Google Scholar: use OpenAlex, DBLP or Crossref for the same work.
-- OpenReview (`openreview.net`): pages and PDFs load only in a browser. Use the arXiv or proceedings copy of the work, or the browser relay.
+- OpenReview (`openreview.net`): pages and PDFs load only in a browser. Use the browser relay.
 - Semantic Scholar: it refuses most requests without a key. Use OpenAlex for citations and Unpaywall, through the helper, for open-access copies.
 
 ### Browser relay
@@ -106,11 +108,12 @@ needs no ambient Python packages, and does not depend on a patched shebang or
 Windows executable mode bits. Unix release assets retain their executable bits.
 Take `UNPAYWALL_EMAIL` from the host environment only. If it is unset, do not set it in the command: stop and report the missing host configuration.
 
-The helper prints one of three results:
+The helper prints one of four results:
 
 - `OK` with exit status 0: the file is saved and is the published version or a genuine preprint.
 - `MANUSCRIPT` with exit status 3: the file is saved, but the DOI names a published work and only a repository or arXiv copy was found. Ask the person before citing from it. They may provide the published version.
-- `FAIL` with exit status 1 or 2: no file. The message names the sources tried, a failed open-access lookup, or the missing configuration.
+- `FAIL` with exit status 1: no source had the file. The message names the sources tried.
+- `FAIL` with exit status 2: the helper could not start, because the address is missing or the open-access lookup failed. It tried no source. Fix the cause or run it again.
 
 Sci-Hub returns an HTML viewer. The helper extracts `citation_pdf_url` or an embedded PDF URL, resolves relative paths, and accepts bytes only when they start with `%PDF-`.
 
