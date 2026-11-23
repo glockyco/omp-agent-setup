@@ -83,6 +83,24 @@ Web search showed 125 of the cited works and index queries 82. Among the 181 wor
 - The skill's second step says to screen titles first and to read abstracts for the survivors. The person called screening by title inadequate and set title and abstract as the minimum.
 - The classified corrections on the reach of a search number 19 in September, 1 in October and 7 in November. Those on screening depth number 4, 1 and 2.
 
+## Trials of 2026-11-23
+
+Five canary questions ran with fresh agents, each with the released plugin 0.11.17 and with the candidate, 21 runs in all. The questions and their canary works stay outside this repository. Each question has between one and three canary works, nine in total. A sixth question was collected but not run.
+
+| Question | Canaries | Released plugin | Candidate |
+|---|---|---|---|
+| 1 | 2 | one canary in 2 of 3 runs | one canary in 1 of 5 runs |
+| 2 | 3 | 1 | 2, in 2 of 2 runs |
+| 3 | 3 | 0 | 1, in 2 of 2 runs |
+| 4 | 1 | 0 | 1, in 3 of 3 runs |
+| 5 | 2 | 2 | 2, in 2 of 2 runs |
+
+- The pass rule of the design fails on question 1. The released plugin found that canary in web-search snippets, and candidate agents made one or two web searches.
+- The candidate changed three times between rounds. The helper crashed when its output went to a pipe on Windows. Agents searched one wording of the subject. In 5 of the first 8 candidate runs the agents screened only part of the corpus, and in one of them a canary sat unscreened in it. After the `unscreened` mode and the rule to screen every record, all 6 candidate runs screened the whole corpus.
+- Screening reasons stayed templated. One run decided with a keyword script. The 2 runs after the rule against both still gave 12 to 14 distinct reasons per 100 records.
+- Agents ended after 2 to 5 of the 15 minutes they were given, so the trials measure a short survey.
+- The two reference-set reruns did not run, because the approved budget of about 20 runs was used up.
+
 ## Limits
 
 - The channel attribution covers one day, one subject area and works cited with an identifier. OpenAlex took no part in it.
