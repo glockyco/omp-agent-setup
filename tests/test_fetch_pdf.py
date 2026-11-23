@@ -1,9 +1,13 @@
+import contextlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 # Importing the helper must not write __pycache__ into the plugin payload or
 # the installed release under test.
@@ -132,6 +136,92 @@ class FetchPdfTests(unittest.TestCase):
         with self.assertRaisesRegex(fetch_pdf.AcquisitionError, "UNPAYWALL_EMAIL"):
             fetch_pdf.acquire(self.doi, None, None, getter, ())
         self.assertEqual(getter.calls, [])
+
+
+class FetchPdfResultTests(unittest.TestCase):
+    """The printed result and exit status are what an agent acts on."""
+
+    doi = "10.1000/example"
+    api = "https://api.unpaywall.org/v2/10.1000/example?email=writer@example.org"
+
+    def run_main(self, arguments, responses):
+        getter = FixtureGetter(responses)
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "paper.pdf"
+            with (
+                mock.patch.dict(os.environ, {"UNPAYWALL_EMAIL": "writer@example.org"}),
+                contextlib.redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+            ):
+                status = fetch_pdf.main(["key", *arguments, "--out", str(output)], getter, ())
+            saved = output.read_bytes() if output.exists() else None
+        return status, stdout.getvalue(), stderr.getvalue(), saved
+
+    def lookup(self, genre):
+        location = {"host_type": "repository", "url_for_pdf": "https://repo.test/paper.pdf"}
+        return json.dumps({"is_oa": True, "genre": genre, "oa_locations": [location]}).encode()
+
+    def test_published_doi_with_only_a_repository_copy_is_a_manuscript(self):
+        status, out, _, saved = self.run_main(
+            ["--doi", self.doi],
+            {self.api: self.lookup("proceedings-article"), "https://repo.test/paper.pdf": b"%PDF-repository"},
+        )
+        self.assertEqual(status, 3)
+        self.assertTrue(out.startswith("MANUSCRIPT key:"))
+        self.assertIn("published version was not obtained", out)
+        self.assertEqual(saved, b"%PDF-repository")
+
+    def test_published_doi_with_only_an_arxiv_copy_is_a_manuscript(self):
+        status, out, _, saved = self.run_main(
+            ["--doi", self.doi, "--arxiv", "2401.00001"],
+            {
+                self.api: json.dumps({"is_oa": False, "genre": "journal-article"}).encode(),
+                "https://arxiv.org/pdf/2401.00001": b"%PDF-arxiv",
+            },
+        )
+        self.assertEqual(status, 3)
+        self.assertTrue(out.startswith("MANUSCRIPT key:"))
+        self.assertEqual(saved, b"%PDF-arxiv")
+
+    def test_posted_content_from_a_repository_is_an_ordinary_success(self):
+        status, out, _, saved = self.run_main(
+            ["--doi", self.doi],
+            {self.api: self.lookup("posted-content"), "https://repo.test/paper.pdf": b"%PDF-repository"},
+        )
+        self.assertEqual(status, 0)
+        self.assertTrue(out.startswith("OK key:"))
+        self.assertEqual(saved, b"%PDF-repository")
+
+    def test_arxiv_doi_is_an_ordinary_success(self):
+        api = "https://api.unpaywall.org/v2/10.48550/arXiv.2401.00001?email=writer@example.org"
+        status, out, _, _ = self.run_main(
+            ["--doi", "10.48550/arXiv.2401.00001", "--arxiv", "2401.00001"],
+            {api: fetch_pdf.AcquisitionError("not found"), "https://arxiv.org/pdf/2401.00001": b"%PDF-arxiv"},
+        )
+        self.assertEqual(status, 0)
+        self.assertTrue(out.startswith("OK key:"))
+
+    def test_failed_lookup_is_named_and_later_sources_are_still_tried(self):
+        status, _, err, saved = self.run_main(
+            ["--doi", self.doi, "--arxiv", "2401.00001"],
+            {self.api: fetch_pdf.AcquisitionError("timed out")},
+        )
+        self.assertEqual(status, 1)
+        self.assertIn("open-access lookup failed", err)
+        self.assertNotIn("publisher OA", err)
+        self.assertNotIn("repository OA", err)
+        self.assertIn("arXiv", err)
+        self.assertIsNone(saved)
+
+    def test_work_without_open_access_copy_lists_the_sources_tried(self):
+        status, _, err, _ = self.run_main(
+            ["--doi", self.doi],
+            {self.api: json.dumps({"is_oa": False, "genre": "journal-article"}).encode()},
+        )
+        self.assertEqual(status, 1)
+        self.assertIn("publisher OA, Sci-Hub, repository OA", err)
+        self.assertNotIn("lookup failed", err)
 
 
 if __name__ == "__main__":

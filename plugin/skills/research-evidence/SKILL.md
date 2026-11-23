@@ -38,6 +38,32 @@ https://api.crossref.org/works/<doi>/transform/application/x-bibtex
 
 A wrong DOI corrupts acquisition and citation traversal. Confirm that the resolved title and authors match before use.
 
+### OpenAlex key
+
+OpenAlex bills searches and lists against a daily budget, and requests without a key share a small one per network address. Single-record lookups by DOI or OpenAlex ID cost nothing and need no key.
+
+For searches and lists, send the key as a bearer token:
+
+1. Find the entry with `vault search private --query openalex` and deliver its password with `vault file`. The result is the path of a private file.
+2. Build the header from that file inside the command: `curl -sS -H "Authorization: Bearer $(cat "<path>")" "<url>"`.
+
+Never put the key into a URL, a tool argument or a log. The vault blocks a call that contains it. If the vault holds no entry or refuses the delivery, look up single records without a key and report that searches may be refused.
+
+### Hosts that refuse scripted requests
+
+Do not request these hosts with `read`, `curl` or a script. They answer with an error or an empty page, and each attempt is wasted.
+
+- ACM Digital Library (`dl.acm.org`), ScienceDirect (`sciencedirect.com`) and IEEE Xplore (`ieeexplore.ieee.org`): take title, venue and abstract from the OpenAlex record of the DOI, and get the full text through the acquisition order in step 3.
+- ResearchGate and Google Scholar: use OpenAlex, DBLP or Crossref for the same work.
+- OpenReview (`openreview.net`): pages and PDFs load only in a browser. Use the arXiv or proceedings copy of the work, or the browser relay.
+- Semantic Scholar: it refuses most requests without a key. Use OpenAlex for citations and Unpaywall, through the helper, for open-access copies.
+
+### Browser relay
+
+The browser relay drives the person's own browser, which is signed in to the institution's subscriptions. It reaches the published version on the hosts above when no scripted route does. Open the page in eval with `browser.open({ app: "relay", url: "https://doi.org/<doi>" })`, read the article there or download its PDF, and close the tab afterwards.
+
+Use the relay when a work is reachable only on a refusing host, and when the helper reports `MANUSCRIPT` or `FAIL` for a work that has a published version. If the relay is not connected or the page still shows a paywall, ask the person for the file.
+
 ## 2. Screen
 
 1. Screen titles as keep, reject, or uncertain. Record one factual reason.
@@ -78,7 +104,13 @@ Python is an acquisition prerequisite supplied by the host; plugin discovery
 does not require or install it. The helper uses only the Python standard library,
 needs no ambient Python packages, and does not depend on a patched shebang or
 Windows executable mode bits. Unix release assets retain their executable bits.
-Set `UNPAYWALL_EMAIL` to a real contact address before DOI acquisition.
+Take `UNPAYWALL_EMAIL` from the host environment only. If it is unset, do not set it in the command: stop and report the missing host configuration.
+
+The helper prints one of three results:
+
+- `OK` with exit status 0: the file is saved and is the published version or a genuine preprint.
+- `MANUSCRIPT` with exit status 3: the file is saved, but the DOI names a published work and only a repository or arXiv copy was found. Ask the person before citing from it. They may provide the published version.
+- `FAIL` with exit status 1 or 2: no file. The message names the sources tried, a failed open-access lookup, or the missing configuration.
 
 Sci-Hub returns an HTML viewer. The helper extracts `citation_pdf_url` or an embedded PDF URL, resolves relative paths, and accepts bytes only when they start with `%PDF-`.
 
@@ -87,6 +119,8 @@ If automated acquisition fails, report the attempted source classes. Obtain an a
 ## 4. Read
 
 Read the text that supports each intended claim. For mechanism, method, limitation, or result claims, read the relevant body section. An abstract is enough only for abstract-level claims.
+
+Full text that an open host serves as HTML, such as an arXiv HTML page, counts as read text. Record the section, figure, table or quotation in place of a page, and name the version you read, such as `arXiv v2`. For a work that has a published version, the same rule as for a manuscript file applies: ask before citing from the preprint.
 
 When a paper supports a claim, record:
 
@@ -102,6 +136,8 @@ Omit fields that do not apply. Do not add empty placeholders.
 ## 5. Verify metadata
 
 Take title, authors, venue, year, pages, and DOI from OpenAlex, Crossref, DBLP, the publisher, or the paper. Resolve conflicts against the published paper. Do not infer fields from memory, snippets, or filenames.
+
+Before you register a preprint, look for its published version: the DBLP entry of the title, the locations of its OpenAlex record, and the journal reference and DOI of its arXiv record. Register the published version when one exists, and the preprint only when none does.
 
 ## 6. Register
 
