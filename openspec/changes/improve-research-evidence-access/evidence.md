@@ -123,6 +123,20 @@ Requests from the Windows host on 2026-11-23, without a key and after the keyles
 
 The OpenAlex record by DOI therefore serves the abstract for all three publishers, and it answers while searches are refused. The skill names it as the route and Crossref as the fallback for metadata. No scripted route to OpenReview worked, so the skill names the copy elsewhere and the browser relay. The relay route on a publisher page is checked in the trials.
 
+## Trials, first round
+
+Fresh subagents on 2026-11-23, one with the released skill and one with the candidate per task. The host had no `UNPAYWALL_EMAIL` and no OpenAlex entry in the vault.
+
+| Task | Released skill | Candidate |
+|---|---|---|
+| Abstract and full text of a paywalled ACM article | No request to the ACM host. Abstract from OpenAlex after a Crossref lookup. Ran the helper, which refused without the address. Asked which address to use. | No request to the ACM host. Abstract from OpenAlex in one request. Did not run the helper. Asked for the host configuration. |
+| Register an arXiv preprint that has a published version | Registered the published version with its DOI after two reads. | Registered the published version with its DOI after the three checks. DBLP answered with an anti-bot challenge. |
+
+- Neither task separates the two skills. The released skill avoided the refusing host and found the published version on its own.
+- The preprint was too easy, because its arXiv page names the venue.
+- Neither agent used the browser relay after acquisition stopped. The candidate's relay rule covered a helper result only, so it now also covers a helper that cannot run.
+- The manuscript trial and the keyed search trial wait for the host variable and the vault entry.
+
 ## Limits
 
 - One person. The corrections, the query classification and the helper outcomes rest on the Windows host.
