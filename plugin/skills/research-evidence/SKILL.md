@@ -1,6 +1,6 @@
 ---
 name: research-evidence
-description: Find, screen, acquire, read, verify, characterize, and register computer-science and adjacent technical evidence for individual works. Use for a citation, related work for a claim, paper PDFs, citation graphs, evidence for technical claims, DOI verification, and BibTeX additions or cleanup. For what exists on a whole topic, use literature-survey.
+description: Find, screen, acquire, read, verify, characterize, and register computer-science and adjacent technical evidence. Use for an overview of a topic, the state of the art, prior art, whether an idea has been studied, related work, a citation, paper PDFs, citation graphs, evidence for technical claims, DOI verification, and BibTeX additions or cleanup.
 ---
 
 # Research and evidence
@@ -15,43 +15,71 @@ For metadata-only DOI verification or bibliography maintenance, verify authorita
 
 Never fabricate metadata. Never characterize a paper without reading the relevant full text.
 
-A question about what exists on a topic, such as the state of the art, prior art or whether an idea has been studied, belongs to the `literature-survey` skill. Read it and follow it, and come back here for each work.
+Questions about a topic, rather than about one work, start with the survey program in step 0.
 
 When a step is blocked by something the person can remove, such as a vault approval, a missing key, a login or a host setting, stop that step and ask for exactly that. Never continue on a weaker source, a weaker copy or a search with less reach instead, because the result then looks complete when it is not.
+
+## 0. Survey a topic
+
+The survey program searches OpenAlex by meaning and by keyword, the newest arXiv works and, with a key, Semantic Scholar's full text. A small model screens every record against criteria derived from the question. The program then follows the references, citing works and related works of every work that meets all criteria. It writes the corpus, the decisions, `kept.md` and `coverage.md` to the survey directory.
+
+Choose the depth by what the answer will claim:
+
+- `overview` maps a topic from what is found: the main lines of work, related work for a section, a first look. It takes 5 to 10 minutes. Its report may say what exists, never what is missing.
+- `exhaustive` runs until a round adds almost nothing or 2,500 records are screened, about 30 minutes. A statement that nothing exists, that an idea is new or that a list is the state of the art needs a search that saturated. A broad question ends on the budget instead, and `coverage.md` then says that no such statement is supported. Search the exact claim as its own narrower question.
+
+A second run on the same directory continues the first, so start with an overview and extend it when the question turns into one about what is missing.
+
+Pick a survey directory in the repository's research folder or a synced documents folder, never a temporary directory. Get the OpenAlex key file and, if the vault has one, the Semantic Scholar key file with `vault file` as described below. Then run in eval, Python:
+
+```python
+import importlib.util, sys
+sys.dont_write_bytecode = True  # keeps __pycache__ out of the installed plugin
+spec = importlib.util.spec_from_file_location("survey", "<path of skill://research-evidence/scripts/survey.py>")
+survey = importlib.util.module_from_spec(spec); spec.loader.exec_module(survey)
+summary = await survey.run("<the question as asked>", "<survey directory>", "<OpenAlex key file>", completion, judge_batch,
+                           depth="overview", progress=log, s2_key_file="<Semantic Scholar key file or None>")
+```
+
+`progress=log` shows each search and screening step while the cell runs. The same steps go to `progress.jsonl` in the survey directory.
+
+Pass works the person already knows as `known=["doi:...", "arxiv:..."]`. The coverage numbers then show whether the search found them on its own.
+
+A message from the person while the cell runs can stop the kernel. Call `survey.run` again with the same arguments, and it continues. For an exhaustive search, a subagent can run it.
+
+Afterwards:
+
+1. Read `plan.json` and check that the criteria match the question. If they do not, start over in a new directory with the question stated more precisely.
+2. Search the web for works the indexes may lack, such as the newest preprints and grey literature. Add each find with `await survey.add_web_finds("<survey directory>", ["doi:...", "arxiv:..."], "<OpenAlex key file>", judge_batch)`.
+3. Read the core works in `kept.md` with steps 3 to 6. Drop off-topic ones, since the screening model favours recall.
+4. Quote `coverage.md` in the report: how the search was done, what each channel found and where it stopped. Phrase a gap as not found by these channels, and only after an exhaustive search. Say how much of each cited work was read, and by whom.
+
+A failed channel stops the program with the reason. Fix the cause or ask the person, and never report coverage from a run without that channel.
 
 ## 1. Search
 
 Optimize the default search for computer science and adjacent technical literature. Use another domain-specific index only when the task or repository requires it.
 
-Use authoritative indexes:
-
-- OpenAlex for keyword search, abstracts, DOI lookup, and citation graphs;
-- DBLP for computer-science publication search;
-- Crossref for DOI metadata and BibTeX;
-- the publisher and paper for final verification.
-
-Useful endpoints:
+For a single work, look it up directly:
 
 ```text
-https://api.openalex.org/works?search=<query>
 https://api.openalex.org/works/https://doi.org/<doi>
-https://api.openalex.org/works?filter=cites:<openalex-id>
-https://dblp.org/search/publ/api?q=<query>&format=json
+https://dblp.org/search/publ/api?q=<title words>&format=json
 https://api.crossref.org/works/<doi>/transform/application/x-bibtex
 ```
 
+Run keyword searches, semantic searches and citation lists through the bundled helper, which paces requests, logs them and keeps the key out of logs: resolve `skill://research-evidence/scripts/search_index.py` and run `python3 "<path>" --help` for its modes. Direct searches from several agents get the network address throttled.
+
 A wrong DOI corrupts acquisition and citation traversal. Confirm that the resolved title and authors match before use.
 
-### OpenAlex key
+### Index keys
 
-OpenAlex bills searches and lists against a daily budget, and requests without a key share a small one per network address. Single-record lookups by DOI or OpenAlex ID cost nothing and need no key.
+OpenAlex bills searches and lists against a daily budget. Semantic Scholar refuses almost every request without a key. Single-record lookups by DOI or OpenAlex ID cost nothing and need no key.
 
-For searches and lists, send the key as a bearer token:
+1. Find the entry with `vault search private --query openalex` or `--query "semantic scholar"` and deliver its password with `vault file`. The result is the path of a private file.
+2. Pass that path to the helper with `--key-file`, or to the survey program. For a direct call, build the header inside the command: `curl -sS -H "Authorization: Bearer $(cat "<path>")" "<url>"`.
 
-1. Find the entry with `vault search private --query openalex` and deliver its password with `vault file`. The result is the path of a private file.
-2. Build the header from that file inside the command: `curl -sS -H "Authorization: Bearer $(cat "<path>")" "<url>"`.
-
-Never put the key into a URL, a tool argument or a log. The vault blocks a call that contains it. The first delivery of the entry needs the person's approval in an interactive session. If the vault holds no entry or refuses the delivery, stop the search and ask the person to add or approve the entry, and to allow it always when runs without a person need it. Do not search without the key.
+Never put a key into a URL, a tool argument or a log. The vault blocks a call that contains it. The first delivery of an entry needs the person's approval in an interactive session. If the vault holds no OpenAlex entry or refuses the delivery, stop and ask the person to add or approve the entry, and to allow it always when runs without a person need it. Without a Semantic Scholar key the survey runs without full-text search and says so.
 
 ### Hosts that refuse scripted requests
 
@@ -60,7 +88,7 @@ Do not request these hosts with `read`, `curl` or a script. They answer with an 
 - ACM Digital Library (`dl.acm.org`), ScienceDirect (`sciencedirect.com`) and IEEE Xplore (`ieeexplore.ieee.org`): take title, venue and abstract from the OpenAlex record of the DOI, and get the full text through the acquisition order in step 3.
 - ResearchGate and Google Scholar: use OpenAlex, DBLP or Crossref for the same work.
 - OpenReview (`openreview.net`): pages and PDFs load only in a browser. Use the browser relay.
-- Semantic Scholar: it refuses most requests without a key. Use OpenAlex for citations and Unpaywall, through the helper, for open-access copies.
+- Semantic Scholar's website: use its API through the helper with the key from the vault, or OpenAlex for the same work.
 
 ### Browser relay
 
