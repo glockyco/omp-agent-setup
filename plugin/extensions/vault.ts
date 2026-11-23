@@ -249,16 +249,20 @@ export class VaultService {
 
 	async search(vault: string, query: string, ctx: ExtensionContext): Promise<string> {
 		const key = await this.unlock(vault, ctx);
-		const result = await this.#bw(vault, ["list", "items", "--search", query], { BW_SESSION: key });
-		if (result.exitCode !== 0)
-			throw bwFailure(
-				vault,
-				"bw list",
-				result,
-				"Retry the search. If it still fails, check the Bitwarden CLI's reported error before continuing.",
-			);
-		const parsed: unknown = JSON.parse(result.stdout);
-		const items = (Array.isArray(parsed) ? parsed : []).flatMap(entry => parseItem(entry) ?? []);
+		let items = await this.#list(vault, query, key);
+		if (items.length === 0) {
+			// The local copy may predate an entry added during this process, so an empty
+			// result is reported only after a fresh sync. A failed sync is a failure, not "no entries".
+			const sync = await this.#bw(vault, ["sync"], { BW_SESSION: key });
+			if (sync.exitCode !== 0)
+				throw bwFailure(
+					vault,
+					"bw sync",
+					sync,
+					"The search found no entry, and the vault could not be synchronized to confirm that. Retry the search once the reported sync error is resolved.",
+				);
+			items = await this.#list(vault, query, key);
+		}
 		if (items.length === 0)
 			return `No entries in ${vault} match "${query}". Try a shorter query, the service's domain or the other vault if the account belongs there.`;
 		const lines = items.slice(0, 25).map(item => {
@@ -270,6 +274,19 @@ export class VaultService {
 		});
 		if (items.length > 25) lines.push(`${items.length - 25} more; refine the search.`);
 		return lines.join("\n");
+	}
+
+	async #list(vault: string, query: string, key: string): Promise<BwItem[]> {
+		const result = await this.#bw(vault, ["list", "items", "--search", query], { BW_SESSION: key });
+		if (result.exitCode !== 0)
+			throw bwFailure(
+				vault,
+				"bw list",
+				result,
+				"Retry the search. If it still fails, check the Bitwarden CLI's reported error before continuing.",
+			);
+		const parsed: unknown = JSON.parse(result.stdout);
+		return (Array.isArray(parsed) ? parsed : []).flatMap(entry => parseItem(entry) ?? []);
 	}
 
 	async deliver(

@@ -50,12 +50,17 @@ interface BwOptions {
 	twoFactor?: Record<string, string>;
 	newDevice?: boolean;
 	unlockError?: string;
+	/** An entry that the server holds and the local copy gets with the second sync. */
+	lateItem?: { id: string; name: string };
+	/** Fail every sync after the first with this message. */
+	laterSyncError?: string;
 }
 
 /** A stub `bw` keyed by data directory, close enough to the real CLI's status machine. */
 function fakeBw(options: BwOptions = {}) {
 	const accounts = new Map<string, { loggedIn: boolean; key?: string; server?: string }>();
 	const calls: Array<{ args: string[]; env: Record<string, string | undefined> }> = [];
+	let syncs = 0;
 	const ok = (stdout = ""): CommandResult => ({ exitCode: 0, stdout, stderr: "" });
 	const fail = (message: string): CommandResult => ({ exitCode: 1, stdout: "", stderr: message });
 	const run: ProcessRunner = async (command, { env }) => {
@@ -118,10 +123,15 @@ function fakeBw(options: BwOptions = {}) {
 				account.loggedIn = true;
 				return ok(newKey());
 		}
-		if (args[0] === "sync") return ok("Syncing complete.");
+		if (args[0] === "sync") {
+			syncs += 1;
+			if (syncs > 1 && options.laterSyncError) return fail(options.laterSyncError);
+			return ok("Syncing complete.");
+		}
 		if (args[0] === "list") {
 			const search = (flag("--search") ?? "").toLowerCase();
-			return ok(JSON.stringify(ITEMS.filter(item => item.name.toLowerCase().includes(search))));
+			const local = options.lateItem && syncs > 1 ? [...ITEMS, options.lateItem] : ITEMS;
+			return ok(JSON.stringify(local.filter(item => item.name.toLowerCase().includes(search))));
 		}
 		const item = ITEMS.find(entry => entry.id === args[2]);
 		if (!item) return fail("Not found.");
@@ -226,6 +236,44 @@ function setup(options: BwOptions = {}) {
 }
 
 const deliver = { action: "file", vault: "scch", id: ITEMS[0]?.id, purpose: "test the key" };
+
+describe("search freshness", () => {
+	const late = { id: "11111111-aaaa-4bbb-8ccc-000000000009", name: "OpenAlex" };
+	const syncCount = (bw: ReturnType<typeof fakeBw>) =>
+		bw.calls.filter(entry => entry.args[0] === "sync").length;
+
+	test("an entry added after the first sync is found without another unlock", async () => {
+		const { bw, call } = setup({ lateItem: late });
+		const { ctx, prompts } = scriptedContext(["me@scch.at", MASTER]);
+		await call({ action: "search", vault: "scch", query: "anita" }, ctx);
+		const asked = prompts.length;
+
+		const result = await call({ action: "search", vault: "scch", query: "openalex" }, ctx);
+
+		expect(result).toContain("OpenAlex");
+		expect(prompts.length).toBe(asked);
+		expect(syncCount(bw)).toBe(2);
+	});
+
+	test("a search that stays empty reports no entries after exactly one more sync", async () => {
+		const { bw, call } = setup();
+		const { ctx } = scriptedContext(["me@scch.at", MASTER]);
+
+		const result = await call({ action: "search", vault: "scch", query: "nonexistent" }, ctx);
+
+		expect(result).toContain("No entries in scch match");
+		expect(syncCount(bw)).toBe(2);
+	});
+
+	test("a failed sync after an empty search is a failure, not an empty result", async () => {
+		const { call } = setup({ lateItem: late, laterSyncError: "Syncing failed: fetch failed" });
+		const { ctx } = scriptedContext(["me@scch.at", MASTER]);
+
+		await expect(call({ action: "search", vault: "scch", query: "openalex" }, ctx)).rejects.toThrow(
+			/bw sync failed/,
+		);
+	});
+});
 
 describe("login and unlock", () => {
 	test("first use logs in through masked prompts and keeps the password out of arguments", async () => {
