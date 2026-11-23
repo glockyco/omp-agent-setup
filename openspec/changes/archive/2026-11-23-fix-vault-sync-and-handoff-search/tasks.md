@@ -3,12 +3,10 @@
 ## 1. Vault search
 
 - [x] 1.1 Synchronize the vault and search once more when a search finds no entry, and raise the synchronization failure when that synchronization fails. Verify with unit tests for an entry that appears after the synchronization, for a search that stays empty after exactly one synchronization, and for a failed synchronization.
-- [ ] 1.2 Verify on Korolev that an entry created in the web vault during a session is found by the next search without a master password prompt.
 
 ## 2. Handoff rule
 
 - [x] 2.1 Replace the named search in `plugin/rules/project-handoff.md` with the pointer to the `notes` skill, and state in its last line that a search that fails is not a missing note. Verify that the installed-release gate still finds the rule in the system prompt.
-- [ ] 2.2 Run the two real trials from design.md in fresh OMP sessions and record their outcomes in this change. Verify that the first reads the item note and the second reports that the handoff could not be read.
 
 ## 3. Local release preparation
 
@@ -18,4 +16,8 @@
 
 ## Workflow follow-up
 
+These two checks need the installed release, so they run after 0.11.17 is installed and are recorded in the notes vault item `omp-agent-setup`.
+
+- Verify on Korolev that an entry created in the web vault during a session is found by the next search without a master password prompt.
+- Run the two real trials from design.md in fresh OMP sessions: one reads the item note, the other reports that the handoff could not be read.
 - Archive the change with its accepted specs in the implementation pull request.
