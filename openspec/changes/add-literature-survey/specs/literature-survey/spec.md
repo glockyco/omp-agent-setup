@@ -22,7 +22,7 @@ The skill SHALL apply to coverage questions: the state of the art, prior art, th
 
 ### Requirement: Complementary channels
 
-For each survey question the workflow SHALL search at least one enumerable index, the web, and the citation links of the closest works. The report SHALL state for each channel whether it ran.
+For each survey question the workflow SHALL search at least one enumerable index, the web, and the citation links of the closest works. When one of them cannot run, the workflow SHALL stop and ask the person before it goes on without it. The report SHALL state for each channel whether it ran.
 
 #### Scenario: All channels run
 
@@ -32,9 +32,9 @@ For each survey question the workflow SHALL search at least one enumerable index
 
 #### Scenario: A channel is unavailable
 
-- **WHEN** an index refuses every query during the survey
-- **THEN** the report names the missing channel
-- **AND** it limits its statement about gaps to the channels that ran
+- **WHEN** an index refuses its queries during the survey
+- **THEN** the agent stops the survey and tells the person what blocks the index and what would remove the block
+- **AND** it goes on without the index only after the person says so, and the report then names the missing channel
 
 ### Requirement: Paced index queries
 
@@ -92,13 +92,18 @@ A screening decision SHALL rest on title and abstract and SHALL be recorded with
 
 ### Requirement: Keyed index access for the helper
 
-The helper SHALL read an index key from a file whose path it receives and SHALL NOT accept a key as an argument value. Without a key file it SHALL query without a key and record that in the log.
+The helper SHALL read an index key from a file whose path it receives and SHALL NOT accept a key as an argument value. For an index that bills searches, it SHALL refuse a search without a key file and SHALL say how to get the key.
 
 #### Scenario: Key file is given
 
 - **WHEN** the helper receives the path of a key file
 - **THEN** it sends the key in a request header
 - **AND** the process arguments contain the path and not the key
+
+#### Scenario: Search without a key file
+
+- **WHEN** the helper is asked to search a billing index and receives no key file
+- **THEN** it sends no request and fails with a message that names the missing key
 
 ### Requirement: Survey report
 

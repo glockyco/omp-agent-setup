@@ -32,6 +32,7 @@ See [proposal.md](proposal.md) for the motivation and [evidence.md](evidence.md)
 8. Fan out reading and screening, and let subagents search only through the helper. The skill tells the main agent to harvest first and to hand corpus records to subagents.
 9. Take the report sections from the session's reports: how the search was done, what is established, what was not found, the queries, and how much of each work was read and by whom.
 10. Use `UNPAYWALL_EMAIL` as the contact address that Crossref asks polite clients to send. It is the identity the host already provides.
+11. Stop instead of degrading. A search of a billing index without a key fails in the helper, and a channel that cannot run stops the survey until the person removes the block or says to go on without it. The measured survey ran a whole day without OpenAlex, although a key that takes two minutes to store would have restored it. A report that names the missing channel afterwards does not undo that.
 
 ## Evaluation
 
