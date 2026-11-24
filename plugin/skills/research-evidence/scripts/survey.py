@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
 """Run a literature survey as a program: plan, harvest, screen every record, expand kept works, count coverage.
 
-Load it in the eval Python kernel and pass the kernel's `completion` and `judge_batch`:
+Load it in the eval Python kernel and pass the kernel's `completion`:
 
     import importlib.util
     spec = importlib.util.spec_from_file_location("survey", "<path>/survey.py")
     survey = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(survey)
-    summary = await survey.run(question, out_dir, key_file=key_path, completion=completion, judge_batch=judge_batch)
+    summary = await survey.run(question, out_dir, key_file=key_path, completion=completion)
 
 The model calls are injected so that the procedure runs the same way in tests.
 """
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import json
 import os
 from pathlib import Path
 import sys
+import threading
 import time
 from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
@@ -34,6 +36,7 @@ FULLTEXT_PAPERS = 40
 MIN_NEW_CORE = 2
 MAX_ROUNDS = 4
 EXPAND_PER_ROUND = 15
+EXPAND_WORKERS = 4
 # Records screened per expansion round, most linked to core works first. Screening is the slow step.
 ROUND_CAP = 300
 BUDGET = 2500
@@ -76,6 +79,7 @@ class State:
     def __init__(self, out: Path, on_progress: Optional[Callable[[str], None]] = None):
         self.out = out
         self.on_progress = on_progress
+        self.lock = threading.Lock()
         self.records = {r["id"]: r for r in _read_jsonl(out / "corpus.jsonl")}
         self.channels = {}  # type: Dict[str, Set[str]]
         for row in _read_jsonl(out / "channels.jsonl"):
@@ -158,8 +162,9 @@ def _search(search: Search, state: State, channel: str, round_no: int, index: st
         works = search(index, mode, query, limit, sort)
     except SearchError as error:
         raise SurveyBlocked("{} search failed: {} A failed channel is no evidence that nothing exists.".format(channel, error)) from error
-    state.note(works, channel, round_no)
-    state.progress("search", "{} {} {}: {} works".format(channel, index, mode, len(works)), round=round_no, channel=channel, returned=len(works))
+    with state.lock:
+        state.note(works, channel, round_no)
+        state.progress("search", "{} {} {}: {} works".format(channel, index, mode, len(works)), round=round_no, channel=channel, returned=len(works))
     return works
 
 
@@ -181,7 +186,8 @@ def _expand(search: Search, state: State, round_no: int) -> int:
     expanded = set(state.meta.setdefault("expanded", []))
     links = state.meta.setdefault("links", {})
     targets = [i for i in sorted(state.core()) if i not in expanded][:EXPAND_PER_ROUND]
-    for identifier in targets:
+
+    def reach(identifier: str) -> Set[str]:
         record = state.records[identifier]
         reached = set()  # type: Set[str]
         openalex = _openalex_id(search, state, record, round_no)
@@ -191,10 +197,15 @@ def _expand(search: Search, state: State, round_no: int) -> int:
             reached.update(w["id"] for w in _search(search, state, "related", round_no, "openalex", "related", openalex, 50))
         seed = "{}. {}".format(record.get("title", ""), record.get("abstract", ""))
         reached.update(w["id"] for w in _search(search, state, "similar", round_no, "openalex", "semantic", seed, 50))
-        # A work that several core works reach is more likely relevant, so it is screened first.
-        for work_id in reached:
-            links[work_id] = links.get(work_id, 0) + 1
-        expanded.add(identifier)
+        return reached
+
+    # Requests wait mostly on the network, not on the pacing, so several core works are expanded at once.
+    with ThreadPoolExecutor(max_workers=EXPAND_WORKERS) as pool:
+        for identifier, reached in zip(targets, pool.map(reach, targets)):
+            # A work that several core works reach is more likely relevant, so it is screened first.
+            for work_id in reached:
+                links[work_id] = links.get(work_id, 0) + 1
+            expanded.add(identifier)
     state.meta["expanded"] = sorted(expanded)
     return len(targets)
 
@@ -327,9 +338,10 @@ async def survey(
     if "first_round" not in state.meta:
         await _harvest(search, state, the_plan, known, fulltext, harvest_sizes)
     rounds_done = state.meta.setdefault("rounds", [])
-    if rounds_done and rounds_done[-1].get("saturated"):
-        return _write_outputs(state)
     screened = sum(r["screened"] for r in rounds_done)
+    # A rerun with the same depth only finishes an interrupted run. A deeper depth raises the limits and continues.
+    if rounds_done and (rounds_done[-1].get("saturated") or len(rounds_done) > rounds or screened >= budget):
+        return _write_outputs(state)
     round_no = len(rounds_done)
     while True:
         if round_no > 0 and state.meta.get("expanded_round", 0) < round_no:
@@ -441,39 +453,53 @@ def model_plan(completion: Callable) -> Plan:
     return plan
 
 
-def model_screen(judge_batch: Callable, question: str) -> Screen:
+SCREEN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "results": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"n": {"type": "integer"}, "criteria": {"type": "array", "items": {"type": "boolean"}}, "read": {"type": "boolean"}},
+                "required": ["n", "criteria", "read"],
+            },
+        }
+    },
+    "required": ["results"],
+}
+# Records per model call. Twenty per call screened 200 records in 8 seconds and agreed with one call per record on
+# 189 of 200 core decisions, where the disagreements were mostly off-topic works that one call per record had kept.
+SCREEN_CHUNK = 20
+
+
+def model_screen(completion: Callable, question: str) -> Screen:
     async def screen(records: List[dict], plan: dict) -> Dict[str, dict]:
-        questions = {
-            "c{}".format(i): {
-                "type": "bool",
-                "instructions": "Question being surveyed: {}\nCriterion '{}': {}\nDoes this paper meet the criterion, judging from its title and abstract?".format(
-                    question, c["name"], c["description"]
-                ),
-            }
-            for i, c in enumerate(plan["criteria"])
-        }
-        questions["read"] = {
-            "type": "bool",
-            "instructions": "Question being surveyed: {}\nShould a researcher answering this question read this paper? Answer yes if it addresses the question, even partly or in other terms.".format(
-                question
-            ),
-        }
-        states = {r["id"]: "Title: {}\nAbstract: {}".format(r.get("title", ""), r.get("abstract", "")) for r in records}
-        batch = judge_batch(states, questions, intent="Screening {} survey records".format(len(states)))
-        try:
-            while batch.status().get("running"):
-                await batch.drain(60)
-            answers = batch.results()
-        finally:
-            batch.close()
+        criteria = "\n".join("{}. {}: {}".format(i + 1, c["name"], c["description"]) for i, c in enumerate(plan["criteria"]))
+        chunks = [records[k : k + SCREEN_CHUNK] for k in range(0, len(records), SCREEN_CHUNK)]
 
-        def yes(answer: dict, key: str) -> bool:
-            return bool(((answer or {}).get(key) or {}).get("bool", 0) >= 0.5)
+        def prompt(chunk: List[dict]) -> str:
+            papers = "\n\n".join(
+                "[{}] Title: {}\nAbstract: {}".format(n, r.get("title", ""), (r.get("abstract") or "")[:1500]) for n, r in enumerate(chunk)
+            )
+            return (
+                "Question: {}\nCriteria:\n{}\n\nFor each paper below, say for each criterion in order whether its title and abstract "
+                "meet it, and whether a researcher answering the question should read it: yes if it addresses the question, even "
+                "partly or in other terms. Return one result per paper with its number n.\n\n{}".format(question, criteria, papers)
+            )
 
-        return {
-            rid: {"criteria": [yes(a, "c{}".format(i)) for i in range(len(plan["criteria"]))], "read": yes(a, "read")}
-            for rid, a in answers.items()
-        }
+        # completion returns at once, so all chunks run in parallel and only the waiting happens here.
+        handles = [completion(prompt(chunk), model="smol", schema=SCREEN_SCHEMA) for chunk in chunks]
+        answers = await asyncio.gather(*(asyncio.to_thread(h.wait) for h in handles), return_exceptions=True)
+        verdicts = {}  # type: Dict[str, dict]
+        width = len(plan["criteria"])
+        for chunk, answer in zip(chunks, answers):
+            if isinstance(answer, BaseException):
+                continue  # the chunk's records stay without a verdict and are recorded as undecided
+            for result in answer.get("results") or []:
+                n, flags = result.get("n"), result.get("criteria") or []
+                if isinstance(n, int) and 0 <= n < len(chunk) and len(flags) == width:
+                    verdicts[chunk[n]["id"]] = {"criteria": [bool(f) for f in flags], "read": bool(result.get("read"))}
+        return verdicts
 
     return screen
 
@@ -495,7 +521,6 @@ async def run(
     out: str,
     key_file: str,
     completion: Callable,
-    judge_batch: Callable,
     depth: str = "overview",
     known: Sequence[str] = (),
     s2_key_file: Optional[str] = None,
@@ -503,26 +528,30 @@ async def run(
 ) -> dict:
     """Search `question` into `out`, a directory outside temporary folders.
 
-    `depth` is "overview" to map a topic from what is found, about 5 to 10 minutes, or "exhaustive" for any statement
-    about what does not exist or is new, which runs until saturation and takes 20 to 30 minutes. A second call on the
-    same `out` continues the first, so an overview can be extended to an exhaustive search.
-    `key_file` holds the OpenAlex key. `s2_key_file` holds the Semantic Scholar key and adds full-text snippet search.
+    `depth` is "overview" to map a topic from what is found, one to two minutes, or "exhaustive" for any statement
+    about what does not exist or is new, which runs until saturation or its budget. A second call on the same `out`
+    continues the first, so an overview can be extended to an exhaustive search.
+    `key_file` holds the OpenAlex key. `s2_key_file` holds the Semantic Scholar key and adds full-text snippet search to
+    exhaustive searches, where its 40 seconds per query pay off.
     """
     limits = DEPTHS[depth]
     search = index_search(Path(out), key_file, s2_key_file)
-    plan, screen = model_plan(completion), model_screen(judge_batch, question)
+    plan, screen = model_plan(completion), model_screen(completion, question)
+    fulltext = bool(s2_key_file) and depth == "exhaustive"
     return await survey(
-        question, Path(out), search, plan, screen, known, limits["budget"], bool(s2_key_file), limits["rounds"], progress, (limits["keyword"], limits["arxiv"])
+        question, Path(out), search, plan, screen, known, limits["budget"], fulltext, limits["rounds"], progress, (limits["keyword"], limits["arxiv"])
     )
 
 
-async def add_web_finds(out: str, identifiers: Sequence[str], key_file: str, judge_batch: Callable) -> dict:
+async def add_web_finds(out: str, identifiers: Sequence[str], key_file: str, completion: Callable) -> dict:
     """Screen works found on the web, given as doi:<doi> or arxiv:<id>, into the survey in `out`."""
     question = json.loads((Path(out) / "plan.json").read_text(encoding="utf-8"))["question"]
-    return await add(Path(out), identifiers, index_search(Path(out), key_file), model_screen(judge_batch, question))
+    return await add(Path(out), identifiers, index_search(Path(out), key_file), model_screen(completion, question))
 
 
-async def bench(canary_file: str, out_root: str, key_file: str, completion: Callable, judge_batch: Callable, s2_key_file: Optional[str] = None) -> List[dict]:
+async def bench(
+    canary_file: str, out_root: str, key_file: str, completion: Callable, s2_key_file: Optional[str] = None, depth: str = "exhaustive"
+) -> List[dict]:
     """Run the survey on every question of a private canary file and report the stage each canary work reached.
 
     The file is a JSON list of {"key", "question", "works": {name: [identifier, title fragment]}}.
@@ -530,7 +559,7 @@ async def bench(canary_file: str, out_root: str, key_file: str, completion: Call
     rows = []
     for case in json.loads(Path(canary_file).read_text(encoding="utf-8")):
         out = Path(out_root) / case["key"]
-        await run(case["question"], str(out), key_file, completion, judge_batch, depth="exhaustive", s2_key_file=s2_key_file)
+        await run(case["question"], str(out), key_file, completion, depth=depth, s2_key_file=s2_key_file)
         state = State(out)
         for name, (identifier, fragment) in case["works"].items():
             matches = [i for i, r in state.records.items() if i == identifier or fragment.lower() in (r.get("title") or "").lower()]

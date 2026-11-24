@@ -21,12 +21,12 @@ When a step is blocked by something the person can remove, such as a vault appro
 
 ## 0. Survey a topic
 
-The survey program searches OpenAlex by meaning and by keyword, the newest arXiv works and, with a key, Semantic Scholar's full text. A small model screens every record against criteria derived from the question. The program then follows the references, citing works and related works of every work that meets all criteria. It writes the corpus, the decisions, `kept.md` and `coverage.md` to the survey directory.
+The survey program searches OpenAlex by meaning and by keyword and the newest arXiv works. Exhaustive searches also search Semantic Scholar's full text when its key is available. A small model screens the records against criteria derived from the question, and the program then follows the references, citing works, related works and similar works of every work that meets all criteria. It writes the corpus, the decisions, `kept.md` and `coverage.md` to the survey directory.
 
 Choose the depth by what the answer will claim:
 
-- `overview` maps a topic from what is found: the main lines of work, related work for a section, a first look. It takes 5 to 10 minutes. Its report may say what exists, never what is missing.
-- `exhaustive` runs until a round adds almost nothing or 2,500 records are screened, about 30 minutes. A statement that nothing exists, that an idea is new or that a list is the state of the art needs a search that saturated. A broad question ends on the budget instead, and `coverage.md` then says that no such statement is supported. Search the exact claim as its own narrower question.
+- `overview` maps a topic from what is found: the main lines of work, related work for a section, a first look. It takes one to two minutes. Its report may say what exists, never what is missing.
+- `exhaustive` runs until a round adds almost nothing or 2,500 records are screened. A statement that nothing exists, that an idea is new or that a list is the state of the art needs a search that saturated. Search the exact claim as its own question, because a narrow question saturates and a broad one ends on the budget, and `coverage.md` then says that no such statement is supported.
 
 A second run on the same directory continues the first, so start with an overview and extend it when the question turns into one about what is missing.
 
@@ -37,7 +37,7 @@ import importlib.util, sys
 sys.dont_write_bytecode = True  # keeps __pycache__ out of the installed plugin
 spec = importlib.util.spec_from_file_location("survey", "<path of skill://research-evidence/scripts/survey.py>")
 survey = importlib.util.module_from_spec(spec); spec.loader.exec_module(survey)
-summary = await survey.run("<the question as asked>", "<survey directory>", "<OpenAlex key file>", completion, judge_batch,
+summary = await survey.run("<the question as asked>", "<survey directory>", "<OpenAlex key file>", completion,
                            depth="overview", progress=log, s2_key_file="<Semantic Scholar key file or None>")
 ```
 
@@ -50,7 +50,7 @@ A message from the person while the cell runs can stop the kernel. Call `survey.
 Afterwards:
 
 1. Read `plan.json` and check that the criteria match the question. If they do not, start over in a new directory with the question stated more precisely.
-2. Search the web for works the indexes may lack, such as the newest preprints and grey literature. Add each find with `await survey.add_web_finds("<survey directory>", ["doi:...", "arxiv:..."], "<OpenAlex key file>", judge_batch)`.
+2. Search the web for works the indexes may lack, such as the newest preprints and grey literature. Add each find with `await survey.add_web_finds("<survey directory>", ["doi:...", "arxiv:..."], "<OpenAlex key file>", completion)`.
 3. Read the core works in `kept.md` with steps 3 to 6. Drop off-topic ones, since the screening model favours recall.
 4. Quote `coverage.md` in the report: how the search was done, what each channel found and where it stopped. Phrase a gap as not found by these channels, and only after an exhaustive search. Say how much of each cited work was read, and by whom.
 

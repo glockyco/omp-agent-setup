@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import unittest
 
 sys.dont_write_bytecode = True
@@ -30,6 +31,8 @@ def work(identifier, title, abstract="an abstract", openalex=None):
 class Index:
     """Answers (index, mode, query) from a table, records every call and merges results into the corpus like the helper."""
 
+    lock = threading.Lock()
+
     out = None  # set per test to the survey directory
 
     def __init__(self, table, fail=None):
@@ -41,13 +44,15 @@ class Index:
             raise survey.SearchError("HTTP 429")
         works = list(self.table.get((index, mode, query), []))
         corpus = Index.out / "corpus.jsonl"
-        Index.out.mkdir(parents=True, exist_ok=True)
-        known = {json.loads(line)["id"] for line in corpus.read_text().splitlines()} if corpus.exists() else set()
-        with open(corpus, "a") as handle:
-            for w in works:
-                if w["id"] not in known:
-                    handle.write(json.dumps(w) + "\n")
-                    known.add(w["id"])
+        # The survey expands several core works at once, as the helper's file locks allow.
+        with Index.lock:
+            Index.out.mkdir(parents=True, exist_ok=True)
+            known = {json.loads(line)["id"] for line in corpus.read_text().splitlines()} if corpus.exists() else set()
+            with open(corpus, "a") as handle:
+                for w in works:
+                    if w["id"] not in known:
+                        handle.write(json.dumps(w) + "\n")
+                        known.add(w["id"])
         return works
 
 
@@ -163,6 +168,42 @@ class SurveyTests(unittest.TestCase):
         self.assertEqual([c for c in index.calls if c[1] in ("semantic", "search") and c[2] in ("d1", "k1")], harvest_calls)
         self.assertEqual([r["round"] for r in exhaustive["rounds"]][: len(overview["rounds"])], [r["round"] for r in overview["rounds"]])
         self.assertGreater(len(exhaustive["rounds"]), len(overview["rounds"]))
+
+    def test_model_screening_batches_records_and_leaves_a_failed_batch_without_verdicts(self):
+        class Handle:
+            def __init__(self, answer):
+                self.answer = answer
+
+            def wait(self):
+                if isinstance(self.answer, Exception):
+                    raise self.answer
+                return self.answer
+
+        prompts = []
+
+        def completion(prompt, model, schema):
+            prompts.append(prompt)
+            if len(prompts) == 2:
+                return Handle(RuntimeError("model unavailable"))
+            return Handle({"results": [{"n": n, "criteria": [True, n % 2 == 0], "read": True} for n in range(survey.SCREEN_CHUNK)]})
+
+        records = [work("doi:{}".format(i), "T{}".format(i)) for i in range(survey.SCREEN_CHUNK + 3)]
+        verdicts = asyncio.run(survey.model_screen(completion, "q")(records, PLAN))
+        self.assertEqual(len(prompts), 2)
+        self.assertEqual(sorted(verdicts), sorted(r["id"] for r in records[: survey.SCREEN_CHUNK]))
+        self.assertEqual(verdicts["doi:0"], {"criteria": [True, True], "read": True})
+        self.assertEqual(verdicts["doi:1"]["criteria"], [True, False])
+
+    def test_rerun_at_the_same_depth_adds_no_round(self):
+        chain = {("openalex", "semantic", "d1"): [work("doi:1", "CORE a")]}
+        for i in range(1, 5):
+            chain[("openalex", "citing", "W{}".format(i))] = [work("doi:{}{}".format(i, j), "CORE {}{}".format(i, j)) for j in range(2)]
+        index = Index(chain)
+        first = asyncio.run(survey.survey("q", self.out, index, plan, screen, rounds=1))
+        calls = len(index.calls)
+        again = asyncio.run(survey.survey("q", self.out, index, plan, screen, rounds=1))
+        self.assertEqual(again["rounds"], first["rounds"])
+        self.assertEqual(len(index.calls), calls)
 
     def test_web_find_is_screened_and_marked(self):
         index = Index({
