@@ -16,7 +16,7 @@ omp plugin list
 
 Start a new OMP session to load the plugin. Use the plugin manager as the only installation path, so OMP does not discover duplicate copies. Do not also pass `--extension` or `--plugin-dir`, or copy the plugin's rules, skills, or commands into your configuration.
 
-Install the external tools for the capabilities you use. Vault access needs the official Bitwarden CLI `bw` on PATH. The research helper needs Python 3. Language-server overrides in [plugin/lsp/lsp.json](plugin/lsp/lsp.json) need the corresponding server executables on PATH and matching project markers.
+Install the external tools for the capabilities you use. Vault access needs the official Bitwarden CLI `bw` on PATH. The research helper needs Python 3, and literature surveys need `omp` on PATH for their model calls. Language-server overrides in [plugin/lsp/lsp.json](plugin/lsp/lsp.json) need the corresponding server executables on PATH and matching project markers.
 
 ## Upgrade
 

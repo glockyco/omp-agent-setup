@@ -25,36 +25,34 @@ The survey program searches OpenAlex by meaning and by keyword and the newest ar
 
 Choose the depth by what the answer will claim:
 
-- `overview` maps a topic from what is found: the main lines of work, related work for a section, a first look. It takes one to two minutes. Its report may say what exists, never what is missing.
+- `overview` maps a topic from what is found: the main lines of work, related work for a section, a first look. It takes about two minutes. Its report may say what exists, never what is missing.
 - `exhaustive` runs until a round adds almost nothing or 2,500 records are screened. A statement that nothing exists, that an idea is new or that a list is the state of the art needs a search that saturated. Search the exact claim as its own question, because a narrow question saturates and a broad one ends on the budget, and `coverage.md` then says that no such statement is supported.
 
 A second run on the same directory continues the first, so start with an overview and extend it when the question turns into one about what is missing.
 
-Pick a survey directory in the repository's research folder or a synced documents folder, never a temporary directory. Get the OpenAlex key file and, if the vault has one, the Semantic Scholar key file with `vault file` as described below. Then run in eval, Python:
+Keep the survey with the vault item it serves: in its repository's research folder, or in the item's folder of the synced documents, such as `Documents/Research_agenda/` in the SCCH OneDrive. Never use a temporary directory. Before you start, look in that folder for earlier surveys, which are directories holding `plan.json`, and read their `plan.json`, `kept.md` and `coverage.md`. Continue an earlier survey of the same question instead of starting a new one.
 
-```python
-import importlib.util, sys
-sys.dont_write_bytecode = True  # keeps __pycache__ out of the installed plugin
-spec = importlib.util.spec_from_file_location("survey", "<path of skill://research-evidence/scripts/survey.py>")
-survey = importlib.util.module_from_spec(spec); spec.loader.exec_module(survey)
-summary = await survey.run("<the question as asked>", "<survey directory>", "<OpenAlex key file>", completion,
-                           depth="overview", progress=log, s2_key_file="<Semantic Scholar key file or None>")
+Get the OpenAlex key file and, if the vault has one, the Semantic Scholar key file with `vault file` as described below. Then start the survey as a background job with `bash`, `async`, no timeout and this `notify`, so that a message from the person cannot stop it and its milestones wake you:
+
+```text
+command: <host Python 3> "<path of skill://research-evidence/scripts/survey.py>" run "<the question as asked>" --dir "<survey directory>" --openalex-key-file "<OpenAlex key file>" --depth overview [--s2-key-file "<Semantic Scholar key file>"] [--known doi:... arxiv:...]
+notify:  ^(Round \d+: \d+ new core|Done|Blocked|Stopped|Failed)
 ```
 
-`progress=log` shows each search and screening step while the cell runs. The same steps go to `progress.jsonl` in the survey directory.
+The program makes its model calls through `omp auth-gateway stdio`, which takes about half a minute to start. It prints each search and screening step, keeps `status.json` current and appends the steps to `progress.jsonl` in the survey directory. A stopped or interrupted survey continues when the same command runs again.
 
-Pass works the person already knows as `known=["doi:...", "arxiv:..."]`. The coverage numbers then show whether the search found them on its own.
+Pass works the person already knows with `--known`. The coverage numbers then show whether the search found them on its own.
 
-A message from the person while the cell runs can stop the kernel. Call `survey.run` again with the same arguments, and it continues. For an exhaustive search, a subagent can run it.
+When the first round reports new core works, tell the person the most relevant ones, so that they can redirect the search early. When the run ends and the session runs in Tern, which sets `TERN_PANE`, open `kept.md` beside the chat with `tern open --preview "<survey directory>/kept.md"`.
 
 Afterwards:
 
 1. Read `plan.json` and check that the criteria match the question. If they do not, start over in a new directory with the question stated more precisely.
-2. Search the web for works the indexes may lack, such as the newest preprints and grey literature. Add each find with `await survey.add_web_finds("<survey directory>", ["doi:...", "arxiv:..."], "<OpenAlex key file>", completion)`.
+2. Search the web for works the indexes may lack, such as the newest preprints and grey literature. Add the finds with `<host Python 3> "<path of survey.py>" add "<survey directory>" doi:... arxiv:... --openalex-key-file "<OpenAlex key file>"`.
 3. Read the core works in `kept.md` with steps 3 to 6. Drop off-topic ones, since the screening model favours recall.
 4. Quote `coverage.md` in the report: how the search was done, what each channel found and where it stopped. Phrase a gap as not found by these channels, and only after an exhaustive search. Say how much of each cited work was read, and by whom.
 
-A failed channel stops the program with the reason. Fix the cause or ask the person, and never report coverage from a run without that channel.
+A failed channel stops the program with the reason and the state `blocked`. Fix the cause or ask the person, and never report coverage from a run without that channel.
 
 ## 1. Search
 
