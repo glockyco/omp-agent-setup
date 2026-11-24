@@ -10,7 +10,7 @@ import tempfile
 import threading
 import time
 import unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Importing the helper must not write __pycache__ into the plugin payload or
 # the installed release under test.
@@ -41,6 +41,12 @@ def openalex(*works, count=None):
         for identifier, doi, title in works
     ]
     return json.dumps({"meta": {"count": count if count is not None else len(results)}, "results": results}).encode()
+
+
+ATOM_PAGE = (
+    b'<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom" '
+    b'xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/"><opensearch:totalResults>0</opensearch:totalResults></feed>'
+)
 
 
 def crossref(*works):
@@ -85,7 +91,7 @@ class SearchIndexTests(unittest.TestCase):
         getter = Scripted(self.clock, answers)
         result = search_index.run_query(
             index, options.pop("mode", "search"), text, self.out, getter=getter,
-            now=self.clock.now, sleep=self.clock.sleep, **options,
+            now=self.clock.now, sleep=self.clock.sleep, pace=self.out / "pace", **options,
         )
         return result, getter
 
@@ -173,7 +179,9 @@ class SearchIndexTests(unittest.TestCase):
     def test_billing_index_without_a_key_sends_no_request(self):
         getter = Scripted(self.clock, [])
         with self.assertRaises(search_index.SearchError) as raised:
-            search_index.run_query("openalex", "search", "topic", self.out, getter=getter, now=self.clock.now, sleep=self.clock.sleep)
+            search_index.run_query(
+                "openalex", "search", "topic", self.out, getter=getter, now=self.clock.now, sleep=self.clock.sleep, pace=self.out / "pace"
+            )
         self.assertEqual(getter.calls, [])
         self.assertIn("key", str(raised.exception))
         self.assertEqual(self.log()[-1]["reason"], "no key file")
@@ -245,45 +253,63 @@ class SearchIndexTests(unittest.TestCase):
 
 
 class SharedPacingTests(unittest.TestCase):
-    def test_two_processes_share_the_spacing_of_one_state_directory(self):
-        arrivals = []
+    def serve(self, delay=0.0):
+        events = []
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):  # noqa: N802
-                arrivals.append(time.time())
-                body = crossref(("10.1/x", "X"))
+                events.append(("start", time.time()))
+                time.sleep(delay)
+                body = crossref(("10.1/x", "X")) if "crossref" in self.path else ATOM_PAGE
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
+                events.append(("end", time.time()))
 
             def log_message(self, *arguments):
                 pass
 
-        server = HTTPServer(("127.0.0.1", 0), Handler)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
+        # A threading server answers requests side by side, so only the client can keep them from overlapping.
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        return server.server_port, events
+
+    def run_processes(self, index, port, names, spacing=None):
+        """Each process searches into its own survey directory, sharing only the user's pacing directory."""
         program = (
             "import importlib.util, sys; from pathlib import Path; sys.dont_write_bytecode = True\n"
             "spec = importlib.util.spec_from_file_location('s', sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)\n"
-            "m.build_url = lambda *a: 'http://127.0.0.1:' + sys.argv[3] + '/'\n"
-            "m.run_query('crossref', 'search', sys.argv[4], Path(sys.argv[2]))\n"
+            "m.build_url = lambda *a: 'http://127.0.0.1:' + sys.argv[3] + '/' + sys.argv[5]\n"
+            "if sys.argv[6] != 'default': m.SPACING[sys.argv[5]] = float(sys.argv[6])\n"
+            "m.run_query(sys.argv[5], 'search', sys.argv[4], Path(sys.argv[2]) / sys.argv[4])\n"
         )
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                processes = [
-                    subprocess.Popen([sys.executable, "-c", program, str(SCRIPT), directory, str(server.server_port), name])
-                    for name in ("a", "b", "c")
-                ]
-                for process in processes:
-                    self.assertEqual(process.wait(timeout=60), 0)
-                records = (Path(directory) / "query-log.jsonl").read_text().splitlines()
-        finally:
-            server.shutdown()
-        self.assertEqual(len(arrivals), 3)
-        self.assertEqual(len(records), 3)
-        gaps = [later - earlier for earlier, later in zip(sorted(arrivals), sorted(arrivals)[1:])]
+        with tempfile.TemporaryDirectory() as directory:
+            env = dict(os.environ, RESEARCH_EVIDENCE_PACE_DIR=str(Path(directory) / "pace"))
+            processes = [
+                subprocess.Popen(
+                    [sys.executable, "-c", program, str(SCRIPT), directory, str(port), name, index, "default" if spacing is None else str(spacing)],
+                    env=env,
+                )
+                for name in names
+            ]
+            for process in processes:
+                self.assertEqual(process.wait(timeout=60), 0)
+
+    def test_surveys_in_different_directories_share_the_spacing_of_the_user(self):
+        port, events = self.serve()
+        self.run_processes("crossref", port, ("a", "b", "c"))
+        starts = sorted(t for kind, t in events if kind == "start")
+        self.assertEqual(len(starts), 3)
+        gaps = [later - earlier for earlier, later in zip(starts, starts[1:])]
         self.assertGreaterEqual(min(gaps), search_index.SPACING["crossref"] - 0.1)
+
+    def test_arxiv_requests_never_overlap_even_without_spacing(self):
+        port, events = self.serve(delay=1.0)
+        self.run_processes("arxiv", port, ("a", "b"), spacing=0.0)
+        ordered = [kind for kind, _ in sorted(events, key=lambda e: e[1])]
+        self.assertEqual(ordered, ["start", "end", "start", "end"])
 
 
 if __name__ == "__main__":

@@ -19,6 +19,11 @@ INDEXES = ("openalex", "arxiv", "crossref", "dblp", "semanticscholar")
 # Semantic Scholar allows one request per second for a key across all endpoints.
 # OpenAlex allows one semantic search per second, so semantic searches keep their own, wider spacing.
 SPACING = {"openalex": 0.5, "openalex-semantic": 1.1, "arxiv": 4.0, "crossref": 1.0, "dblp": 2.5, "semanticscholar": 1.1}
+# arXiv allows a single connection at a time, Semantic Scholar one request per second however long a request takes,
+# and OpenAlex one semantic search at a time. For these, a request holds a lock until its answer arrives.
+SINGLE_CONNECTION = ("arxiv", "semanticscholar", "openalex-semantic")
+# How long a search waits for another search's open request on the same index before it fails.
+CONNECTION_WAIT = 600.0
 # OpenAlex bills searches and refuses them without a key on a busy network address.
 # Semantic Scholar refuses almost every request without a key.
 NEEDS_KEY = ("openalex", "semanticscholar")
@@ -61,7 +66,7 @@ def http_get(url: str, headers: Dict[str, str], body: Optional[bytes] = None) ->
 
 
 class Pacer:
-    """Space requests per index across processes through a file in the state directory."""
+    """Space requests per index across processes through files in a state directory."""
 
     def __init__(self, state: Path, now: Callable[[], float] = time.time, sleep: Callable[[float], None] = time.sleep):
         self.state, self.now, self.sleep = state, now, sleep
@@ -113,6 +118,44 @@ class Pacer:
 
     def exclusive(self, name: str, action: Callable[[], None]) -> None:
         self._locked(name, lambda: action() or None)
+
+    def connection(self, lane: str, request: Callable[[], Response]) -> Response:
+        """Run one request while no other process on this machine has a request open to the same index.
+
+        A request can take up to TIMEOUT seconds, so this lock waits longer than the short state locks, and a lock
+        older than a request can last counts as left by a crashed process.
+        """
+        lock = self.state / ("connection-" + lane + ".lock")
+        waited = 0.0
+        while True:
+            try:
+                handle = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                break
+            except FileExistsError:
+                try:
+                    if self.now() - lock.stat().st_mtime > TIMEOUT + MAX_WAIT:
+                        lock.unlink()
+                except OSError:
+                    pass
+                if waited > CONNECTION_WAIT:
+                    raise SearchError("another search held the {} connection for more than {:.0f} s".format(lane, CONNECTION_WAIT))
+                self.sleep(0.2)
+                waited += 0.2
+        try:
+            self.wait_turn(lane)
+            return request()
+        finally:
+            os.close(handle)
+            try:
+                lock.unlink()
+            except OSError:
+                pass
+
+
+def default_pace_dir() -> Path:
+    """The pacing state every search of this user shares, because providers count requests per key or machine."""
+    configured = os.environ.get("RESEARCH_EVIDENCE_PACE_DIR")
+    return Path(configured) if configured else Path.home() / ".cache" / "research-evidence" / "pace"
 
 
 def semantic_text(text: str) -> str:
@@ -319,10 +362,18 @@ def run_query(
     getter: Getter = http_get,
     now: Callable[[], float] = time.time,
     sleep: Callable[[float], None] = time.sleep,
+    pace: Optional[Path] = None,
 ) -> Tuple[Optional[int], List[dict]]:
-    """Answer one query, log it and merge its works into the corpus. Raise SearchError when it fails."""
+    """Answer one query, log it and merge its works into the corpus. Raise SearchError when it fails.
+
+    `pace` is the shared pacing directory, by default the one of this user. The survey directory `out` holds the
+    log and the corpus with their own locks.
+    """
     out.mkdir(parents=True, exist_ok=True)
-    pacer = Pacer(out, now, sleep)
+    files = Pacer(out, now, sleep)
+    pace_dir = pace or default_pace_dir()
+    pace_dir.mkdir(parents=True, exist_ok=True)
+    pacer = Pacer(pace_dir, now, sleep)
     entry = {
         "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now())),
         "who": who,
@@ -341,7 +392,7 @@ def run_query(
             with open(out / "query-log.jsonl", "a", encoding="utf-8") as handle:
                 handle.write(line)
 
-        pacer.exclusive("log", append)
+        files.exclusive("log", append)
 
     if index in NEEDS_KEY and not key:
         log(status="failed", reason="no key file")
@@ -361,8 +412,12 @@ def run_query(
         reason = ""
         for attempt in range(MAX_ATTEMPTS):
             lane = index + "-semantic" if mode == "semantic" else index
-            pacer.wait_turn(lane)
-            status, payload, wait = getter(build_url(index, mode, query, year_from, sort, start, rows, mail), headers, request_body(index, mode, query))
+            url, data = build_url(index, mode, query, year_from, sort, start, rows, mail), request_body(index, mode, query)
+            if lane in SINGLE_CONNECTION:
+                status, payload, wait = pacer.connection(lane, lambda: getter(url, headers, data))
+            else:
+                pacer.wait_turn(lane)
+                status, payload, wait = getter(url, headers, data)
             if status == 200:
                 body = payload
                 break
@@ -419,7 +474,7 @@ def run_query(
 
     # Snippet hits carry no identifier but the Semantic Scholar corpus ID. The caller resolves them to works first.
     if mode != "snippet":
-        pacer.exclusive("corpus", merge)
+        files.exclusive("corpus", merge)
     log(status="ok", hits=total, returned=len(works))
     return total, works
 
