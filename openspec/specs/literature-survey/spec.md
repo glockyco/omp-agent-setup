@@ -41,7 +41,7 @@ The survey program SHALL run OpenAlex semantic search, OpenAlex keyword search, 
 
 ### Requirement: Paced index queries
 
-The search helper SHALL space its requests per index, SHALL retry a throttled request after the wait the index indicates, and SHALL stop after a bounded number of attempts. Invocations that share a state directory SHALL share the spacing.
+The search helper SHALL space its requests per index, SHALL retry a throttled request after the wait the index indicates or with exponential backoff, and SHALL stop after a bounded number of attempts. All searches of one user SHALL share the spacing through one pacing directory, whatever survey directory they write to. For arXiv, Semantic Scholar and OpenAlex semantic search, the helper SHALL keep at most one request open per index at a time.
 
 #### Scenario: Throttled request
 
@@ -51,8 +51,13 @@ The search helper SHALL space its requests per index, SHALL retry a throttled re
 
 #### Scenario: Two agents search at once
 
-- **WHEN** two helper processes with the same state directory query the same index
+- **WHEN** two helper processes with different survey directories query the same index
 - **THEN** their requests to that index keep the configured spacing
+
+#### Scenario: Slow answers from arXiv
+
+- **WHEN** two processes search arXiv and each answer takes longer than the spacing
+- **THEN** the second request starts only after the first answer arrived
 
 ### Requirement: Failure is not absence
 
