@@ -133,6 +133,19 @@ class SurveyTests(unittest.TestCase):
         self.assertEqual(len(self.decisions()), 3)
         self.assertIn("budget", numbers["stopped"])
 
+    def test_round_cap_leaves_records_for_the_next_round_and_only_the_budget_ends_the_survey(self):
+        index = Index({
+            ("openalex", "semantic", "d1"): [work("doi:1", "CORE a"), work("doi:2", "CORE b")],
+            ("openalex", "citing", "W1"): [work("doi:c{}".format(i), "CORE c{}".format(i)) for i in range(5)],
+        })
+        cap, survey.ROUND_CAP = survey.ROUND_CAP, 2
+        try:
+            numbers = run(self.out, index, budget=6)
+        finally:
+            survey.ROUND_CAP = cap
+        self.assertEqual([r["screened"] for r in numbers["rounds"]], [2, 2, 2])
+        self.assertIn("budget", numbers["stopped"])
+
     def test_overlap_of_first_round_channels_gives_an_estimate(self):
         semantic = [work("doi:s{}".format(i), "CORE s{}".format(i)) for i in range(24)]
         keyword = semantic[:9] + [work("doi:k{}".format(i), "CORE k{}".format(i)) for i in range(10)]

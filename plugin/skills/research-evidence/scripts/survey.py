@@ -220,8 +220,9 @@ async def _screen_round(state: State, plan: dict, screen: Screen, budget_left: i
     )
     links = state.meta.get("links", {})
     todo = sorted((r for r in pending if (r.get("abstract") or "").strip()), key=lambda r: -links.get(r["id"], 0))
-    over_budget = len(todo) > budget_left
     cap = budget_left if round_no == 0 else min(budget_left, ROUND_CAP)
+    # Only the budget ends the survey. Records left over by the round cap wait for the next round.
+    over_budget = len(todo) > cap and cap == budget_left
     todo = todo[: max(cap, 0)]
     before = state.core()
     state.check_stop()
