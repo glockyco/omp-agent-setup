@@ -39,7 +39,7 @@ command: <host Python 3> "<path of skill://research-evidence/scripts/survey.py>"
 notify:  ^(Round \d+: \d+ new core|Done|Blocked|Stopped|Failed)
 ```
 
-The program makes its model calls through `omp auth-gateway stdio`, which takes about half a minute to start. It prints each search and screening step, keeps `status.json` current and appends the steps to `progress.jsonl` in the survey directory. A stopped or interrupted survey continues when the same command runs again.
+The program makes its model calls through `omp auth-gateway stdio`, which takes about half a minute to start. It prints each search and screening step, keeps `status.json` current and appends the steps to `progress.jsonl` in the survey directory. Tern's Research surveys widget shows the survey and lets the person stop it. A stopped or interrupted survey continues when the same command runs again.
 
 Pass works the person already knows with `--known`. The coverage numbers then show whether the search found them on its own.
 
