@@ -18,6 +18,8 @@ Start a new OMP session to load the plugin. Use the plugin manager as the only i
 
 Install the external tools for the capabilities you use. Vault access needs the official Bitwarden CLI `bw` on PATH. The research helper needs Python 3, and literature surveys need `omp` on PATH for their model calls. Language-server overrides in [plugin/lsp/lsp.json](plugin/lsp/lsp.json) need the corresponding server executables on PATH and matching project markers.
 
+In Tern, the [Research surveys plugin](tern/research-surveys/README.md) shows running and recent literature surveys in the widget bar. Tern installs it separately from OMP's plugin manager.
+
 ## Upgrade
 
 Refresh the catalog before upgrading, then check the installed version:
