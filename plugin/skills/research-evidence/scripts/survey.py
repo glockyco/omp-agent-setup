@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Run a literature survey as a program: plan, harvest, screen every record, expand kept works, count coverage.
 
-Load it in the eval Python kernel and pass the kernel's `completion`:
+Run it as a command, which makes its model calls through `omp auth-gateway stdio`:
+
+    python survey.py run "<question>" --dir <survey directory> --openalex-key-file <file> --depth overview
+
+Or load it in the eval Python kernel and pass the kernel's `completion`:
 
     import importlib.util
     spec = importlib.util.spec_from_file_location("survey", "<path>/survey.py")
@@ -12,12 +16,16 @@ Load it in the eval Python kernel and pass the kernel's `completion`:
 The model calls are injected so that the procedure runs the same way in tests.
 """
 
+import argparse
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
+import socket
+import subprocess
 import sys
 import threading
 import time
@@ -61,6 +69,48 @@ class SurveyBlocked(RuntimeError):
     """A channel failed. The survey stops instead of reporting coverage without it."""
 
 
+class SurveyStopped(RuntimeError):
+    """A `stop` file in the survey directory asked the survey to end. A later run continues it."""
+
+
+# A running survey rewrites status.json at every step and at least this often, so that a reader can tell a live run
+# from one whose process is gone.
+HEARTBEAT_SECONDS = 30
+
+
+def _now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def registry_path() -> Path:
+    """The per-user list of survey directories, which the Tern plugin reads. It sits beside the shared pacing directory."""
+    configured = os.environ.get("RESEARCH_EVIDENCE_REGISTRY")
+    return Path(configured) if configured else Path.home() / ".cache" / "research-evidence" / "surveys.jsonl"
+
+
+def _register(out: Path, question: str) -> None:
+    path = registry_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    directory = str(out.resolve())
+    if any(row.get("dir") == directory for row in _read_jsonl(path)):
+        return
+    _append_jsonl(path, [{"dir": directory, "question": question, "added": _now()}])
+
+
+def _write_replacing(path: Path, text: str) -> None:
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(text, encoding="utf-8")
+    # Sync clients such as OneDrive hold a file open for a moment after it changes, and Windows then refuses the replace.
+    for attempt in range(20):
+        try:
+            os.replace(temporary, path)
+            return
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.1)
+
+
 def _read_jsonl(path: Path) -> List[dict]:
     if not path.exists():
         return []
@@ -86,13 +136,39 @@ class State:
             self.channels.setdefault(row["id"], set()).add(row["channel"])
         self.decisions = {row["id"]: row for row in _read_jsonl(out / "screening.jsonl")}
         self.meta = json.loads((out / "survey.json").read_text(encoding="utf-8")) if (out / "survey.json").exists() else {}
+        self.status = {}  # type: Dict[str, object]
+        self.status_lock = threading.Lock()
 
     def progress(self, stage: str, message: str, **numbers: object) -> None:
         """Append one step to progress.jsonl, which anyone can follow, and pass the message to the caller."""
-        row = dict({"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "stage": stage, "message": message}, **numbers)
+        row = dict({"at": _now(), "stage": stage, "message": message}, **numbers)
         _append_jsonl(self.out / "progress.jsonl", [row])
+        if self.status:
+            self.set_status(stage=stage, message=message, round=numbers.get("round", self.status.get("round")))
         if self.on_progress:
             self.on_progress(message)
+
+    def set_status(self, **fields: object) -> None:
+        """Rewrite status.json with the counts so far. Only a survey run keeps one, not `add`."""
+        with self.status_lock:
+            try:
+                decisions = list(self.decisions.values())
+            except RuntimeError:  # another thread added decisions meanwhile, and the next write counts them
+                decisions = None
+            if decisions is not None:
+                counts = {"screened": len(decisions), "core": 0, "related": 0}
+                for decision in decisions:
+                    if decision["decision"] in ("core", "related"):
+                        counts[decision["decision"]] += 1
+                self.status.update(counts)
+            self.status.update(fields, updated=_now())
+            _write_replacing(self.out / "status.json", json.dumps(self.status, indent=2, ensure_ascii=False))
+
+    def check_stop(self) -> None:
+        stop = self.out / "stop"
+        if self.status and stop.exists():
+            stop.unlink()
+            raise SurveyStopped("a stop file asked the survey to end")
 
     def note(self, works: Sequence[dict], channel: str, round_no: int) -> None:
         rows = []
@@ -148,6 +224,7 @@ async def _screen_round(state: State, plan: dict, screen: Screen, budget_left: i
     cap = budget_left if round_no == 0 else min(budget_left, ROUND_CAP)
     todo = todo[: max(cap, 0)]
     before = state.core()
+    state.check_stop()
     if todo:
         state.progress("screen", "Round {}: screening {} records".format(round_no, len(todo)), round=round_no, records=len(todo))
         verdicts = await screen(todo, plan)
@@ -158,6 +235,7 @@ async def _screen_round(state: State, plan: dict, screen: Screen, budget_left: i
 
 
 def _search(search: Search, state: State, channel: str, round_no: int, index: str, mode: str, query: str, limit: int, sort: str = "relevance") -> List[dict]:
+    state.check_stop()
     try:
         works = search(index, mode, query, limit, sort)
     except SearchError as error:
@@ -321,15 +399,55 @@ async def survey(
     rounds: int = MAX_ROUNDS,
     progress: Optional[Callable[[str], None]] = None,
     harvest_sizes: Tuple[int, int] = (100, 50),
+    depth: str = "",
 ) -> dict:
     """Run or continue the survey in `out`. Raises SurveyBlocked when a channel fails, before any coverage is written.
 
     A directory that already holds a survey keeps its plan, harvest and decisions, and the rounds continue from there.
     That lets an overview grow into an exhaustive search, and an interrupted run lose only its unsaved screening batch.
+    The run keeps status.json current, records the directory in the registry and ends with SurveyStopped when a `stop`
+    file appears in the directory.
     """
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     state = State(out, progress)
+    _register(out, question)
+    state.set_status(
+        question=question, depth=depth, state="running", stage="plan", message="Planning the search", round=0, budget=budget,
+        started=_now(), pid=os.getpid(), host=socket.gethostname(), dir=str(out.resolve()),
+    )
+    ended = threading.Event()
+
+    def heartbeat() -> None:
+        while not ended.wait(HEARTBEAT_SECONDS):
+            state.set_status()
+
+    threading.Thread(target=heartbeat, daemon=True).start()
+    try:
+        numbers = await _survey_rounds(question, state, search, plan, screen, known, budget, fulltext, rounds, harvest_sizes)
+    except (SurveyStopped, KeyboardInterrupt):
+        ended.set()
+        state.save_meta()
+        state.set_status(state="stopped", message="Stopped on request. A later run on the directory continues the survey.")
+        raise
+    except SurveyBlocked as error:
+        ended.set()
+        state.set_status(state="blocked", message=str(error))
+        raise
+    except BaseException as error:
+        ended.set()
+        state.set_status(state="failed", message=str(error) or type(error).__name__)
+        raise
+    ended.set()
+    state.set_status(state="done", stage="done", message="Search ended ({})".format(numbers.get("stopped")))
+    return numbers
+
+
+async def _survey_rounds(
+    question: str, state: State, search: Search, plan: Plan, screen: Screen, known: Sequence[str], budget: int, fulltext: bool,
+    rounds: int, harvest_sizes: Tuple[int, int],
+) -> dict:
+    out = state.out
     if (out / "plan.json").exists():
         the_plan = json.loads((out / "plan.json").read_text(encoding="utf-8"))
     else:
@@ -367,7 +485,8 @@ async def survey(
             break
         round_no += 1
     state.save_meta()
-    state.progress("done", "Stopped: {}".format(state.meta.get("stopped")))
+    # Not "Stopped", which the command prints when a stop file or a signal ended the run.
+    state.progress("done", "Search ended ({})".format(state.meta.get("stopped")))
     return _write_outputs(state)
 
 
@@ -525,6 +644,7 @@ async def run(
     known: Sequence[str] = (),
     s2_key_file: Optional[str] = None,
     progress: Optional[Callable[[str], None]] = None,
+    search: Optional[Search] = None,
 ) -> dict:
     """Search `question` into `out`, a directory outside temporary folders.
 
@@ -532,21 +652,24 @@ async def run(
     about what does not exist or is new, which runs until saturation or its budget. A second call on the same `out`
     continues the first, so an overview can be extended to an exhaustive search.
     `key_file` holds the OpenAlex key. `s2_key_file` holds the Semantic Scholar key and adds full-text snippet search to
-    exhaustive searches, where its 40 seconds per query pay off.
+    exhaustive searches, where its 40 seconds per query pay off. `search` replaces the index helper in tests.
     """
     limits = DEPTHS[depth]
-    search = index_search(Path(out), key_file, s2_key_file)
+    search = search or index_search(Path(out), key_file, s2_key_file)
     plan, screen = model_plan(completion), model_screen(completion, question)
     fulltext = bool(s2_key_file) and depth == "exhaustive"
     return await survey(
-        question, Path(out), search, plan, screen, known, limits["budget"], fulltext, limits["rounds"], progress, (limits["keyword"], limits["arxiv"])
+        question, Path(out), search, plan, screen, known, limits["budget"], fulltext, limits["rounds"], progress,
+        (limits["keyword"], limits["arxiv"]), depth,
     )
 
 
-async def add_web_finds(out: str, identifiers: Sequence[str], key_file: str, completion: Callable) -> dict:
+async def add_web_finds(
+    out: str, identifiers: Sequence[str], key_file: str, completion: Callable, search: Optional[Search] = None
+) -> dict:
     """Screen works found on the web, given as doi:<doi> or arxiv:<id>, into the survey in `out`."""
     question = json.loads((Path(out) / "plan.json").read_text(encoding="utf-8"))["question"]
-    return await add(Path(out), identifiers, index_search(Path(out), key_file), model_screen(completion, question))
+    return await add(Path(out), identifiers, search or index_search(Path(out), key_file), model_screen(completion, question))
 
 
 async def bench(
@@ -569,3 +692,200 @@ async def bench(
     lines = ["| Question | Work | Stage |", "|---|---|---|"] + ["| {question} | {work} | {stage} |".format(**r) for r in rows]
     (Path(out_root) / "bench.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return rows
+
+
+def first_json_object(text: str) -> dict:
+    """The first JSON object in a model's answer, which some providers wrap in a code fence or a sentence."""
+    decoder = json.JSONDecoder()
+    start = text.find("{")
+    while start != -1:
+        try:
+            value, _ = decoder.raw_decode(text, start)
+            if isinstance(value, dict):
+                return value
+        except ValueError:
+            pass
+        start = text.find("{", start + 1)
+    raise ValueError("the answer holds no JSON object: {}".format(text[:200]))
+
+
+class _Answer:
+    def __init__(self, schema: Optional[dict]):
+        self.schema = schema
+        self.done = threading.Event()
+        self.message = {}  # type: dict
+
+    def settle(self, message: dict) -> None:
+        self.message = message
+        self.done.set()
+
+    def wait(self) -> object:
+        if not self.done.wait(GATEWAY_TIMEOUT):
+            raise TimeoutError("the model gateway did not answer within {} seconds".format(GATEWAY_TIMEOUT))
+        if self.message.get("status") != 200:
+            raise RuntimeError("the model gateway answered {}: {}".format(self.message.get("status"), str(self.message.get("body"))[:300]))
+        text = self.message["body"]["choices"][0]["message"]["content"] or ""
+        return first_json_object(text) if self.schema else text
+
+
+GATEWAY_TIMEOUT = 600
+# Model roles of the user's OMP, as the eval kernel's completion names them.
+ROLES = {"default": "@default", "smol": "@smol", "slow": "@slow"}
+
+
+class Gateway:
+    """A `completion` for programs outside the eval kernel: OMP's credentials and model roles through `omp auth-gateway stdio`.
+
+    The gateway answers JSON lines and runs requests concurrently, so every call returns a handle at once, as the kernel's
+    completion does. RESEARCH_EVIDENCE_GATEWAY may name another command as a JSON list, which the tests use.
+    """
+
+    def __init__(self, command: Optional[List[str]] = None):
+        configured = os.environ.get("RESEARCH_EVIDENCE_GATEWAY")
+        command = command or (json.loads(configured) if configured else [shutil.which("omp") or "omp", "auth-gateway", "stdio"])
+        try:
+            self.process = subprocess.Popen(
+                command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", bufsize=1,
+            )
+        except OSError as error:
+            raise SurveyBlocked("the model gateway did not start: {}".format(error)) from error
+        self.errors = []  # type: List[str]
+        self.threads = [threading.Thread(target=self._drain_errors, daemon=True)]
+        self.threads[0].start()
+        assert self.process.stdout is not None
+        ready = self.process.stdout.readline()
+        try:
+            started = json.loads(ready).get("ready")
+        except ValueError:
+            started = False
+        if not started:
+            self.process.kill()
+            self._release()
+            raise SurveyBlocked("the model gateway did not start: {}".format(ready.strip() or " ".join(self.errors[-5:]) or "no answer"))
+        self.lock = threading.Lock()
+        self.pending = {}  # type: Dict[int, _Answer]
+        self.next_id = 0
+        self.threads.append(threading.Thread(target=self._read, daemon=True))
+        self.threads[-1].start()
+
+    def _drain_errors(self) -> None:
+        assert self.process.stderr is not None
+        for line in self.process.stderr:
+            self.errors = (self.errors + [line.strip()])[-20:]
+
+    def _read(self) -> None:
+        assert self.process.stdout is not None
+        for line in self.process.stdout:
+            try:
+                message = json.loads(line)
+            except ValueError:
+                continue
+            with self.lock:
+                answer = self.pending.pop(message.get("id"), None)
+            if answer:
+                answer.settle(message)
+        with self.lock:
+            left, self.pending = list(self.pending.values()), {}
+        for answer in left:
+            answer.settle({"status": 0, "body": "the model gateway exited: " + " ".join(self.errors[-3:])})
+
+    def __call__(self, prompt: str, model: str = "default", schema: Optional[dict] = None) -> _Answer:
+        body = {"model": ROLES.get(model, model), "messages": [{"role": "user", "content": prompt}]}  # type: dict
+        if schema:
+            body["messages"][0]["content"] = prompt + "\n\nAnswer with one JSON object that follows this JSON schema:\n" + json.dumps(schema)
+            body["response_format"] = {"type": "json_schema", "json_schema": {"name": "answer", "schema": schema}}
+        answer = _Answer(schema)
+        with self.lock:
+            self.next_id += 1
+            self.pending[self.next_id] = answer
+            assert self.process.stdin is not None
+            self.process.stdin.write(json.dumps({"id": self.next_id, "path": "/v1/chat/completions", "body": body}) + "\n")
+            self.process.stdin.flush()
+        return answer
+
+    def close(self) -> None:
+        if self.process.stdin:
+            self.process.stdin.close()
+        try:
+            self.process.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+        self._release()
+
+    def _release(self) -> None:
+        self.process.wait()
+        for thread in self.threads:
+            thread.join(timeout=5)
+        for stream in (self.process.stdin, self.process.stdout, self.process.stderr):
+            if stream and not stream.closed:
+                stream.close()
+
+
+def _print_step(message: str) -> None:
+    print(message, flush=True)
+
+
+def _report(out: Path) -> str:
+    status = json.loads((out / "status.json").read_text(encoding="utf-8"))
+    return "{} core and {} related works. Results: {}. Coverage: {}.".format(
+        status.get("core"), status.get("related"), out / "kept.md", out / "coverage.md"
+    )
+
+
+def main(argv: Optional[Sequence[str]] = None, search: Optional[Search] = None) -> int:
+    """Run a survey or add web finds as a command. Exit status 0 done, 1 failed, 2 blocked, 3 stopped."""
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    commands = parser.add_subparsers(dest="command", required=True)
+    run_command = commands.add_parser("run", help="survey a question into a directory, or continue the survey there")
+    run_command.add_argument("question")
+    run_command.add_argument("--dir", required=True, help="the survey directory, in the folder of the item it serves")
+    run_command.add_argument("--openalex-key-file", required=True)
+    run_command.add_argument("--s2-key-file")
+    run_command.add_argument("--depth", choices=sorted(DEPTHS), default="overview")
+    run_command.add_argument("--known", nargs="*", default=[], help="works known to be relevant, as doi:<doi> or arxiv:<id>")
+    add_command = commands.add_parser("add", help="screen works found on the web into an existing survey")
+    add_command.add_argument("dir")
+    add_command.add_argument("identifiers", nargs="+")
+    add_command.add_argument("--openalex-key-file", required=True)
+    args = parser.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    out = Path(args.dir)
+    starting = None
+    if args.command == "run":
+        # The gateway needs about half a minute to start, and the run should show from its first second.
+        out.mkdir(parents=True, exist_ok=True)
+        _register(out, args.question)
+        starting = State(out)
+        starting.set_status(
+            question=args.question, depth=args.depth, state="running", stage="start", message="Starting the model gateway",
+            round=0, started=_now(), pid=os.getpid(), host=socket.gethostname(), dir=str(out.resolve()),
+        )
+    gateway = None
+    try:
+        gateway = Gateway()
+        if args.command == "run":
+            asyncio.run(run(args.question, str(out), args.openalex_key_file, gateway, args.depth, args.known, args.s2_key_file, _print_step, search))
+            _print_step("Done: " + _report(out))
+        else:
+            numbers = asyncio.run(add_web_finds(str(out), args.identifiers, args.openalex_key_file, gateway, search))
+            _print_step("Added: {} web finds screened into {}.".format(len(numbers.get("web") or []), out / "kept.md"))
+        return 0
+    except (SurveyStopped, KeyboardInterrupt):
+        _print_step("Stopped on request. Run the same command again to continue.")
+        return 3
+    except SurveyBlocked as error:
+        if starting and json.loads((out / "status.json").read_text(encoding="utf-8")).get("stage") == "start":
+            starting.set_status(state="blocked", message=str(error))
+        _print_step("Blocked: {}".format(error))
+        return 2
+    except Exception as error:  # the run's status already says failed. The command reports it and exits.
+        _print_step("Failed: {}".format(error))
+        return 1
+    finally:
+        if gateway:
+            gateway.close()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

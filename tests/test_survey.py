@@ -1,8 +1,11 @@
 import asyncio
+import contextlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
@@ -74,9 +77,17 @@ class SurveyTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.out = Path(self.directory.name) / "s"
         Index.out = self.out
+        self.registry = Path(self.directory.name) / "surveys.jsonl"
+        self.environment = dict(os.environ)
+        os.environ["RESEARCH_EVIDENCE_REGISTRY"] = str(self.registry)
 
     def tearDown(self):
+        os.environ.clear()
+        os.environ.update(self.environment)
         self.directory.cleanup()
+
+    def status(self):
+        return json.loads((self.out / "status.json").read_text(encoding="utf-8"))
 
     def decisions(self):
         return {json.loads(line)["id"]: json.loads(line)["decision"] for line in (self.out / "screening.jsonl").read_text().splitlines()}
@@ -214,6 +225,75 @@ class SurveyTests(unittest.TestCase):
         numbers = asyncio.run(survey.add(self.out, ["doi:10.9/web"], index, screen))
         self.assertEqual(numbers["web"], ["doi:10.9/web"])
         self.assertEqual(self.decisions()["doi:10.9/web"], "core")
+
+    def test_status_says_done_with_counts_and_the_registry_holds_the_directory_once(self):
+        index = Index({("openalex", "semantic", "d1"): [work("doi:1", "CORE a"), work("doi:2", "REL b"), work("doi:3", "c")]})
+        asyncio.run(survey.survey("q", self.out, index, plan, screen, rounds=0, depth="overview"))
+        asyncio.run(survey.survey("q", self.out, index, plan, screen, rounds=0, depth="overview"))
+        status = self.status()
+        self.assertEqual((status["state"], status["question"], status["depth"]), ("done", "q", "overview"))
+        self.assertEqual((status["core"], status["related"], status["screened"]), (1, 1, 3))
+        rows = [json.loads(line) for line in self.registry.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual([row["dir"] for row in rows], [str(self.out.resolve())])
+
+    def test_failed_channel_leaves_the_status_blocked_with_the_reason(self):
+        index = Index({("openalex", "semantic", "d1"): [work("doi:1", "CORE a")]}, fail=("arxiv", "search"))
+        with self.assertRaises(survey.SurveyBlocked):
+            run(self.out, index)
+        self.assertEqual(self.status()["state"], "blocked")
+        self.assertIn("keyword search failed", self.status()["message"])
+
+    def test_stop_file_ends_the_survey_and_a_later_run_continues_it(self):
+        stop = self.out / "stop"
+
+        class Stopping(Index):
+            def __call__(self, index, mode, query, limit, sort):
+                works = Index.__call__(self, index, mode, query, limit, sort)
+                if (index, mode) == ("openalex", "semantic") and not hasattr(self, "stopped"):
+                    self.stopped = True
+                    stop.write_text("")
+                return works
+
+        index = Stopping({("openalex", "semantic", "d1"): [work("doi:1", "CORE a")], ("openalex", "search", "k1"): [work("doi:2", "CORE b")]})
+        with self.assertRaises(survey.SurveyStopped):
+            run(self.out, index)
+        self.assertEqual(self.status()["state"], "stopped")
+        self.assertFalse(stop.exists())
+        run(self.out, index)
+        self.assertEqual(self.status()["state"], "done")
+        self.assertEqual(self.decisions()["doi:2"], "core")
+
+    def test_answer_in_a_code_fence_is_read(self):
+        self.assertEqual(survey.first_json_object('Here it is:\n```json\n{"a": [1, {"b": 2}]}\n```'), {"a": [1, {"b": 2}]})
+        with self.assertRaises(ValueError):
+            survey.first_json_object("no object here")
+
+    def test_command_surveys_through_the_gateway_and_prints_each_step(self):
+        os.environ["RESEARCH_EVIDENCE_GATEWAY"] = json.dumps([sys.executable, str(Path(__file__).parent / "fixtures" / "fake_gateway.py")])
+        key = Path(self.directory.name) / "key"
+        key.write_text("k")
+        index = Index({("openalex", "semantic", "d1"): [work("doi:1", "CORE a"), work("doi:2", "REL b")]})
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            code = survey.main(["run", "q", "--dir", str(self.out), "--openalex-key-file", str(key)], search=index)
+        self.assertEqual(code, 0)
+        lines = printed.getvalue().splitlines()
+        self.assertIn("Round 0: screening 2 records", lines)
+        self.assertTrue(lines[-1].startswith("Done: 1 core and 1 related works."))
+        self.assertEqual(self.decisions(), {"doi:1": "core", "doi:2": "related"})
+        self.assertEqual(self.status()["state"], "done")
+
+    def test_command_reports_a_gateway_that_does_not_start_as_blocked(self):
+        environment = dict(os.environ, RESEARCH_EVIDENCE_GATEWAY=json.dumps([sys.executable, "-c", "print('no gateway here')"]))
+        key = Path(self.directory.name) / "key"
+        key.write_text("k")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "run", "q", "--dir", str(self.out), "--openalex-key-file", str(key)],
+            capture_output=True, text=True, encoding="utf-8", env=environment, timeout=60,
+        )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("Blocked: the model gateway did not start", result.stdout)
+        self.assertEqual(self.status()["state"], "blocked")
 
 
 if __name__ == "__main__":
