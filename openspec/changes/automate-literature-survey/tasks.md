@@ -18,7 +18,7 @@
 ## 4. Benchmark and trial
 
 - [x] 4.1 Write the private canary file next to survey-canaries.md and run the benchmark. Verify that it reports at least the 9 of 11 canaries that reached the candidates in the measurement, and record the stages in evidence.md.
-- [ ] 4.2 Run one fresh-session trial with a coverage question on the installed candidate. Verify that the agent runs the program and quotes coverage.md.
+- [x] 4.2 Run fresh-session trials with coverage questions on the candidate skill file. Verify that the agent runs the program and quotes coverage.md.
 
 ## 5. Release preparation
 

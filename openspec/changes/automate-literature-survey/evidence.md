@@ -42,6 +42,13 @@ Exhaustive runs on the five canary questions, five in parallel, with the Semanti
 - An overview of question 1 took 8 minutes and had both canaries as core works after the first round.
 - Before the first expansion rounds were capped at 300 records ordered by links to core works, a single expansion round took over 20 minutes.
 
+## Trials and speed
+
+- Three fresh agents got the candidate skill and a request that named no depth. Each chose a fitting depth: overview for a rough overview and for a related-work list, exhaustive for a novelty claim. The novelty search saturated, and the agent refuted the claim with five works it had read.
+- The overview trial's survey took 24 minutes, mostly screening one record per model call. Screening twenty records per call took 8 seconds for 200 records and agreed with per-record screening on 189 of 200 core decisions. With concurrent expansion, an overview of a new question took 84 seconds.
+- The overview benchmark with the faster screening kept 8 of the 11 canaries, 7 as core works. It missed Policy2Code, which the exhaustive run had found through Semantic Scholar full text, which overviews skip. A rerun bug let these overviews run one round more than their limit, so the numbers come from slightly deeper searches.
+- The exhaustive benchmark with the faster screening did not finish. After a day of benchmark runs, arXiv answered every request from this address with HTTP 429. The exhaustive numbers above come from per-record screening.
+
 ## Other systems and studies
 
 - Ai2 Paper Finder and Undermind run fixed pipelines with model relevance judgments, citation tracking and rounds. Their published evaluations are their own. Undermind estimates completeness from a discovery curve and a comparison with Google Scholar that assumes independence.
