@@ -17,14 +17,15 @@ import xml.etree.ElementTree as ElementTree
 INDEXES = ("openalex", "arxiv", "crossref", "dblp", "semanticscholar")
 # Seconds between two requests to one index, shared by every process that uses the same state directory.
 # Semantic Scholar allows one request per second for a key across all endpoints.
-SPACING = {"openalex": 0.5, "arxiv": 4.0, "crossref": 1.0, "dblp": 2.5, "semanticscholar": 1.1}
+# OpenAlex allows one semantic search per second, so semantic searches keep their own, wider spacing.
+SPACING = {"openalex": 0.5, "openalex-semantic": 1.1, "arxiv": 4.0, "crossref": 1.0, "dblp": 2.5, "semanticscholar": 1.1}
 # OpenAlex bills searches and refuses them without a key on a busy network address.
 # Semantic Scholar refuses almost every request without a key.
 NEEDS_KEY = ("openalex", "semanticscholar")
 S2_PAPER_FIELDS = "externalIds,title,abstract,authors,year,venue,publicationDate"
-MAX_ATTEMPTS = 3
-# Waits of 2, 4, 8, 16, 32 and 64 seconds between seven attempts.
-S2_ATTEMPTS = 7
+# Waits of 2, 4, 8, 16, 32 and 64 seconds between seven attempts, unless the index names a wait. arXiv, OpenAlex
+# and Semantic Scholar all throttled bursts for longer than a fixed short wait covers.
+MAX_ATTEMPTS = 7
 MAX_WAIT = 120.0
 TIMEOUT = 45.0
 EXIT_FAILED = 2
@@ -358,18 +359,17 @@ def run_query(
     while len(works) < limit:
         body = None
         reason = ""
-        # Semantic Scholar refuses a varying share of keyed requests under load and asks clients to back off exponentially.
-        attempts = S2_ATTEMPTS if index == "semanticscholar" else MAX_ATTEMPTS
-        for attempt in range(attempts):
-            pacer.wait_turn(index)
+        for attempt in range(MAX_ATTEMPTS):
+            lane = index + "-semantic" if mode == "semantic" else index
+            pacer.wait_turn(lane)
             status, payload, wait = getter(build_url(index, mode, query, year_from, sort, start, rows, mail), headers, request_body(index, mode, query))
             if status == 200:
                 body = payload
                 break
             reason = "HTTP {}".format(status) if status else "no answer"
             if status in (429, 503) or status == 0:
-                default = 2.0 ** (attempt + 1) if index == "semanticscholar" else 20.0
-                pacer.push_back(index, min(wait if wait is not None else default, MAX_WAIT))
+                default = 2.0 ** (attempt + 1)
+                pacer.push_back(lane, min(wait if wait is not None else default, MAX_WAIT))
                 if wait is not None and wait > MAX_WAIT:
                     reason += ", the index asks to wait {:.0f} s".format(wait)
                     break
