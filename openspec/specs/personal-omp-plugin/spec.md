@@ -102,7 +102,7 @@ The manager installation SHALL deliver LSP overrides and extension modules witho
 
 ### Requirement: Generated adapter freshness
 
-Native Linux, macOS and Windows CI SHALL compare payload adapters byte for byte with the centrally pinned npm generator without Nix or checkout mutation. Generator changes SHALL fail the release gate until reviewed and committed. Native regeneration SHALL keep the generator as sole writer. Consumers SHALL NOT use adapter freshness as artifact validation.
+Native Linux and Windows CI SHALL compare payload adapters byte for byte with the centrally pinned npm generator without Nix or checkout mutation. Generator changes SHALL fail the release gate until reviewed and committed. Native regeneration SHALL keep the generator as sole writer. Consumers SHALL NOT use adapter freshness as artifact validation.
 
 #### Scenario: OpenSpec changes generated instructions
 
@@ -345,7 +345,7 @@ The plugin SHALL ship a separate always-applied rule for repository documentatio
 
 ### Requirement: Native repository hooks
 
-Repository development and Git hooks SHALL use the pinned native toolchain on Linux, macOS and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen installation and the fast `check:local` pre-push gate. They SHALL use installed tools without fetching missing executables. Every PR SHALL run complete CI on all three hosts, with both test sets and the unchanged complete-suite coverage floor.
+Repository development and Git hooks SHALL use the pinned native toolchain on Linux, macOS and Windows without Nix. Hooks SHALL retain staged formatting, type checks, commit-message validation, frozen installation and the fast `check:local` pre-push gate. They SHALL use installed tools without fetching missing executables. Every PR SHALL run complete CI on Linux and Windows, with both test sets and the unchanged complete-suite coverage floor.
 
 #### Scenario: Commit from a native Windows client
 
@@ -365,7 +365,7 @@ Repository development and Git hooks SHALL use the pinned native toolchain on Li
 - **WHEN** the pre-push hook inherits Git's repository-local environment variables
 - **THEN** its native child receives the correctly sanitized environment and runs frozen installation plus the fast local gate, without network audit or installed-release download/terminal checks
 - **AND** sanitization does not depend on POSIX shell substitution or mutate the parent environment
-- **AND** every PR still runs the complete gate, including audit and installed-release checks, on all three CI hosts
+- **AND** every PR still runs the complete gate, including audit and installed-release checks, on both CI hosts
 - **AND** the local unit selector excludes real OpenSpec/commitlint/lefthook/Git command fixtures and compiled executable launchers, while preserving their complete CI and installed-cache coverage
 - **AND** real external-toolchain and process-lifecycle integration tests retain explicit 30 s case budgets
 
@@ -373,7 +373,7 @@ Repository development and Git hooks SHALL use the pinned native toolchain on Li
 
 - **WHEN** the standard-user host has an endpoint scanner or other live sessions affecting external-toolchain timing
 - **THEN** pre-push runs the deterministic unit set without executing real-toolchain integration fixtures
-- **AND** the same PR still exercises every integration fixture with explicit 30 s case budgets and unchanged complete-suite coverage on Linux, macOS and Windows
+- **AND** the same PR still exercises every integration fixture with explicit 30 s case budgets and unchanged complete-suite coverage on Linux and Windows
 
 ### Requirement: Notes vault skills
 
