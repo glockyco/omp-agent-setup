@@ -59,7 +59,7 @@ A weekly and manually dispatchable central workflow SHALL update the retained pl
 #### Scenario: Trigger a flake update
 
 - **WHEN** the central workflow finds a changed locked input
-- **THEN** it creates a pull request whose head commit starts the normal Linux, macOS, Windows, and shared OpenSpec CI jobs automatically
+- **THEN** it creates a pull request whose head commit starts the normal Linux, Windows, and shared OpenSpec CI jobs automatically
 
 #### Scenario: No flake change exists
 
@@ -68,7 +68,7 @@ A weekly and manually dispatchable central workflow SHALL update the retained pl
 
 ### Requirement: Enforced cross-system checks
 
-The main branch SHALL require the current Linux, macOS, Windows, and shared OpenSpec CI job contexts for all actors, including administrators and automation. When selected by path classification, every native platform SHALL run equivalent formatting, type, dead-code, audit, release-tree/version, behavior/coverage, adapter-freshness, and isolated installed-release checks without Nix. Force-push and branch deletion SHALL remain disabled.
+The main branch SHALL require the current Linux, Windows, and shared OpenSpec CI job contexts for all actors, including administrators and automation. When selected by path classification, every native platform SHALL run equivalent formatting, type, dead-code, audit, release-tree/version, behavior/coverage, adapter-freshness, and isolated installed-release checks without Nix. Force-push and branch deletion SHALL remain disabled.
 
 #### Scenario: A required check fails
 
@@ -77,7 +77,7 @@ The main branch SHALL require the current Linux, macOS, Windows, and shared Open
 
 #### Scenario: Windows check fails while Unix checks pass
 
-- **WHEN** native Windows CI detects a process, path, hook, or release-gate regression while Linux/macOS jobs pass
+- **WHEN** native Windows CI detects a process, path, hook, or release-gate regression while the Linux job passes
 - **THEN** branch protection still prevents merge for humans and automation
 - **AND** no platform skips the affected observable gate merely because a Unix fixture is unavailable
 
