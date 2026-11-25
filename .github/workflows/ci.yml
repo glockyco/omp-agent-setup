@@ -93,13 +93,6 @@ jobs:
         if: always() && steps.omp_setup.outcome == 'success'
         run: bun run setup:release-omp --cleanup
 
-  macos:
-    name: check (macos-15)
-    needs: changes
-    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.native != 'false')
-    runs-on: macos-15
-    steps: *native-steps
-
   windows:
     name: check (windows-latest)
     needs: changes
