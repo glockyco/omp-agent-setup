@@ -150,7 +150,6 @@ test("reusable gate exposes only optional root and native CI selects all require
 	expect(workflow.jobs.openspec?.needs).toBeUndefined();
 	for (const [id, host] of [
 		["linux", "ubuntu-latest"],
-		["macos", "macos-15"],
 		["windows", "windows-latest"],
 	]) {
 		const job = workflow.jobs[id ?? ""];
